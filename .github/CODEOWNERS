@@ -1,0 +1,6 @@
+# CODEOWNERS for ai-dynamo/openengine
+#
+# Any one of the maintainers below must approve a pull request before it can
+# merge. This is the NVIDIA-maintainer review gate for external contributions.
+
+* @connorcarpenter15 @alec-flowers @saturley-hall @nv-anants @nvda-mesharma @dagil-nvidia
