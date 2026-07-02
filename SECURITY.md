@@ -1,24 +1,31 @@
-## Security
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2024-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
 
-NVIDIA is dedicated to the security and trust of our software products and services, including all source code repositories managed through our organization.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-If you need to report a security issue, please use the appropriate contact points outlined below. **Please do not report security vulnerabilities through GitHub.** If a potential security issue is inadvertently reported via a public issue or pull request, NVIDIA maintainers may limit public discussion and redirect the reporter to the appropriate private disclosure channels.
+http://www.apache.org/licenses/LICENSE-2.0
 
-## Reporting Potential Security Vulnerability in an NVIDIA Product
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
 
-To report a potential security vulnerability in any NVIDIA product:
-- Web: [Security Vulnerability Submission Form](https://www.nvidia.com/object/submit-security-vulnerability.html)
-- E-Mail: psirt@nvidia.com
-    - We encourage you to use the following PGP key for secure email communication: [NVIDIA public PGP Key for communication](https://www.nvidia.com/en-us/security/pgp-key)
-    - Please include the following information:
-   	 - Product/Driver name and version/branch that contains the vulnerability
-     - Type of vulnerability (code execution, denial of service, buffer overflow, etc.)
-   	 - Instructions to reproduce the vulnerability
-   	 - Proof-of-concept or exploit code
-   	 - Potential impact of the vulnerability, including how an attacker could exploit the vulnerability
+# Report a Security Vulnerability
 
-While NVIDIA currently does not have a bug bounty program, we do offer acknowledgement when an externally reported security issue is addressed under our coordinated vulnerability disclosure policy. Please visit our [Product Security Incident Response Team (PSIRT)](https://www.nvidia.com/en-us/security/psirt-policies/) policies page for more information.
+To report a potential security vulnerability in any NVIDIA product, please use either:
+* This web form: [Security Vulnerability Submission Form](https://www.nvidia.com/en-us/support/submit-security-vulnerability/), or
+* Send email to: [NVIDIA PSIRT](mailto:psirt@nvidia.com)
 
-## NVIDIA Product Security
+If reporting a potential vulnerability via email, please encrypt it using NVIDIA’s public PGP key ([see PGP Key page](https://www.nvidia.com/en-us/security/pgp-key/)) and include the following information:
+1. Product/Driver name and version/branch that contains the vulnerability
+2. Type of vulnerability (code execution, denial of service, buffer overflow, etc.)
+3. Instructions to reproduce the vulnerability
+4. Proof-of-concept or exploit code
+5. Potential impact of the vulnerability, including how an attacker could exploit the vulnerability
 
-For all security-related concerns, please visit NVIDIA's Product Security portal at https://www.nvidia.com/en-us/security
+See https://www.nvidia.com/en-us/security/ for past NVIDIA Security Bulletins and Notices.
