@@ -5,10 +5,9 @@
 // orchestration systems (e.g. Dynamo) and model engines (e.g. vLLM, SGLang,
 // TensorRT-LLM).
 //
-// This file is the CANONICAL contract. It is the single source of truth for
-// the wire shape. Both forks (dynamo/, vllm/) generate stubs from THIS file
-// via ../gen.sh -- they do not vendor a divergent copy. See ../CLAUDE.md for
-// edit + regeneration discipline.
+// This file is the CANONICAL contract and single source of truth for the wire
+// shape. Implementations should generate client and server bindings from this
+// proto or from an exact copy pinned to a known OpenEngine revision.
 //
 // Human-readable reference:
 // https://github.com/ai-dynamo/openengine/blob/main/docs/api.md

@@ -26,8 +26,7 @@ orchestrators. Engines serve `openengine.v1`; orchestrators call it.
 ## Status
 
 OpenEngine is a pre-adoption API draft. Until an external consumer adopts it, the
-contract may remove or renumber fields to keep the schema clean. All local
-consumers must update together.
+contract may remove or renumber fields to keep the schema clean.
 
 After external adoption, changes within `openengine.v1` are additive:
 
@@ -45,7 +44,7 @@ After external adoption, changes within `openengine.v1` are additive:
 | KV and disaggregation | `GetKvConnectorInfo`, `GetKvEventSources`, `SubscribeKvEvents` |
 | Runtime events | `SubscribeRuntimeEvents` |
 
-## Generate stubs
+## Generate Code
 
 Use any proto3 toolchain. Include the protobuf well-known types because the
 contract imports `google/protobuf/struct.proto`.
@@ -59,10 +58,4 @@ python -m grpc_tools.protoc \
   --python_out=. \
   --grpc_python_out=. \
   proto/openengine.proto
-```
-
-To copy the canonical proto into local consumer repositories:
-
-```bash
-./gen.sh <dest.proto>...
 ```

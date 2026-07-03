@@ -2,7 +2,6 @@
 __pycache__/
 *.py[cod]
 
-# Generated gRPC stubs are emitted into each consumer fork's package by gen.sh,
-# never committed here. Ignore any stubs accidentally generated into this dir.
+# Ignore generated Python gRPC stubs if the README example is run locally.
 *_pb2.py
 *_pb2_grpc.py
