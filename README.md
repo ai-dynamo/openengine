@@ -10,11 +10,10 @@ SPDX-License-Identifier: Apache-2.0
 OpenEngine is a vendor-neutral gRPC protocol between inference engines and
 orchestrators. Engines serve `openengine.v1`; orchestrators call it.
 
-> **Experimental and exploratory.** OpenEngine is an early attempt to standardize
+> **Experimental and exploratory.** OpenEngine is an attempt to standardize
 > this boundary, not a finalized standard or a commitment that this approach will
-> ship. It is one direction we are exploring for how Dynamo integrates with
-> inference engines, and it may change substantially or not move forward. Expect
-> change, and do not depend on it in production.
+> ship. It is one direction we are exploring for how inference orchestrators integrate with
+> inference engines, and it may change substantially before its final implementation. 
 
 ## Documentation
 
