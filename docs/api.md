@@ -41,6 +41,12 @@ service OpenEngine {
   // Structured runtime events for planners/controllers.
   rpc SubscribeRuntimeEvents(SubscribeRuntimeEventsRequest) returns (stream RuntimeEvent);
 }
+
+service LoraManager {
+  rpc LoadLora(LoadLoraRequest) returns (LoadLoraResponse);
+  rpc UnloadLora(UnloadLoraRequest) returns (UnloadLoraResponse);
+  rpc ListLoras(ListLorasRequest) returns (ListLorasResponse);
+}
 ```
 
 ---
@@ -115,6 +121,52 @@ message ModelInfo {
 }
 ```
 
+`supports_lora=true` means the engine accepts `GenerateRequest.lora_name` and
+serves `LoraManager` on the same endpoint.
+
+---
+
+## LoRA lifecycle
+
+```protobuf
+message LoraAdapter {
+  int64 lora_id = 1;
+  string lora_name = 2;
+  string source_path = 3;
+}
+
+message LoadLoraRequest {
+  LoraAdapter adapter = 1;
+}
+
+message LoadLoraResponse {
+  LoraAdapter adapter = 1;
+  bool already_loaded = 2;
+}
+
+message UnloadLoraRequest {
+  string lora_name = 1;
+}
+
+message UnloadLoraResponse {
+  LoraAdapter adapter = 1;
+}
+
+message ListLorasRequest {}
+
+message ListLorasResponse {
+  repeated LoraAdapter adapters = 1;
+}
+```
+
+- `lora_id` must be positive.
+- `lora_name` must be non-empty.
+- `source_path` must be an absolute directory visible to the engine.
+- Loading the same ID, name, and path twice is idempotent.
+- A conflicting ID, name, or path returns `ALREADY_EXISTS`.
+- An unknown adapter returns `NOT_FOUND`.
+- A LoRA-disabled engine returns `FAILED_PRECONDITION`.
+
 ---
 
 ## Generation API
@@ -144,7 +196,7 @@ message GenerateRequest {
   // Constrained decoding enforced by the engine during sampling.
   GuidedDecoding guided = 9;
 
-  // Empty selects the base model.
+  // Loaded adapter name. Empty selects the base model.
   string lora_name = 10;
 
   // Logprobs request controls.
