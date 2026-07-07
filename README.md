@@ -41,6 +41,7 @@ After external adoption, changes within `openengine.v1` are additive:
 | Generation | `Generate` |
 | Metadata | `GetEngineInfo`, `GetModelInfo`, `GetLoad` |
 | Lifecycle | `Health`, `Abort`, `Drain` |
+| LoRA lifecycle | `LoadLora`, `UnloadLora`, `ListLoras` |
 | KV and disaggregation | `GetKvConnectorInfo`, `GetKvEventSources`, `SubscribeKvEvents` |
 | Runtime events | `SubscribeRuntimeEvents` |
 

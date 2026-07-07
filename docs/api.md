@@ -33,6 +33,11 @@ service OpenEngine {
   rpc Abort(AbortRequest) returns (AbortResponse);
   rpc Drain(DrainRequest) returns (stream DrainResponse);
 
+  // LoRA lifecycle.
+  rpc LoadLora(LoadLoraRequest) returns (LoadLoraResponse);
+  rpc UnloadLora(UnloadLoraRequest) returns (UnloadLoraResponse);
+  rpc ListLoras(ListLorasRequest) returns (ListLorasResponse);
+
   // Disaggregated serving / KV transfer.
   rpc GetKvConnectorInfo(GetKvConnectorInfoRequest) returns (KvConnectorInfo);
   rpc GetKvEventSources(GetKvEventSourcesRequest) returns (GetKvEventSourcesResponse);
@@ -40,12 +45,6 @@ service OpenEngine {
 
   // Structured runtime events for planners/controllers.
   rpc SubscribeRuntimeEvents(SubscribeRuntimeEventsRequest) returns (stream RuntimeEvent);
-}
-
-service LoraManager {
-  rpc LoadLora(LoadLoraRequest) returns (LoadLoraResponse);
-  rpc UnloadLora(UnloadLoraRequest) returns (UnloadLoraResponse);
-  rpc ListLoras(ListLorasRequest) returns (ListLorasResponse);
 }
 ```
 
@@ -122,7 +121,7 @@ message ModelInfo {
 ```
 
 `supports_lora=true` means the engine accepts `GenerateRequest.lora_name` and
-serves `LoraManager` on the same endpoint.
+the LoRA lifecycle RPCs on `OpenEngine`.
 
 ---
 
