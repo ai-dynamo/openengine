@@ -28,6 +28,10 @@ orchestrators. Engines serve `openengine.v1`; orchestrators call it.
 OpenEngine is a pre-adoption API draft. Until an external consumer adopts it, the
 contract may remove or renumber fields to keep the schema clean.
 
+The current wire contract is schema revision `1`. Servers advertise their exact
+revision, minimum compatible client revision, and immutable schema release/tag
+through `GetEngineInfo`.
+
 After external adoption, changes within `openengine.v1` are additive:
 
 - Existing field numbers, names, and types do not change.
@@ -47,8 +51,9 @@ After external adoption, changes within `openengine.v1` are additive:
 
 ## Generate Code
 
-Use any proto3 toolchain. Include the protobuf well-known types because the
-contract imports `google/protobuf/struct.proto`.
+Use a proto3 toolchain with explicit-optional support (`protoc` 3.15 or newer).
+Include the protobuf well-known types because the contract imports
+`google/protobuf/struct.proto`.
 
 ```bash
 PROTO_INCLUDE=$(python -c \
@@ -60,3 +65,15 @@ python -m grpc_tools.protoc \
   --grpc_python_out=. \
   proto/openengine.proto
 ```
+
+## Validate the schema
+
+Install [Buf](https://buf.build/docs/cli/installation/) and run:
+
+```bash
+buf lint
+buf breaking --against '.git#branch=main,subdir=proto'
+```
+
+CI runs lint for schema changes on `main` and pull requests. Pull requests also
+run the `FILE` breaking-change policy against their base commit.

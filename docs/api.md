@@ -65,29 +65,50 @@ message GetEngineInfoRequest {}
 message EngineInfo {
   string engine_name = 1;          // sglang, vllm, tensorrt_llm, etc.
   string engine_version = 2;
-  string api_version = 3;          // openengine.v1
-  EngineRole role = 4;
-  string instance_id = 5;
-  repeated string supported_models = 6;
-  ParallelismInfo parallelism = 7;
-  KvConnectorInfo kv_connector = 8;
+  EngineRole role = 3;
+  string instance_id = 4;
+  repeated string supported_models = 5;
+  ParallelismInfo parallelism = 6;
+  KvConnectorInfo kv_connector = 7;
+  uint32 schema_revision = 8;
+  uint32 minimum_client_revision = 9;
+  string schema_release = 10;
 }
 
 message ParallelismInfo {
-  uint32 tensor_parallel_size = 1;
-  uint32 pipeline_parallel_size = 2;
-  uint32 data_parallel_size = 3;
-  uint32 data_parallel_rank = 4;
-  uint32 data_parallel_start_rank = 5;
+  optional uint32 tensor_parallel_size = 1;
+  optional uint32 pipeline_parallel_size = 2;
+  optional uint32 data_parallel_size = 3;
+  optional uint32 data_parallel_rank = 4;
+  optional uint32 data_parallel_start_rank = 5;
 }
 ```
+
+Revision `1` is the schema in this repository. Every server must populate:
+
+- `schema_revision` with the exact monotonically increasing contract revision it
+  implements. Zero is invalid.
+- `minimum_client_revision` with the oldest client revision the server supports.
+  A client below this revision must reject the server as incompatible.
+- `schema_release` with an immutable OpenEngine repository release or source tag
+  containing that revision. Moving branch names such as `main` are not valid.
+
+Clients should also define the oldest server revision they support and fail
+closed when the advertised revision or release is outside their tested
+compatibility range. This makes schema drift visible even while the package
+name remains `openengine.v1`.
+
+Discovery response scalars use proto3 `optional` presence. An absent value means
+the engine cannot report the value; an explicitly present zero or `false` is a
+reported value and must not be replaced with an orchestrator default.
 
 Role semantics:
 
 - `AGGREGATED`: accepts normal generation requests and returns tokens.  
 - `PREFILL`: accepts prefill requests, builds KV state, emits handoff/session readiness, and does not perform normal decode generation.  
 - `DECODE`: accepts decode requests with KV session/handoff metadata and returns generated tokens.  
-- Engines must validate role/request compatibility and return stable errors on mismatch.
+- Engines must validate role/request compatibility before acceptance and return a
+  non-OK gRPC status on mismatch.
 
 ---
 
@@ -100,20 +121,20 @@ message ModelInfo {
   string model_id = 1;
   string served_model_name = 2;
   repeated string served_model_aliases = 3;
-  uint32 max_context_length = 4;
-  uint32 max_output_tokens = 5;
-  uint32 kv_block_size = 6;
-  uint64 total_kv_blocks = 7;
-  uint64 max_running_requests = 8;
-  uint64 max_batched_tokens = 9;
+  optional uint32 max_context_length = 4;
+  optional uint32 max_output_tokens = 5;
+  optional uint32 kv_block_size = 6;
+  optional uint64 total_kv_blocks = 7;
+  optional uint64 max_running_requests = 8;
+  optional uint64 max_batched_tokens = 9;
   repeated string tokenizer_modes = 10;
 
-  bool supports_text_input = 20;
-  bool supports_token_ids_input = 21;
-  bool supports_logprobs = 22;
-  bool supports_guided_decoding = 23;
-  bool supports_lora = 24;
-  bool supports_multimodal = 25;
+  optional bool supports_text_input = 20;
+  optional bool supports_token_ids_input = 21;
+  optional bool supports_logprobs = 22;
+  optional bool supports_guided_decoding = 23;
+  optional bool supports_lora = 24;
+  optional bool supports_multimodal = 25;
 
   string reasoning_parser = 26;
   string tool_call_parser = 27;
@@ -199,9 +220,9 @@ message GenerateRequest {
   string lora_name = 10;
 
   // Logprobs request controls.
-  bool return_logprobs = 11;
-  uint32 top_logprobs = 12;
-  int32 logprob_start_len = 13;
+  optional bool return_logprobs = 11;
+  optional uint32 top_logprobs = 12;
+  optional int32 logprob_start_len = 13;
 
   // Required for decode requests in disaggregated serving.
   KvSessionRef kv_session = 20;
@@ -221,14 +242,14 @@ message TokenIds {
 }
 
 message SamplingParams {
-  double temperature = 1;
-  double top_p = 2;
-  int32 top_k = 3;
-  double frequency_penalty = 4;
-  double presence_penalty = 5;
-  uint32 max_tokens = 6;
-  uint64 seed = 7;
-  bool ignore_eos = 8;  // generate until max_tokens; skip natural EOS stop
+  optional double temperature = 1;
+  optional double top_p = 2;
+  optional int32 top_k = 3;
+  optional double frequency_penalty = 4;
+  optional double presence_penalty = 5;
+  optional uint32 max_tokens = 6;
+  optional uint64 seed = 7;
+  optional bool ignore_eos = 8;
 }
 
 message StopCondition {
@@ -272,6 +293,10 @@ message GuidedDecoding {
   string backend = 5;
 }
 ```
+
+All sampling scalars have explicit presence. Omission selects the engine or
+model default. Present values, including `0`, `0.0`, and `false`, are caller
+choices and must be validated and honored rather than interpreted as missing.
 
 ```protobuf
 message GenerateResponse {
@@ -319,7 +344,6 @@ enum FinishReason {
   FINISH_REASON_STOP = 1;
   FINISH_REASON_LENGTH = 2;
   FINISH_REASON_CANCELLED = 3;
-  FINISH_REASON_ERROR = 4;
 }
 
 message Usage {
@@ -364,7 +388,8 @@ Prefill flow:
 1. Orchestrator sends `GenerateRequest` to a `PREFILL` engine.  
 2. Engine returns a `KvSessionRef` in `PrefillReady` when decode may attach.  
 3. Engine owns KV session lifetime and cleanup, including finish, abort, drain, timeout, and transfer failure paths.  
-4. Engine emits `GenerationFinished` only when prefill lifecycle is complete or failed.
+4. Engine emits `GenerationFinished` when prefill lifecycle completes, or one
+   terminal `EngineError` if it fails after acceptance.
 
 Decode flow:
 
@@ -386,15 +411,15 @@ OpenEngine should support two KV-event modes:
 message GetKvConnectorInfoRequest {}
 
 message KvConnectorInfo {
-  bool enabled = 1;
+  optional bool enabled = 1;
   string transfer_backend = 2;
   repeated KvEndpoint local_endpoints = 3;
   repeated string supported_protocols = 4;
-  bool supports_remote_prefill = 5;
-  bool supports_decode_pull = 6;
-  bool supports_abort_cleanup = 7;
-  bool supports_drain = 8;
-  uint32 schema_version = 9;
+  optional bool supports_remote_prefill = 5;
+  optional bool supports_decode_pull = 6;
+  optional bool supports_abort_cleanup = 7;
+  optional bool supports_drain = 8;
+  optional uint32 schema_version = 9;
 }
 
 message GetKvEventSourcesRequest {
@@ -410,12 +435,12 @@ message KvEventSource {
   KvEndpoint endpoint_addr = 2; // connectable host:port, never a bind wildcard
   string topic = 3;
   string replay_endpoint = 4;    // optional, for ZMQ replay
-  uint32 data_parallel_rank = 5;
+  optional uint32 data_parallel_rank = 5;
   string encoding = 6;           // protobuf, msgpack
-  uint32 schema_version = 7;
-  uint32 buffer_steps = 8;
-  uint32 hwm = 9;
-  uint32 max_queue_size = 10;
+  optional uint32 schema_version = 7;
+  optional uint32 buffer_steps = 8;
+  optional uint32 hwm = 9;
+  optional uint32 max_queue_size = 10;
 }
 
 message SubscribeKvEventsRequest {
@@ -545,9 +570,7 @@ message AbortResponse {
 enum AbortStatus {
   ABORT_STATUS_UNSPECIFIED = 0;
   ABORT_STATUS_ABORTED = 1;
-  ABORT_STATUS_NOT_FOUND = 2;
-  ABORT_STATUS_ALREADY_FINISHED = 3;
-  ABORT_STATUS_UNSUPPORTED = 4;
+  ABORT_STATUS_ALREADY_FINISHED = 2;
 }
 
 message DrainRequest {
@@ -557,7 +580,10 @@ message DrainRequest {
 }
 
 message DrainResponse {
-  DrainState state = 1;
+  oneof event {
+    DrainState state = 1;
+    EngineError error = 5;
+  }
   uint32 in_flight_requests = 2;
   uint32 open_kv_sessions = 3;
   string message = 4;
@@ -568,9 +594,16 @@ enum DrainState {
   DRAIN_STATE_STARTED = 1;
   DRAIN_STATE_IN_PROGRESS = 2;
   DRAIN_STATE_COMPLETE = 3;
-  DRAIN_STATE_FAILED = 4;
 }
 ```
+
+Aborting an unknown request returns gRPC `NOT_FOUND`; an engine that does not
+support abort returns gRPC `UNIMPLEMENTED`. `ALREADY_FINISHED` remains a
+successful idempotent outcome rather than an error.
+
+`STARTED` and `IN_PROGRESS` are progress events; `COMPLETE` is terminal. A
+failure after the drain is accepted is represented by one terminal
+`EngineError`, not by a failed drain state.
 
 ---
 
@@ -585,30 +618,33 @@ message GetLoadRequest {
 
 message LoadInfo {
   string instance_id = 1;
-  uint64 timestamp_unix_nanos = 2;
-  uint32 running_requests = 3;
-  uint32 queued_requests = 4;
-  uint32 active_kv_sessions = 5;
-  uint64 used_kv_blocks = 6;
-  uint64 total_kv_blocks = 7;
-  uint64 running_tokens = 8;
-  uint64 waiting_tokens = 9;
-  uint32 prefill_batch_size = 10;
-  uint32 decode_batch_size = 11;
+  optional uint64 timestamp_unix_nanos = 2;
+  optional uint32 running_requests = 3;
+  optional uint32 queued_requests = 4;
+  optional uint32 active_kv_sessions = 5;
+  optional uint64 used_kv_blocks = 6;
+  optional uint64 total_kv_blocks = 7;
+  optional uint64 running_tokens = 8;
+  optional uint64 waiting_tokens = 9;
+  optional uint32 prefill_batch_size = 10;
+  optional uint32 decode_batch_size = 11;
   repeated RankLoadInfo ranks = 20;
   map<string, string> attributes = 30;
 }
 
 message RankLoadInfo {
-  uint32 data_parallel_rank = 1;
-  uint32 running_requests = 2;
-  uint32 queued_requests = 3;
-  uint64 used_kv_blocks = 4;
-  uint64 total_kv_blocks = 5;
-  uint32 prefill_batch_size = 6;
-  uint32 decode_batch_size = 7;
+  optional uint32 data_parallel_rank = 1;
+  optional uint32 running_requests = 2;
+  optional uint32 queued_requests = 3;
+  optional uint64 used_kv_blocks = 4;
+  optional uint64 total_kv_blocks = 5;
+  optional uint32 prefill_batch_size = 6;
+  optional uint32 decode_batch_size = 7;
 }
 ```
+
+Every load scalar has explicit presence. Absent means unavailable in that
+engine or snapshot; present zero means the measured load is zero.
 
 Runtime event stream:
 
@@ -641,7 +677,9 @@ message RuntimeEvent {
 message EngineError {
   ErrorCode code = 1;
   string message = 2;
-  string retry_hint = 3;
+  bool retryable = 3;
+  optional uint64 retry_after_ms = 4;
+  google.protobuf.Struct details = 5;
 }
 
 enum ErrorCode {
@@ -660,3 +698,26 @@ enum ErrorCode {
   ERROR_CODE_INTERNAL = 12;
 }
 ```
+
+Errors have exactly one transport based on when and where they occur:
+
+| Phase | Representation | Stream termination |
+|---|---|---|
+| Before request acceptance | Non-OK gRPC status | No response event |
+| Accepted request, application failure | Exactly one terminal `EngineError` event | gRPC `OK` after the event |
+| Transport or gRPC framework failure | Non-OK gRPC status | No synthesized `EngineError` |
+
+Acceptance is the boundary after synchronous validation and admission succeed
+and the server commits the operation for execution. Unary RPCs have no separate
+accepted stream phase and report failures with non-OK gRPC status.
+
+`GenerationFinished`, `PrefillReady`, `DrainState.COMPLETE`, and `EngineError`
+are terminal for their respective streams; the server must not emit another
+event after any of them. In particular, application failure is neither a
+`GenerationFinished` reason nor a failed drain state.
+
+`retryable` states whether the unchanged operation can succeed on retry.
+`retry_after_ms` is present only for retryable errors and is the recommended
+minimum delay; an explicit zero permits immediate retry. `details` contains
+machine-readable error context. Stable detail keys are part of this API;
+engine-specific keys should be namespaced to avoid collisions.

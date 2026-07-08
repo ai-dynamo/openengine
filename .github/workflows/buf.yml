@@ -1,0 +1,38 @@
+name: Buf
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "proto/**"
+      - "buf.yaml"
+      - ".github/workflows/buf.yml"
+  pull_request:
+    paths:
+      - "proto/**"
+      - "buf.yaml"
+      - ".github/workflows/buf.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-breaking:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Lint schema and check compatibility
+        uses: bufbuild/buf-action@v1
+        with:
+          version: "1.71.0"
+          lint: true
+          format: false
+          breaking: ${{ github.event_name == 'pull_request' }}
+          push: false
+          archive: false
+          pr_comment: false
