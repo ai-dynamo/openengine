@@ -20,11 +20,11 @@ limitations under the License.
 Thank you for your interest in OpenEngine. We welcome bug reports, feedback on
 the API design, and pull requests.
 
-OpenEngine is a pre-adoption API draft. `proto/openengine.proto` is the canonical
-wire contract and the single source of truth. Until an external consumer adopts
-it, the schema may remove or renumber fields to stay minimal. After external
-adoption, changes within `openengine.v1` will be additive. Please open an issue
-to discuss protocol changes before sending a PR.
+OpenEngine is a pre-adoption API draft. `proto/openengine/v1/openengine.proto` is
+the canonical wire contract and the single source of truth. Until an external
+consumer adopts it, the schema may remove or renumber fields to stay minimal.
+After external adoption, changes within `openengine.v1` will be additive. Please
+open an issue to discuss protocol changes before sending a PR.
 
 - **Bugs / feedback / design questions**: open a [GitHub issue](https://github.com/ai-dynamo/openengine/issues).
 - **Pull requests**: open against `main`. Keep changes focused (one logical change per PR).

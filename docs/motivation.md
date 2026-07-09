@@ -5,9 +5,10 @@ SPDX-License-Identifier: Apache-2.0
 
 # Why OpenEngine
 
-OpenEngine defines the runtime boundary between an inference engine and an
-orchestrator. It lets each side change without sharing a process, dependency
-tree, or private control API.
+OpenEngine defines a runtime boundary around an inference engine. Applications
+can call it directly, and distributed frameworks can use the same contract to
+coordinate engine workers. The client and engine can change without sharing a
+process, dependency tree, or private control API.
 
 ## The integration problem
 
@@ -20,7 +21,8 @@ Inference engines already own request execution:
 - guided decoding, LoRA, and logprobs;
 - engine-specific performance work.
 
-Orchestrators own a different set of concerns:
+Distributed frameworks add a different set of concerns when coordinating
+workers:
 
 - discovery and routing;
 - admission and load balancing;
@@ -28,22 +30,27 @@ Orchestrators own a different set of concerns:
 - health, drain, and cancellation policy;
 - KV-aware scheduling across workers.
 
-Without a shared boundary, every engine-orchestrator pair needs a separate
-adapter. These adapters often import the engine, copy its launch flags, and
-depend on scheduler details. Engine upgrades then become orchestrator upgrades.
+Without a shared boundary, direct users need engine-specific clients and every
+engine-framework pair needs a separate adapter. These integrations often import
+the engine, copy its launch flags, or depend on scheduler details. Engine
+upgrades then force changes in client or framework code.
 
 ## The boundary
 
 ```mermaid
 flowchart LR
-    C["Client API"] --> O["Orchestrator<br/>routing and lifecycle"]
-    O --> S["OpenEngine client<br/>endpoint-only sidecar"]
+    D["Direct OpenEngine client<br/>application · SDK · tooling"]
+    F["Distributed framework<br/>routing · admission · placement"]
+    D -->|"openengine.v1 · gRPC"| S["OpenEngine server<br/>engine adapter"]
+    F -->|"openengine.v1 · gRPC"| S
     S --> E["Native engine<br/>scheduler and GPU execution"]
 ```
 
-The engine implements the OpenEngine server. The orchestrator implements the
-client. The sidecar discovers the model, role, topology, limits, and supported
-features from the engine instead of duplicating engine configuration.
+The engine implements the OpenEngine server. Direct applications and
+distributed frameworks use generated clients. A direct client can use
+generation and control APIs without a framework; a distributed framework can
+also discover model, role, topology, limits, and supported features instead of
+duplicating engine configuration.
 
 The engine remains the authority for request execution. OpenEngine carries the
 request and control data needed across the process boundary.
@@ -60,7 +67,7 @@ request and control data needed across the process boundary.
 | KV routing | Event streams and native event-source discovery |
 
 The [API reference](api.md) defines the fields. The
-[proto](../proto/openengine.proto) is the source of truth.
+[proto](../proto/openengine/v1/openengine.proto) is the source of truth.
 
 ## What stays engine-specific
 
@@ -74,7 +81,7 @@ OpenEngine does not define:
 - native HTTP or gRPC APIs.
 
 An engine maps OpenEngine messages to its existing request path. It can keep
-native APIs for direct clients and expose OpenEngine for orchestrators.
+native APIs and expose OpenEngine to direct clients and distributed frameworks.
 
 ## OpenEngine and OpenAI-compatible APIs
 
@@ -83,18 +90,20 @@ The two APIs serve different callers.
 - An OpenAI-compatible API is a client-facing product API. It accepts chat or
   completion requests and hides deployment topology.
 - OpenEngine is a runtime protocol. It exposes engine role, load, lifecycle,
-  KV handoff, rank affinity, and event sources to an orchestrator.
+  KV handoff, rank affinity, and event sources to its clients.
 
-OpenEngine does not ask users to replace their client API. An orchestrator may
-accept OpenAI-compatible traffic, normalize it, and use OpenEngine between its
-router and engine workers.
+OpenEngine can be called directly by engine users, applications, and tooling. A
+distributed framework may instead accept OpenAI-compatible traffic, normalize
+it, and use OpenEngine between its router and engine workers. Engines can
+continue exposing their existing client APIs alongside OpenEngine.
 
 ## Why an engine would implement it
 
-- One server contract can support multiple orchestrators.
+- One server contract can support direct clients and multiple distributed
+  frameworks.
 - The engine keeps its launch path, dependencies, and scheduler.
-- The orchestrator can run in a small CPU-side process.
-- Engine and orchestrator releases can move independently within the protocol's
+- Framework-side clients can run in small CPU-only processes.
+- Engine and client releases can move independently within the protocol's
   compatibility rules.
 - Disaggregated serving uses a common handoff shape without requiring a common
   transfer backend.
@@ -114,20 +123,18 @@ integrations.
 An implementation can add support in stages:
 
 1. Aggregated text generation, discovery, health, abort, and drain.
-2. Logprobs, guided decoding, LoRA, and multimodal input as needed.
-3. Prefill/decode roles, KV handoff, rank affinity, and KV events.
+2. Prefill/decode roles, KV handoff, rank affinity, and KV events.
+3. Logprobs, guided decoding, LoRA, and multimodal input as needed.
 
-Capability fields let the orchestrator reject unsupported requests or choose a
-compatible worker.
+Capability fields let clients reject unsupported requests or select compatible
+workers.
 
-## Existing implementations
+## Implementation status
 
-The current vLLM and SGLang integrations use the same OpenEngine contract and
-different engine adapters:
+OpenEngine is pre-adoption and has no production engine implementations today.
+The contract is designed for engines such as vLLM, SGLang, and TensorRT-LLM and
+for both direct clients and distributed frameworks such as Dynamo.
 
-- vLLM exposes a Rust gRPC service backed by its text-generation path.
-- SGLang exposes an opt-in OpenEngine serve mode bridged to its scheduler.
-- Dynamo uses endpoint-configured sidecars and discovers engine state over RPC.
-
-The shared contract is the common part. Scheduling, request conversion, and KV
-transfer remain engine-owned.
+These are intended integration targets, not claims that those projects
+currently implement OpenEngine. Scheduling, request conversion, and KV transfer
+remain engine-owned in any future adapter.

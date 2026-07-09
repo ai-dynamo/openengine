@@ -18,21 +18,19 @@ permissions:
   contents: read
 
 jobs:
-  lint-and-breaking:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Lint schema and check compatibility
+      - name: Lint schema
         uses: bufbuild/buf-action@v1
         with:
           version: "1.71.0"
           lint: true
           format: false
-          breaking: ${{ github.event_name == 'pull_request' }}
+          breaking: false
           push: false
           archive: false
           pr_comment: false
