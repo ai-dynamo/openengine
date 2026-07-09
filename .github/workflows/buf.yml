@@ -30,6 +30,7 @@ jobs:
           version: "1.71.0"
           lint: true
           format: false
+          breaking: false
           push: false
           archive: false
           pr_comment: false
