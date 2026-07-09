@@ -7,8 +7,6 @@ SPDX-License-Identifier: Apache-2.0
   <img src="docs/assets/logo.png" alt="OpenEngine" width="360">
 </p>
 
-<h1 align="center">OpenEngine</h1>
-
 <p align="center">
   <strong>OpenEngine is a vendor-neutral gRPC protocol for coordinating inference engines and distributed frameworks.</strong>
 </p>
