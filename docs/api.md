@@ -206,11 +206,11 @@ message GenerateRequest {
     TokenIds token_ids = 4;
   }
 
-  SamplingOptions sampling = 5;
-  DecodingOptions decoding = 6;
-  StoppingOptions stopping = 7;
-  ResponseOptions response = 8;
-  KvOptions kv = 9;
+  SamplingParams sampling = 5;
+  StoppingOptions stopping = 6;
+  ResponseOptions response = 7;
+  KvOptions kv = 8;
+  GuidedDecoding guided = 9;
 
   repeated MediaItem media = 10;
   string lora_name = 11;
@@ -222,20 +222,16 @@ message TokenIds {
   repeated uint32 ids = 1;
 }
 
-message SamplingOptions {
+message SamplingParams {
   optional double temperature = 1;
   optional double top_p = 2;
   optional int32 top_k = 3;
   optional double min_p = 4;
-  optional uint64 seed = 5;
-  optional uint32 num_sequences = 6;
-}
-
-message DecodingOptions {
-  optional double frequency_penalty = 1;
-  optional double presence_penalty = 2;
-  optional double repetition_penalty = 3;
-  GuidedDecoding guided = 4;
+  optional double frequency_penalty = 5;
+  optional double presence_penalty = 6;
+  optional double repetition_penalty = 7;
+  optional uint64 seed = 8;
+  optional uint32 num_sequences = 9;
 }
 
 message StoppingOptions {
@@ -318,10 +314,10 @@ message ChoiceConstraint {
 }
 ```
 
-The option groups separate sampler randomness, decoding penalties and
-constraints, stopping behavior, returned data, and KV/cache behavior. Optional
-scalars preserve the distinction between an engine default and explicit zero or
-`false`.
+`SamplingParams` follows native engine sampling APIs, while stopping, returned
+data, and KV/cache behavior remain separate option groups. Guided decoding stays
+top-level as a distinct structured-output mode. Optional scalars preserve the
+distinction between an engine default and explicit zero or `false`.
 
 `priority` uses higher values for higher scheduling priority. `num_sequences`
 defaults to one when omitted and must be greater than zero when present.
