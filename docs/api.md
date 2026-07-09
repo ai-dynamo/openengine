@@ -706,10 +706,14 @@ message HealthCheck {
 }
 
 message AbortRequest {
-  string request_id = 1;
-  KvSessionRef kv_session = 2;
-  bool abort_all = 3;
+  oneof target {
+    string request_id = 1;
+    KvSessionRef kv_session = 2;
+    AllRequests all_requests = 3;
+  }
 }
+
+message AllRequests {}
 
 message AbortResponse {
   AbortStatus status = 1;
@@ -724,7 +728,7 @@ enum AbortStatus {
 
 message DrainRequest {
   bool stop_accepting_new_requests = 1;
-  uint32 deadline_ms = 2;
+  optional uint32 deadline_ms = 2;
   bool abort_after_deadline = 3;
 }
 
@@ -733,8 +737,8 @@ message DrainResponse {
     DrainState state = 1;
     EngineError error = 5;
   }
-  uint32 in_flight_requests = 2;
-  uint32 open_kv_sessions = 3;
+  optional uint32 in_flight_requests = 2;
+  optional uint32 open_kv_sessions = 3;
   string message = 4;
 }
 
@@ -746,13 +750,18 @@ enum DrainState {
 }
 ```
 
-Aborting an unknown request returns gRPC `NOT_FOUND`; an engine that does not
-support abort returns gRPC `UNIMPLEMENTED`. `ALREADY_FINISHED` remains a
-successful idempotent outcome rather than an error.
+Exactly one abort target must be set. Use `all_requests {}` to abort every
+request; omitting the target returns gRPC `INVALID_ARGUMENT`. An unknown request
+or KV session target returns gRPC `NOT_FOUND`; an engine that does not support
+abort returns gRPC `UNIMPLEMENTED`. `ALREADY_FINISHED` remains a successful
+idempotent outcome rather than an error.
 
 `STARTED` and `IN_PROGRESS` are progress events; `COMPLETE` is terminal. A
 failure after the drain is accepted is represented by one terminal
-`EngineError`, not by a failed drain state.
+`EngineError`, not by a failed drain state. An absent `deadline_ms` means no
+deadline; an explicit zero means the deadline is immediate. Absent progress
+counts are unknown, while present zero values report that no requests or KV
+sessions remain.
 
 ---
 

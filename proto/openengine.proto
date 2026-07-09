@@ -577,10 +577,14 @@ message HealthCheck {
 }
 
 message AbortRequest {
-  string request_id = 1;
-  KvSessionRef kv_session = 2;
-  bool abort_all = 3;
+  oneof target {
+    string request_id = 1;
+    KvSessionRef kv_session = 2;
+    AllRequests all_requests = 3;
+  }
 }
+
+message AllRequests {}
 
 message AbortResponse {
   AbortStatus status = 1;
@@ -595,7 +599,7 @@ enum AbortStatus {
 
 message DrainRequest {
   bool stop_accepting_new_requests = 1;
-  uint32 deadline_ms = 2;
+  optional uint32 deadline_ms = 2; // Absent means no deadline; zero is immediate.
   bool abort_after_deadline = 3;
 }
 
@@ -604,8 +608,8 @@ message DrainResponse {
     DrainState state = 1; // Progress or successful completion.
     EngineError error = 5; // Terminal failure.
   }
-  uint32 in_flight_requests = 2;
-  uint32 open_kv_sessions = 3;
+  optional uint32 in_flight_requests = 2;
+  optional uint32 open_kv_sessions = 3;
   string message = 4;
 }
 
