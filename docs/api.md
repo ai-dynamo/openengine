@@ -542,8 +542,8 @@ OpenEngine should support two KV-event modes:
 
 1. **Native OpenEngine stream:** `SubscribeKvEvents` returns envelopes containing
    typed protobuf batches.
-2. **Compatibility source discovery:** `GetKvEventSources` advertises existing engine-native sources such as SGLang/vLLM ZMQ publishers.  
-   
+2. **Compatibility source discovery:** `GetKvEventSources` advertises existing
+   engine-native sources such as SGLang/vLLM ZMQ publishers.
 
 ```protobuf
 message GetKvConnectorInfoRequest {}
@@ -872,7 +872,7 @@ enum ErrorCode {
 Errors have exactly one transport based on when and where they occur:
 
 | Phase | Representation | Stream termination |
-|---|---|---|
+| --- | --- | --- |
 | Before request acceptance | Non-OK gRPC status | No response event |
 | Accepted request, application failure | Exactly one terminal `EngineError` event | gRPC `OK` after the event |
 | Transport or gRPC framework failure | Non-OK gRPC status | No synthesized `EngineError` |

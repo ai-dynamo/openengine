@@ -1,0 +1,91 @@
+name: Protocol change
+description: Propose a change to the OpenEngine gRPC contract.
+title: "[Protocol]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        OpenEngine is a pre-adoption API draft, so direct schema changes are allowed. A proposal should still define portable behavior precisely enough for independent clients and engines to agree.
+
+  - type: checkboxes
+    id: existing-issues
+    attributes:
+      label: Existing proposals
+      options:
+        - label: I searched the existing issues and did not find this proposal.
+          required: true
+
+  - type: dropdown
+    id: consumers
+    attributes:
+      label: Intended consumers
+      description: Who needs this behavior?
+      options:
+        - Direct engine clients
+        - Distributed frameworks
+        - Both direct clients and distributed frameworks
+        - Engine implementations only
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and use case
+      description: Describe the portable behavior that cannot be represented cleanly today.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence from engine protocols
+      description: Link to or summarize equivalent behavior in native engine protocols or implementations.
+
+  - type: textarea
+    id: contract
+    attributes:
+      label: Proposed contract
+      description: Sketch the messages, fields, enums, or RPC behavior you propose. Protobuf is encouraged but not required.
+      render: proto
+    validations:
+      required: true
+
+  - type: textarea
+    id: presence
+    attributes:
+      label: Presence, defaults, and validation
+      description: Define absent, zero, empty, default, invalid, and mutually exclusive states where applicable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: lifecycle
+    attributes:
+      label: Request and response lifecycle
+      description: Define acceptance, streaming, terminal success, cancellation, and error behavior affected by this change.
+
+  - type: textarea
+    id: discovery
+    attributes:
+      label: Discovery and capability impact
+      description: Explain how clients determine whether an engine supports the behavior, or why no discovery change is needed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe simpler contract shapes or existing fields you considered reusing.
+
+  - type: checkboxes
+    id: readiness
+    attributes:
+      label: Proposal checklist
+      options:
+        - label: The behavior is portable and does not expose one engine's internal scheduler model as the common API.
+          required: true
+        - label: I have identified the corresponding documentation changes.
+          required: true

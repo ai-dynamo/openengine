@@ -1,0 +1,66 @@
+name: Docs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**/*.md"
+      - ".markdownlint-cli2.yaml"
+      - ".lychee.toml"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "**/*.md"
+      - ".markdownlint-cli2.yaml"
+      - ".lychee.toml"
+      - ".github/workflows/docs.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  markdown:
+    name: Markdown
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Lint Markdown
+        run: npx --yes markdownlint-cli2@0.23.0 "**/*.md"
+
+  links:
+    name: Links
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install Lychee
+        env:
+          LYCHEE_SHA256: 73657a111819a30c47c08352896796f23d64e4eb2b3ed39b6d32149241566fc5
+          LYCHEE_VERSION: v0.24.2
+        run: |
+          archive="${RUNNER_TEMP}/lychee.tar.gz"
+          curl --fail --location --retry 3 --show-error \
+            --output "${archive}" \
+            "https://github.com/lycheeverse/lychee/releases/download/lychee-${LYCHEE_VERSION}/lychee-x86_64-unknown-linux-musl.tar.gz"
+          printf '%s  %s\n' "${LYCHEE_SHA256}" "${archive}" | sha256sum --check -
+          tar --extract --gzip --file "${archive}" \
+            --directory "${RUNNER_TEMP}" \
+            --strip-components 1 \
+            lychee-x86_64-unknown-linux-musl/lychee
+
+      - name: Check links
+        run: |
+          "${RUNNER_TEMP}/lychee" \
+            --config .lychee.toml \
+            --root-dir "${GITHUB_WORKSPACE}" \
+            --no-progress \
+            './**/*.md'

@@ -45,7 +45,7 @@ git commit -s -m "Add a concise, descriptive message."
 
 This appends the following to your commit message:
 
-```
+```text
 Signed-off-by: Your Name <your@email.com>
 ```
 
@@ -53,7 +53,7 @@ Use your real name (no pseudonyms or anonymous contributions) and an email that
 matches your commit author address. By signing off, you agree to the Developer
 Certificate of Origin (DCO), reproduced in full below.
 
-```
+```text
 Developer Certificate of Origin
 Version 1.1
 

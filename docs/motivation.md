@@ -58,7 +58,7 @@ request and control data needed across the process boundary.
 ## What the protocol covers
 
 | Area | Contract |
-|---|---|
+| --- | --- |
 | Generation | Streaming tokens, usage, finish state, and errors |
 | Discovery | Engine, model, role, topology, limits, and capabilities |
 | Lifecycle | Health, abort, and drain |

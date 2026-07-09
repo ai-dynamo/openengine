@@ -1,0 +1,3 @@
+exclude = ["^mailto:"]
+exclude_all_private = true
+exclude_loopback = true
