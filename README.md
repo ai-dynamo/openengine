@@ -10,11 +10,11 @@ SPDX-License-Identifier: Apache-2.0
 <h1 align="center">OpenEngine</h1>
 
 <p align="center">
-  <strong>A vendor-neutral runtime protocol for AI inference engines and orchestrators.</strong>
+  <strong>OpenEngine is a vendor-neutral gRPC protocol for coordinating inference engines and distributed frameworks.</strong>
 </p>
 
 <p align="center">
-  Keep engine execution native. Keep orchestration endpoint-only. Connect them with one typed gRPC contract.
+  Keep engine execution native. Connect distributed systems through one typed runtime contract.
 </p>
 
 <p align="center">
@@ -59,34 +59,35 @@ SPDX-License-Identifier: Apache-2.0
 
 ## Overview
 
-OpenEngine defines the runtime boundary between an inference engine and an
-orchestrator. An engine exposes the `openengine.v1.OpenEngine` gRPC service; an
-orchestrator connects as a generated client.
+OpenEngine defines the runtime boundary between an inference engine and a
+distributed framework. An engine exposes the `openengine.v1.OpenEngine` gRPC
+service; the framework connects as a generated client.
 
 The engine remains responsible for request execution: scheduling, batching,
 tokenization, KV-cache management, multimodal preprocessing, guided decoding,
-and engine-specific optimization. The orchestrator remains responsible for
-routing, admission, placement, lifecycle policy, and distributed coordination.
+and engine-specific optimization. The distributed framework remains responsible
+for routing, admission, placement, lifecycle policy, and coordination across
+workers.
 
 OpenEngine carries the typed information those systems need to exchange without
 requiring them to share a process, Python environment, dependency tree, or
 private control API.
 
-OpenEngine is a runtime protocol—not a client-facing chat or completion API. An
-orchestrator can accept OpenAI-compatible traffic at its edge and use OpenEngine
-between its router and engine workers.
+OpenEngine is a runtime protocol—not a client-facing chat or completion API. A
+distributed framework can accept OpenAI-compatible traffic at its edge and use
+OpenEngine between its router and engine workers.
 
 ## Why OpenEngine
 
-Without a shared runtime boundary, every engine-orchestrator pair needs a custom
+Without a shared runtime boundary, every engine-framework pair needs a custom
 adapter that tends to copy launch flags, import engine internals, or depend on
 scheduler implementation details.
 
 | Without a shared contract | With OpenEngine |
 |---|---|
-| Pairwise engine-orchestrator integrations | One generated service contract |
+| Pairwise engine-framework integrations | One generated service contract |
 | Configuration duplicated into sidecars | Engine capabilities discovered over RPC |
-| Engine upgrades coupled to orchestration code | Engine-native execution behind a common endpoint |
+| Engine upgrades coupled to framework code | Engine-native execution behind a common endpoint |
 | Ad hoc cancellation and failure behavior | Explicit lifecycle and terminal error semantics |
 | Backend-specific KV handoff shapes | Typed sessions with backend-specific extension data |
 
@@ -112,7 +113,7 @@ adoption model.
 
 ```mermaid
 flowchart LR
-    C["Client-facing API"] --> O["Orchestrator<br/>routing · admission · placement"]
+    C["Client-facing API"] --> O["Distributed framework<br/>routing · admission · placement"]
     O <-->|"openengine.v1 · gRPC"| A["Engine adapter<br/>generated service bindings"]
     A --> E["Native engine<br/>scheduler · model · KV cache · GPUs"]
 
@@ -122,7 +123,7 @@ flowchart LR
 
 The adapter maps OpenEngine messages onto the engine's existing request path.
 Native APIs can continue to exist for direct clients; OpenEngine provides the
-orchestrator-facing control and generation surface.
+framework-facing control and generation surface.
 
 ## Capabilities
 
@@ -283,8 +284,9 @@ The intended adoption path is incremental:
 2. Logprobs, guided decoding, LoRA, and multimodal input as needed.
 3. Prefill/decode roles, KV handoff, rank affinity, and KV event integration.
 
-Have an engine or orchestration use case that the contract does not represent?
-Start a [design discussion or issue](https://github.com/ai-dynamo/openengine/issues).
+Have an engine or distributed framework use case that the contract does not
+represent? Start a
+[design discussion or issue](https://github.com/ai-dynamo/openengine/issues).
 
 ## Contributing
 
