@@ -160,47 +160,28 @@ message GenerateRequest {
     TokenIds token_ids = 4;
   }
 
-  SamplingParams sampling = 5;
-  repeated StopCondition stop = 6;
-  bool stream = 7;
+  SamplingOptions sampling = 5;
+  DecodingOptions decoding = 6;
+  StoppingOptions stopping = 7;
+  ResponseOptions response = 8;
+  KvOptions kv = 9;
 
   // Multimodal inputs. Order is significant: the i-th item aligns with the
   // i-th (un-expanded) placeholder marker carried in the prompt/token_ids.
   // The engine fetches/decodes and preprocesses each item, then expands the
   // marker into the model's replacement run. Empty for text-only requests.
-  repeated MediaItem media = 8;
-
-  // Constrained / guided decoding. Enforced engine-side by the grammar backend
-  // during sampling — the orchestrator cannot apply it post-hoc. ModelInfo
-  // .supports_guided_decoding advertises whether the engine honors it.
-  GuidedDecoding guided = 9;
+  repeated MediaItem media = 10;
 
   // Loaded LoRA adapter name to apply to this request. Empty = base model.
   // ModelInfo.supports_lora advertises whether lifecycle and selection are
   // available through OpenEngine.
-  string lora_name = 10;
+  string lora_name = 11;
 
-  // Logprobs request controls (TokenOutput.logprobs carries the result).
-  // return_logprobs turns emission on; top_logprobs is the per-token
-  // alternatives count; logprob_start_len is the prompt offset to begin scoring
-  // from (< 0 = engine default, i.e. completion tokens only).
-  optional bool return_logprobs = 11;
-  optional uint32 top_logprobs = 12;
-  optional int32 logprob_start_len = 13;
-
-  // Required for decode requests in disaggregated serving.
-  KvSessionRef kv_session = 20;
-
-  // Router-forced internal data-parallel rank. When set, the engine must place
-  // this request on exactly this DP rank instead of load-balancing across
-  // ranks. This is what keeps prefix->rank affinity for KV-aware routing: the
-  // KV router decides a rank from the prefix it indexed, and the engine honors
-  // it so a child block's parent stays in the same rank's radix subtree.
-  // Unset = let the engine pick (no affinity). Rank 0 is valid, hence optional.
-  optional uint32 data_parallel_rank = 21;
+  // Higher values receive higher scheduling priority.
+  optional int32 priority = 12;
 
   // Optional request metadata for tracing/admission/routing.
-  map<string, string> metadata = 30;
+  map<string, string> metadata = 13;
 }
 
 // Multimodal modality discriminator. 0 is treated as image for forward
@@ -231,20 +212,52 @@ message TokenIds {
   repeated uint32 ids = 1;
 }
 
-message SamplingParams {
-  // All fields have explicit presence. Omitted fields select the engine/model
-  // default; an explicitly encoded zero remains a caller-supplied value.
+message SamplingOptions {
   optional double temperature = 1;
   optional double top_p = 2;
   optional int32 top_k = 3;
-  optional double frequency_penalty = 4;
-  optional double presence_penalty = 5;
-  optional uint32 max_tokens = 6;
-  optional uint64 seed = 7;
-  // When true the engine ignores the EOS token and generates until another
-  // stop condition (e.g. max_tokens) fires. Without it the engine stops at
-  // natural EOS, which truncates fixed-length benchmark workloads.
-  optional bool ignore_eos = 8;
+  optional double min_p = 4;
+  optional uint64 seed = 5;
+  optional uint32 num_sequences = 6;
+}
+
+message DecodingOptions {
+  optional double frequency_penalty = 1;
+  optional double presence_penalty = 2;
+  optional double repetition_penalty = 3;
+  GuidedDecoding guided = 4;
+}
+
+message StoppingOptions {
+  optional uint32 max_tokens = 1;
+  optional uint32 min_tokens = 2;
+  repeated StopCondition conditions = 3;
+  optional bool ignore_eos = 4;
+  optional bool include_stop_in_output = 5;
+}
+
+message ResponseOptions {
+  optional bool stream = 1;
+  optional bool return_prompt_logprobs = 2;
+  CandidateTokenSelection prompt_candidates = 3;
+  optional bool return_output_logprobs = 4;
+  CandidateTokenSelection output_candidates = 5;
+  optional uint32 prompt_logprob_start = 6;
+}
+
+message CandidateTokenSelection {
+  oneof selection {
+    uint32 top_n = 1;
+    TokenIds token_ids = 2;
+    bool all = 3;
+  }
+}
+
+message KvOptions {
+  KvSessionRef session = 1;
+  optional uint32 data_parallel_rank = 2;
+  optional bool bypass_prefix_cache = 3;
+  optional string cache_salt = 4;
 }
 
 message StopCondition {
@@ -263,34 +276,44 @@ message GuidedDecoding {
     string regex = 2; // output matches this regex
     string ebnf_grammar = 3; // output follows this EBNF / context-free grammar
     string structural_tag = 4; // xgrammar structural-tag constraint (JSON string)
+    ChoiceConstraint choice = 5;
+    bool json_object = 6;
   }
   // Optional grammar backend override (e.g. "xgrammar", "outlines",
   // "llguidance"). Empty = engine default.
-  string backend = 5;
+  string backend = 7;
+}
+
+message ChoiceConstraint {
+  repeated string choices = 1;
 }
 
 message GenerateResponse {
   string request_id = 1;
+  optional uint32 output_index = 2;
 
   oneof event {
-    TokenOutput token = 2;
-    PrefillReady prefill_ready = 3;
-    GenerationFinished finished = 4;
-    EngineError error = 5;
+    PromptOutput prompt = 3;
+    TokenOutput token = 4;
+    PrefillReady prefill_ready = 5;
+    GenerationFinished finished = 6;
+    EngineError error = 7;
   }
 
   Usage usage = 10;
 }
 
+message PromptOutput {
+  repeated uint32 token_ids = 1;
+  repeated LogProb logprobs = 2;
+  repeated CandidateLogprobs candidate_logprobs = 3;
+}
+
 message TokenOutput {
   repeated uint32 token_ids = 1;
   string text = 2;
-  // Chosen-token logprob, one entry per `token_ids` (rank 0). Populated only
-  // when the request set `return_logprobs`.
   repeated LogProb logprobs = 3;
-  // Per-token top-K alternatives: `top_logprobs[i]` holds the ranked candidates
-  // for `token_ids[i]`. Populated only when the request set `top_logprobs > 0`.
-  repeated TopLogprobs top_logprobs = 4;
+  repeated CandidateLogprobs candidate_logprobs = 4;
 }
 
 message LogProb {
@@ -300,8 +323,7 @@ message LogProb {
   uint32 rank = 4;
 }
 
-// Ranked top-K logprob candidates for a single output position.
-message TopLogprobs {
+message CandidateLogprobs {
   repeated LogProb entries = 1;
 }
 
@@ -312,6 +334,15 @@ message PrefillReady {
 message GenerationFinished {
   FinishReason reason = 1;
   string message = 2;
+  StopMatch stop_match = 3;
+}
+
+message StopMatch {
+  oneof match {
+    uint32 stop_token_id = 1;
+    string stop_text = 2;
+    uint32 eos_token_id = 3;
+  }
 }
 
 enum FinishReason {
@@ -325,6 +356,8 @@ message Usage {
   uint32 prompt_tokens = 1;
   uint32 completion_tokens = 2;
   uint32 total_tokens = 3;
+  optional uint32 cached_prompt_tokens = 4;
+  optional uint32 reasoning_tokens = 5;
 }
 
 // ---------------------------------------------------------------------------

@@ -93,6 +93,9 @@ Revision `1` is the schema in this repository. Every server must populate:
 - `schema_release` with an immutable OpenEngine repository release or source tag
   containing that revision. Moving branch names such as `main` are not valid.
 
+Servers implementing this contract advertise `schema_revision = 1` and
+`minimum_client_revision = 1`.
+
 Clients should also define the oldest server revision they support and fail
 closed when the advertised revision or release is outside their tested
 compatibility range. This makes schema drift visible even while the package
@@ -203,53 +206,68 @@ message GenerateRequest {
     TokenIds token_ids = 4;
   }
 
-  SamplingParams sampling = 5;
-  repeated StopCondition stop = 6;
-  bool stream = 7;
+  SamplingOptions sampling = 5;
+  DecodingOptions decoding = 6;
+  StoppingOptions stopping = 7;
+  ResponseOptions response = 8;
+  KvOptions kv = 9;
 
-  // Multimodal inputs. Order is significant: the i-th item aligns with the
-  // i-th (un-expanded) placeholder marker in the prompt/token_ids. The engine
-  // fetches/decodes and preprocesses each item, then expands the marker into
-  // the model's replacement run. Empty for text-only requests.
-  repeated MediaItem media = 8;
-
-  // Constrained decoding enforced by the engine during sampling.
-  GuidedDecoding guided = 9;
-
-  // Loaded adapter name. Empty selects the base model.
-  string lora_name = 10;
-
-  // Logprobs request controls.
-  optional bool return_logprobs = 11;
-  optional uint32 top_logprobs = 12;
-  optional int32 logprob_start_len = 13;
-
-  // Required for decode requests in disaggregated serving.
-  KvSessionRef kv_session = 20;
-
-  // Router-forced internal data-parallel rank. When set, the engine must
-  // place this request on exactly this DP rank instead of load-balancing,
-  // preserving prefix->rank affinity for KV-aware routing. Unset = let the
-  // engine pick. Rank 0 is valid, hence optional (proto3 presence).
-  optional uint32 data_parallel_rank = 21;
-
-  // Optional request metadata for tracing/admission/routing.
-  map<string, string> metadata = 30;
+  repeated MediaItem media = 10;
+  string lora_name = 11;
+  optional int32 priority = 12;
+  map<string, string> metadata = 13;
 }
 
 message TokenIds {
   repeated uint32 ids = 1;
 }
 
-message SamplingParams {
+message SamplingOptions {
   optional double temperature = 1;
   optional double top_p = 2;
   optional int32 top_k = 3;
-  optional double frequency_penalty = 4;
-  optional double presence_penalty = 5;
-  optional uint32 max_tokens = 6;
-  optional uint64 seed = 7;
-  optional bool ignore_eos = 8;
+  optional double min_p = 4;
+  optional uint64 seed = 5;
+  optional uint32 num_sequences = 6;
+}
+
+message DecodingOptions {
+  optional double frequency_penalty = 1;
+  optional double presence_penalty = 2;
+  optional double repetition_penalty = 3;
+  GuidedDecoding guided = 4;
+}
+
+message StoppingOptions {
+  optional uint32 max_tokens = 1;
+  optional uint32 min_tokens = 2;
+  repeated StopCondition conditions = 3;
+  optional bool ignore_eos = 4;
+  optional bool include_stop_in_output = 5;
+}
+
+message ResponseOptions {
+  optional bool stream = 1;
+  optional bool return_prompt_logprobs = 2;
+  CandidateTokenSelection prompt_candidates = 3;
+  optional bool return_output_logprobs = 4;
+  CandidateTokenSelection output_candidates = 5;
+  optional uint32 prompt_logprob_start = 6;
+}
+
+message CandidateTokenSelection {
+  oneof selection {
+    uint32 top_n = 1;
+    TokenIds token_ids = 2;
+    bool all = 3;
+  }
+}
+
+message KvOptions {
+  KvSessionRef session = 1;
+  optional uint32 data_parallel_rank = 2;
+  optional bool bypass_prefix_cache = 3;
+  optional string cache_salt = 4;
 }
 
 message StopCondition {
@@ -289,34 +307,60 @@ message GuidedDecoding {
     string regex = 2;
     string ebnf_grammar = 3;
     string structural_tag = 4;
+    ChoiceConstraint choice = 5;
+    bool json_object = 6;
   }
-  string backend = 5;
+  string backend = 7;
+}
+
+message ChoiceConstraint {
+  repeated string choices = 1;
 }
 ```
 
-All sampling scalars have explicit presence. Omission selects the engine or
-model default. Present values, including `0`, `0.0`, and `false`, are caller
-choices and must be validated and honored rather than interpreted as missing.
+The option groups separate sampler randomness, decoding penalties and
+constraints, stopping behavior, returned data, and KV/cache behavior. Optional
+scalars preserve the distinction between an engine default and explicit zero or
+`false`.
+
+`priority` uses higher values for higher scheduling priority. `num_sequences`
+defaults to one when omitted and must be greater than zero when present.
+`CandidateTokenSelection` requests either the top N candidates, explicit token
+IDs, or the full vocabulary at each prompt or output position. Selecting `all`
+requires `all = true`.
+
+`include_stop_in_output` controls whether a matched caller-supplied stop token
+or string remains in emitted output. `bypass_prefix_cache = true` skips prefix
+cache reuse but does not prevent newly computed blocks from being cached.
+`cache_salt` namespaces the prefix-cache key.
 
 ```protobuf
 message GenerateResponse {
   string request_id = 1;
+  optional uint32 output_index = 2;
 
   oneof event {
-    TokenOutput token = 2;
-    PrefillReady prefill_ready = 3;
-    GenerationFinished finished = 4;
-    EngineError error = 5;
+    PromptOutput prompt = 3;
+    TokenOutput token = 4;
+    PrefillReady prefill_ready = 5;
+    GenerationFinished finished = 6;
+    EngineError error = 7;
   }
 
   Usage usage = 10;
+}
+
+message PromptOutput {
+  repeated uint32 token_ids = 1;
+  repeated LogProb logprobs = 2;
+  repeated CandidateLogprobs candidate_logprobs = 3;
 }
 
 message TokenOutput {
   repeated uint32 token_ids = 1;
   string text = 2;
   repeated LogProb logprobs = 3;
-  repeated TopLogprobs top_logprobs = 4;
+  repeated CandidateLogprobs candidate_logprobs = 4;
 }
 
 message LogProb {
@@ -326,7 +370,7 @@ message LogProb {
   uint32 rank = 4;
 }
 
-message TopLogprobs {
+message CandidateLogprobs {
   repeated LogProb entries = 1;
 }
 
@@ -337,6 +381,15 @@ message PrefillReady {
 message GenerationFinished {
   FinishReason reason = 1;
   string message = 2;
+  StopMatch stop_match = 3;
+}
+
+message StopMatch {
+  oneof match {
+    uint32 stop_token_id = 1;
+    string stop_text = 2;
+    uint32 eos_token_id = 3;
+  }
 }
 
 enum FinishReason {
@@ -350,14 +403,33 @@ message Usage {
   uint32 prompt_tokens = 1;
   uint32 completion_tokens = 2;
   uint32 total_tokens = 3;
+  optional uint32 cached_prompt_tokens = 4;
+  optional uint32 reasoning_tokens = 5;
 }
 ```
+
+`output_index` is present on every response envelope. It is `0` for a
+single-sequence request and ranges from `0` through `num_sequences - 1` for
+multi-sequence output. Token and terminal events for an output use the same
+stable index.
+
+`PromptOutput` is emitted at most once when prompt logprobs or candidates are
+requested, with `output_index = 0`. Its `logprobs` and `candidate_logprobs`
+entries align positionally with `token_ids`; candidate entries follow the
+request's `prompt_candidates` selection. The corresponding `TokenOutput` arrays
+follow the same positional rule for generated tokens.
+
+When `FinishReason` is `STOP`, `stop_match` identifies the matched caller stop
+token, stop string, or model EOS token. `cached_prompt_tokens` is a subset of
+`prompt_tokens`; `reasoning_tokens` is a subset of `completion_tokens`.
 
 ---
 
 ## Disaggregated serving and KV API
 
-The core API makes prefill/decode handoff explicit through `KvSessionRef` in `Generate` and `PrefillReady`, while engines own KV transfer mechanics and session lifetime.
+The core API makes prefill/decode handoff explicit through
+`GenerateRequest.kv.session` and `PrefillReady`, while engines own KV transfer
+mechanics and session lifetime.
 
 ```protobuf
 message KvSessionRef {
@@ -393,7 +465,7 @@ Prefill flow:
 
 Decode flow:
 
-1. Orchestrator sends `GenerateRequest` to a `DECODE` engine with `kv_session` set.  
+1. Orchestrator sends `GenerateRequest` to a `DECODE` engine with `kv.session` set.
 2. Decode engine validates the session and transfer backend.  
 3. Decode engine generates tokens.
 
@@ -711,10 +783,11 @@ Acceptance is the boundary after synchronous validation and admission succeed
 and the server commits the operation for execution. Unary RPCs have no separate
 accepted stream phase and report failures with non-OK gRPC status.
 
-`GenerationFinished`, `PrefillReady`, `DrainState.COMPLETE`, and `EngineError`
-are terminal for their respective streams; the server must not emit another
-event after any of them. In particular, application failure is neither a
-`GenerationFinished` reason nor a failed drain state.
+`GenerationFinished` is terminal for its `output_index`; other output indexes
+may continue. `PrefillReady` and `EngineError` terminate a generation stream,
+while `DrainState.COMPLETE` and `EngineError` terminate a drain stream. In
+particular, application failure is neither a `GenerationFinished` reason nor a
+failed drain state.
 
 `retryable` states whether the unchanged operation can succeed on retry.
 `retry_after_ms` is present only for retryable errors and is the recommended
