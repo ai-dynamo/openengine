@@ -40,10 +40,10 @@ service OpenEngine {
   // Disaggregated serving / KV transfer.
   rpc GetKvConnectorInfo(GetKvConnectorInfoRequest) returns (KvConnectorInfo);
   rpc GetKvEventSources(GetKvEventSourcesRequest) returns (GetKvEventSourcesResponse);
-  rpc SubscribeKvEvents(SubscribeKvEventsRequest) returns (stream KvEventBatch);
+  rpc SubscribeKvEvents(SubscribeKvEventsRequest) returns (stream SubscribeKvEventsResponse);
 
   // Structured runtime events for planners/controllers.
-  rpc SubscribeRuntimeEvents(SubscribeRuntimeEventsRequest) returns (stream RuntimeEvent);
+  rpc SubscribeRuntimeEvents(SubscribeRuntimeEventsRequest) returns (stream SubscribeRuntimeEventsResponse);
 }
 
 // ---------------------------------------------------------------------------
@@ -473,6 +473,13 @@ message SubscribeKvEventsRequest {
   uint64 start_sequence_number = 3;
 }
 
+message SubscribeKvEventsResponse {
+  oneof event {
+    KvEventBatch batch = 1;
+    EngineError error = 2; // Terminal.
+  }
+}
+
 message KvEventBatch {
   uint64 sequence_number = 1;
   uint64 timestamp_unix_nanos = 2;
@@ -645,6 +652,13 @@ message RankLoadInfo {
 
 message SubscribeRuntimeEventsRequest {
   repeated RuntimeEventType types = 1;
+}
+
+message SubscribeRuntimeEventsResponse {
+  oneof event {
+    RuntimeEvent runtime_event = 1;
+    EngineError error = 2; // Terminal.
+  }
 }
 
 enum RuntimeEventType {

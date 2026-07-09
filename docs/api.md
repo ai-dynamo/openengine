@@ -41,10 +41,10 @@ service OpenEngine {
   // Disaggregated serving / KV transfer.
   rpc GetKvConnectorInfo(GetKvConnectorInfoRequest) returns (KvConnectorInfo);
   rpc GetKvEventSources(GetKvEventSourcesRequest) returns (GetKvEventSourcesResponse);
-  rpc SubscribeKvEvents(SubscribeKvEventsRequest) returns (stream KvEventBatch);
+  rpc SubscribeKvEvents(SubscribeKvEventsRequest) returns (stream SubscribeKvEventsResponse);
 
   // Structured runtime events for planners/controllers.
-  rpc SubscribeRuntimeEvents(SubscribeRuntimeEventsRequest) returns (stream RuntimeEvent);
+  rpc SubscribeRuntimeEvents(SubscribeRuntimeEventsRequest) returns (stream SubscribeRuntimeEventsResponse);
 }
 ```
 
@@ -540,7 +540,8 @@ Decode flow:
 
 OpenEngine should support two KV-event modes:
 
-1. **Native OpenEngine stream:** `SubscribeKvEvents` returns typed protobuf batches.  
+1. **Native OpenEngine stream:** `SubscribeKvEvents` returns envelopes containing
+   typed protobuf batches.
 2. **Compatibility source discovery:** `GetKvEventSources` advertises existing engine-native sources such as SGLang/vLLM ZMQ publishers.  
    
 
@@ -584,6 +585,13 @@ message SubscribeKvEventsRequest {
   repeated uint32 data_parallel_ranks = 1;
   bool include_snapshot = 2;
   uint64 start_sequence_number = 3;
+}
+
+message SubscribeKvEventsResponse {
+  oneof event {
+    KvEventBatch batch = 1;
+    EngineError error = 2;
+  }
 }
 
 message KvEventBatch {
@@ -654,6 +662,10 @@ Compatibility notes:
 - Orchestrators should prefer `SubscribeKvEvents` when available and fall back to engine-native sources when advertised.  
 - `endpoint_addr` MUST carry a routable `host:port`, never a bind wildcard such
   as `*` or `0.0.0.0`.
+
+After subscription acceptance, an application failure is the final
+`SubscribeKvEventsResponse` with `error` set. No batch may follow it, and the
+server closes the stream with gRPC `OK`.
 
 ---
 
@@ -790,6 +802,13 @@ message SubscribeRuntimeEventsRequest {
   repeated RuntimeEventType types = 1;
 }
 
+message SubscribeRuntimeEventsResponse {
+  oneof event {
+    RuntimeEvent runtime_event = 1;
+    EngineError error = 2;
+  }
+}
+
 enum RuntimeEventType {
   RUNTIME_EVENT_TYPE_UNSPECIFIED = 0;
   RUNTIME_EVENT_TYPE_FORWARD_PASS = 1;
@@ -805,6 +824,10 @@ message RuntimeEvent {
   map<string, string> attributes = 4;
 }
 ```
+
+After subscription acceptance, an application failure is the final
+`SubscribeRuntimeEventsResponse` with `error` set. No runtime event may follow
+it, and the server closes the stream with gRPC `OK`.
 
 ---
 
@@ -852,8 +875,10 @@ accepted stream phase and report failures with non-OK gRPC status.
 may continue. The last `GenerationFinished` ends a successful aggregated or
 decode stream, `PrefillReady` ends a successful prefill stream, and
 `EngineError` ends any failed generation stream. `DrainState.COMPLETE` and
-`EngineError` terminate a drain stream. Application failure is neither a
-`GenerationFinished` reason nor a failed drain state.
+`EngineError` terminate a drain stream. An `EngineError` also terminates a
+KV-event or runtime-event subscription. No response may follow a terminal
+`EngineError`. Application failure is neither a `GenerationFinished` reason nor
+a failed drain state.
 
 `retryable` states whether the unchanged operation can succeed on retry.
 `retry_after_ms` is present only for retryable errors and is the recommended
