@@ -27,10 +27,13 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Lint Markdown
-        uses: DavidAnson/markdownlint-cli2-action@v24
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
         with:
-          globs: "**/*.md"
+          node-version: "24"
+
+      - name: Lint Markdown
+        run: npx --yes markdownlint-cli2@0.23.0 "**/*.md"
 
   links:
     name: Links
@@ -39,13 +42,25 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Install Lychee
+        env:
+          LYCHEE_SHA256: 73657a111819a30c47c08352896796f23d64e4eb2b3ed39b6d32149241566fc5
+          LYCHEE_VERSION: v0.24.2
+        run: |
+          archive="${RUNNER_TEMP}/lychee.tar.gz"
+          curl --fail --location --retry 3 --show-error \
+            --output "${archive}" \
+            "https://github.com/lycheeverse/lychee/releases/download/lychee-${LYCHEE_VERSION}/lychee-x86_64-unknown-linux-musl.tar.gz"
+          printf '%s  %s\n' "${LYCHEE_SHA256}" "${archive}" | sha256sum --check -
+          tar --extract --gzip --file "${archive}" \
+            --directory "${RUNNER_TEMP}" \
+            --strip-components 1 \
+            lychee-x86_64-unknown-linux-musl/lychee
+
       - name: Check links
-        uses: lycheeverse/lychee-action@v2.9.0
-        with:
-          args: >-
-            --config .lychee.toml
-            --root-dir "${{ github.workspace }}"
-            --no-progress
+        run: |
+          "${RUNNER_TEMP}/lychee" \
+            --config .lychee.toml \
+            --root-dir "${GITHUB_WORKSPACE}" \
+            --no-progress \
             './**/*.md'
-          fail: true
-          token: ${{ secrets.GITHUB_TOKEN }}
