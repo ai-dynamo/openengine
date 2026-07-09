@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a problem with the protocol, documentation, or repository tooling.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve OpenEngine. Include enough detail for someone else to reproduce or evaluate the problem.
+
+  - type: checkboxes
+    id: existing-issues
+    attributes:
+      label: Existing issues
+      options:
+        - label: I searched the existing issues and did not find this problem.
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Protocol schema
+        - API documentation
+        - Repository tooling or CI
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: revision
+    attributes:
+      label: Schema revision or commit
+      description: Identify the schema revision, release tag, or commit where the problem occurs.
+      placeholder: "Schema revision 1 or commit SHA"
+
+  - type: textarea
+    id: current-behavior
+    attributes:
+      label: Current behavior
+      description: What happens, and why is it incorrect or unclear?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: What should happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction or example
+      description: Provide the smallest request, response, schema excerpt, command, or link that demonstrates the problem.
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add relevant engine, client, distributed framework, or environment details.

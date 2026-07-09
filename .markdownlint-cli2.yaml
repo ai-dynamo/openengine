@@ -1,0 +1,10 @@
+config:
+  MD013: false
+  MD033:
+    allowed_elements:
+      - a
+      - h1
+      - img
+      - p
+      - strong
+  MD041: false

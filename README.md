@@ -67,7 +67,7 @@ scheduler implementation details.
 
 | Without a shared contract                           | With OpenEngine                                     |
 | --------------------------------------------------- | --------------------------------------------------- |
-| Engine-specific clients and framework integrations | One generated service contract                      |
+| Engine-specific clients and framework integrations  | One generated service contract                      |
 | Configuration duplicated into sidecars              | Engine capabilities discovered over RPC             |
 | Engine upgrades coupled to framework code           | Engine-native execution behind a common endpoint    |
 | Ad hoc cancellation and failure behavior            | Explicit lifecycle and terminal error semantics     |
@@ -130,7 +130,8 @@ buf build
 buf lint
 ```
 
-Buf lint runs in GitHub Actions for schema pull requests.
+Buf lint, Markdown lint, and link checks run in GitHub Actions for relevant
+pull requests.
 
 ### Generate Python bindings
 
