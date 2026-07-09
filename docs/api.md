@@ -5,7 +5,8 @@ SPDX-License-Identifier: Apache-2.0
 
 # OpenEngine API v1
 
-This is the human-readable reference for [`openengine.v1`](../proto/openengine.proto).
+This is the human-readable reference for
+[`openengine.v1`](../proto/openengine/v1/openengine.proto).
 The proto is the source of truth.
 
 ---
@@ -103,7 +104,7 @@ name remains `openengine.v1`.
 
 Discovery response scalars use proto3 `optional` presence. An absent value means
 the engine cannot report the value; an explicitly present zero or `false` is a
-reported value and must not be replaced with an orchestrator default.
+reported value and must not be replaced with a client default.
 
 Role semantics:
 
@@ -332,9 +333,8 @@ enum Modality {
 }
 
 // A single multimodal input. Exactly one `source` should be set. The engine
-// owns fetch/decode/preprocess -- in the sidecar deployment the orchestrator
-// has no GPU/NIXL agent, so a pre-decoded/RDMA media descriptor is NOT
-// representable here by design.
+// owns fetch, decode, and preprocessing, so pre-decoded or RDMA media
+// descriptors are not represented here.
 message MediaItem {
   Modality modality = 1;
   oneof source {
@@ -522,7 +522,7 @@ dedicated field.
 
 Prefill flow:
 
-1. Orchestrator sends `GenerateRequest` to a `PREFILL` engine.  
+1. Client sends `GenerateRequest` to a `PREFILL` engine.
 2. Engine returns a `KvSessionRef` in the terminal `PrefillReady` response when
    decode may attach.
 3. Engine owns KV session lifetime and cleanup, including finish, abort, drain, timeout, and transfer failure paths.  
@@ -530,7 +530,7 @@ Prefill flow:
 
 Decode flow:
 
-1. Orchestrator sends `GenerateRequest` to a `DECODE` engine with `kv.session` set.
+1. Client sends `GenerateRequest` to a `DECODE` engine with `kv.session` set.
 2. Decode engine validates the session and transfer backend.  
 3. Decode engine generates tokens.
 
@@ -659,7 +659,8 @@ Compatibility notes:
 - SGLang/vLLM-style `BlockStored`, `BlockRemoved`, and `AllBlocksCleared` are first-class OpenEngine events.  
 - OpenEngine preserves batch timestamp, DP-rank attribution, monotonic sequence numbers, replay start sequence, topic, endpoint, replay endpoint, buffer size, HWM, and queue-size metadata.  
 - Native OpenEngine streams should use protobuf. Existing ZMQ/msgpack publishers can be exposed through `GetKvEventSources` during migration.  
-- Orchestrators should prefer `SubscribeKvEvents` when available and fall back to engine-native sources when advertised.  
+- Clients should prefer `SubscribeKvEvents` when available and fall back to
+  engine-native sources when advertised.
 - `endpoint_addr` MUST carry a routable `host:port`, never a bind wildcard such
   as `*` or `0.0.0.0`.
 

@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 //
-// OpenEngine API v1 -- vendor-neutral runtime API between inference
-// orchestration systems (e.g. Dynamo) and model engines (e.g. vLLM, SGLang,
-// TensorRT-LLM).
+// OpenEngine API v1 -- vendor-neutral runtime API between model engines (e.g.
+// vLLM, SGLang, TensorRT-LLM) and clients, including direct applications and
+// distributed frameworks (e.g. Dynamo).
 //
 // This file is the CANONICAL contract and single source of truth for the wire
 // shape. Implementations should generate client and server bindings from this
@@ -106,11 +106,9 @@ message ModelInfo {
   optional bool supports_lora = 23;
   optional bool supports_multimodal = 24;
 
-  // Engine-advertised response parser names. The orchestrator's frontend applies
-  // these to a sidecar-served model's output stream (tool-call extraction,
-  // reasoning/thinking separation) — the engine streams tokens, the frontend
-  // parses. Empty = no parser configured for this model. Discovered from the
-  // engine so the sidecar stays endpoint-only (no parser flags on the worker).
+  // Engine-advertised response parser names. Clients can apply these to a
+  // model's output stream for tool-call extraction or reasoning separation.
+  // Empty means no parser is configured for this model.
   string reasoning_parser = 25;
   string tool_call_parser = 26;
 }
@@ -234,9 +232,8 @@ enum Modality {
 }
 
 // A single multimodal input. Exactly one `source` should be set. The engine
-// owns fetch/decode/preprocess -- the orchestrator never derefs media (it has
-// no GPU/NIXL agent in the sidecar deployment), so a pre-decoded/RDMA media
-// descriptor is NOT representable here by design.
+// owns fetch, decode, and preprocessing, so pre-decoded or RDMA media
+// descriptors are not represented here.
 message MediaItem {
   Modality modality = 1;
   oneof source {
@@ -306,7 +303,7 @@ message StopCondition {
 
 // Constrained / guided decoding spec. At most one of `guide` should be set.
 // The engine enforces the constraint during sampling via its grammar backend
-// (xgrammar / outlines / llguidance); the orchestrator cannot apply it post-hoc.
+// (xgrammar / outlines / llguidance); clients cannot apply it post-hoc.
 message GuidedDecoding {
   oneof guide {
     string json_schema = 1; // output conforms to this JSON schema

@@ -7,14 +7,8 @@ lint:
   use:
     - STANDARD
   except:
-    # The canonical v1 contract intentionally remains at proto/openengine.proto.
-    - PACKAGE_DIRECTORY_MATCH
     # OpenEngine is the public protocol name; appending Service would obscure it.
     - SERVICE_SUFFIX
     # Discovery and event RPCs intentionally return their domain message type
     # directly instead of adding one-field response wrappers.
     - RPC_RESPONSE_STANDARD_NAME
-
-breaking:
-  use:
-    - FILE
