@@ -84,7 +84,9 @@ message ParallelismInfo {
 // Model and capacity metadata
 // ---------------------------------------------------------------------------
 
-message GetModelInfoRequest {}
+message GetModelInfoRequest {
+  string model = 1;
+}
 
 message ModelInfo {
   string model_id = 1;
@@ -100,18 +102,56 @@ message ModelInfo {
 
   optional bool supports_text_input = 20;
   optional bool supports_token_ids_input = 21;
-  optional bool supports_logprobs = 22;
-  optional bool supports_guided_decoding = 23;
-  optional bool supports_lora = 24;
-  optional bool supports_multimodal = 25;
+  GenerationCapabilities generation = 22;
+  optional bool supports_lora = 23;
+  optional bool supports_multimodal = 24;
 
   // Engine-advertised response parser names. The orchestrator's frontend applies
   // these to a sidecar-served model's output stream (tool-call extraction,
   // reasoning/thinking separation) — the engine streams tokens, the frontend
   // parses. Empty = no parser configured for this model. Discovered from the
   // engine so the sidecar stays endpoint-only (no parser flags on the worker).
-  string reasoning_parser = 26;
-  string tool_call_parser = 27;
+  string reasoning_parser = 25;
+  string tool_call_parser = 26;
+}
+
+message GenerationCapabilities {
+  LogprobCapabilities prompt_logprobs = 1;
+  LogprobCapabilities output_logprobs = 2;
+  GuidedDecodingCapabilities guided_decoding = 3;
+  optional uint32 max_num_sequences = 4;
+  optional bool supports_priority = 5;
+  optional bool supports_stop_in_output = 6;
+  optional bool supports_cache_salt = 7;
+  optional bool supports_prefix_cache_bypass = 8;
+}
+
+message LogprobCapabilities {
+  optional bool supported = 1;
+  repeated CandidateTokenSelectionMode candidate_selection_modes = 2;
+  optional uint32 max_top_n = 3;
+}
+
+enum CandidateTokenSelectionMode {
+  CANDIDATE_TOKEN_SELECTION_MODE_UNSPECIFIED = 0;
+  CANDIDATE_TOKEN_SELECTION_MODE_TOP_N = 1;
+  CANDIDATE_TOKEN_SELECTION_MODE_TOKEN_IDS = 2;
+  CANDIDATE_TOKEN_SELECTION_MODE_ALL = 3;
+}
+
+message GuidedDecodingCapabilities {
+  optional bool supported = 1;
+  repeated GuidedDecodingMode modes = 2;
+}
+
+enum GuidedDecodingMode {
+  GUIDED_DECODING_MODE_UNSPECIFIED = 0;
+  GUIDED_DECODING_MODE_JSON_SCHEMA = 1;
+  GUIDED_DECODING_MODE_REGEX = 2;
+  GUIDED_DECODING_MODE_EBNF_GRAMMAR = 3;
+  GUIDED_DECODING_MODE_STRUCTURAL_TAG = 4;
+  GUIDED_DECODING_MODE_CHOICE = 5;
+  GUIDED_DECODING_MODE_JSON_OBJECT = 6;
 }
 
 // ---------------------------------------------------------------------------
@@ -233,21 +273,22 @@ message StoppingOptions {
 }
 
 message ResponseOptions {
-  optional bool stream = 1;
-  optional bool return_prompt_logprobs = 2;
-  CandidateTokenSelection prompt_candidates = 3;
-  optional bool return_output_logprobs = 4;
-  CandidateTokenSelection output_candidates = 5;
-  optional uint32 prompt_logprob_start = 6;
+  optional bool return_prompt_logprobs = 1;
+  CandidateTokenSelection prompt_candidates = 2;
+  optional bool return_output_logprobs = 3;
+  CandidateTokenSelection output_candidates = 4;
+  optional uint32 prompt_logprob_start = 5;
 }
 
 message CandidateTokenSelection {
   oneof selection {
     uint32 top_n = 1;
     TokenIds token_ids = 2;
-    bool all = 3;
+    AllCandidates all = 3;
   }
 }
+
+message AllCandidates {}
 
 message KvOptions {
   KvSessionRef session = 1;
@@ -273,7 +314,7 @@ message GuidedDecoding {
     string ebnf_grammar = 3; // output follows this EBNF / context-free grammar
     string structural_tag = 4; // xgrammar structural-tag constraint (JSON string)
     ChoiceConstraint choice = 5;
-    bool json_object = 6;
+    JsonObjectConstraint json_object = 6;
   }
   // Optional grammar backend override (e.g. "xgrammar", "outlines",
   // "llguidance"). Empty = engine default.
@@ -284,43 +325,49 @@ message ChoiceConstraint {
   repeated string choices = 1;
 }
 
+message JsonObjectConstraint {}
+
 message GenerateResponse {
   string request_id = 1;
-  optional uint32 output_index = 2;
 
+  // PromptOutput, PrefillReady, and EngineError are request-scoped.
+  // TokenOutput and GenerationFinished are output-scoped.
   oneof event {
-    PromptOutput prompt = 3;
-    TokenOutput token = 4;
-    PrefillReady prefill_ready = 5;
-    GenerationFinished finished = 6;
-    EngineError error = 7;
+    PromptOutput prompt = 2;
+    TokenOutput token = 3;
+    PrefillReady prefill_ready = 4;
+    GenerationFinished finished = 5;
+    EngineError error = 6;
   }
 
-  Usage usage = 10;
+  Usage usage = 10; // Cumulative request usage; only set on the final response.
 }
 
+// Request-scoped prompt token information, emitted at most once.
 message PromptOutput {
-  repeated uint32 token_ids = 1;
-  repeated LogProb logprobs = 2;
-  repeated CandidateLogprobs candidate_logprobs = 3;
+  repeated TokenInfo tokens = 1;
 }
 
+// An incremental output delta. Tokens and text are never cumulative.
 message TokenOutput {
-  repeated uint32 token_ids = 1;
-  string text = 2;
-  repeated LogProb logprobs = 3;
-  repeated CandidateLogprobs candidate_logprobs = 4;
+  optional uint32 output_index = 1; // Required, including for output zero.
+  repeated TokenInfo tokens = 2;
+  string text = 3;
+}
+
+message TokenInfo {
+  uint32 token_id = 1;
+  string token = 2;
+  optional double logprob = 3;
+  optional uint32 rank = 4;
+  repeated LogProb candidates = 5;
 }
 
 message LogProb {
   uint32 token_id = 1;
   double logprob = 2;
   string token = 3;
-  uint32 rank = 4;
-}
-
-message CandidateLogprobs {
-  repeated LogProb entries = 1;
+  optional uint32 rank = 4;
 }
 
 message PrefillReady {
@@ -328,9 +375,10 @@ message PrefillReady {
 }
 
 message GenerationFinished {
-  FinishReason reason = 1;
-  string message = 2;
-  StopMatch stop_match = 3;
+  optional uint32 output_index = 1; // Required, including for output zero.
+  FinishReason reason = 2;
+  string message = 3;
+  StopMatch stop_match = 4;
 }
 
 message StopMatch {

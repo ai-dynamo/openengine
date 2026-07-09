@@ -118,7 +118,9 @@ Role semantics:
 ## Model and capacity metadata
 
 ```protobuf
-message GetModelInfoRequest {}
+message GetModelInfoRequest {
+  string model = 1;
+}
 
 message ModelInfo {
   string model_id = 1;
@@ -134,15 +136,61 @@ message ModelInfo {
 
   optional bool supports_text_input = 20;
   optional bool supports_token_ids_input = 21;
-  optional bool supports_logprobs = 22;
-  optional bool supports_guided_decoding = 23;
-  optional bool supports_lora = 24;
-  optional bool supports_multimodal = 25;
+  GenerationCapabilities generation = 22;
+  optional bool supports_lora = 23;
+  optional bool supports_multimodal = 24;
 
-  string reasoning_parser = 26;
-  string tool_call_parser = 27;
+  string reasoning_parser = 25;
+  string tool_call_parser = 26;
+}
+
+message GenerationCapabilities {
+  LogprobCapabilities prompt_logprobs = 1;
+  LogprobCapabilities output_logprobs = 2;
+  GuidedDecodingCapabilities guided_decoding = 3;
+  optional uint32 max_num_sequences = 4;
+  optional bool supports_priority = 5;
+  optional bool supports_stop_in_output = 6;
+  optional bool supports_cache_salt = 7;
+  optional bool supports_prefix_cache_bypass = 8;
+}
+
+message LogprobCapabilities {
+  optional bool supported = 1;
+  repeated CandidateTokenSelectionMode candidate_selection_modes = 2;
+  optional uint32 max_top_n = 3;
+}
+
+enum CandidateTokenSelectionMode {
+  CANDIDATE_TOKEN_SELECTION_MODE_UNSPECIFIED = 0;
+  CANDIDATE_TOKEN_SELECTION_MODE_TOP_N = 1;
+  CANDIDATE_TOKEN_SELECTION_MODE_TOKEN_IDS = 2;
+  CANDIDATE_TOKEN_SELECTION_MODE_ALL = 3;
+}
+
+message GuidedDecodingCapabilities {
+  optional bool supported = 1;
+  repeated GuidedDecodingMode modes = 2;
+}
+
+enum GuidedDecodingMode {
+  GUIDED_DECODING_MODE_UNSPECIFIED = 0;
+  GUIDED_DECODING_MODE_JSON_SCHEMA = 1;
+  GUIDED_DECODING_MODE_REGEX = 2;
+  GUIDED_DECODING_MODE_EBNF_GRAMMAR = 3;
+  GUIDED_DECODING_MODE_STRUCTURAL_TAG = 4;
+  GUIDED_DECODING_MODE_CHOICE = 5;
+  GUIDED_DECODING_MODE_JSON_OBJECT = 6;
 }
 ```
+
+`GetModelInfoRequest.model` is required and selects one of
+`EngineInfo.supported_models`; an unknown model returns gRPC `NOT_FOUND`.
+Capability submessages distinguish unreported support (message absent) from
+reported support or lack of support (`supported = true` or `false`). Candidate
+selection modes and `max_top_n` are reported independently for prompt and
+output logprobs. The remaining generation fields advertise support and limits
+for the corresponding request options.
 
 `supports_lora=true` means the engine accepts `GenerateRequest.lora_name` and
 the LoRA lifecycle RPCs on `OpenEngine`.
@@ -243,21 +291,22 @@ message StoppingOptions {
 }
 
 message ResponseOptions {
-  optional bool stream = 1;
-  optional bool return_prompt_logprobs = 2;
-  CandidateTokenSelection prompt_candidates = 3;
-  optional bool return_output_logprobs = 4;
-  CandidateTokenSelection output_candidates = 5;
-  optional uint32 prompt_logprob_start = 6;
+  optional bool return_prompt_logprobs = 1;
+  CandidateTokenSelection prompt_candidates = 2;
+  optional bool return_output_logprobs = 3;
+  CandidateTokenSelection output_candidates = 4;
+  optional uint32 prompt_logprob_start = 5;
 }
 
 message CandidateTokenSelection {
   oneof selection {
     uint32 top_n = 1;
     TokenIds token_ids = 2;
-    bool all = 3;
+    AllCandidates all = 3;
   }
 }
+
+message AllCandidates {}
 
 message KvOptions {
   KvSessionRef session = 1;
@@ -304,7 +353,7 @@ message GuidedDecoding {
     string ebnf_grammar = 3;
     string structural_tag = 4;
     ChoiceConstraint choice = 5;
-    bool json_object = 6;
+    JsonObjectConstraint json_object = 6;
   }
   string backend = 7;
 }
@@ -312,6 +361,8 @@ message GuidedDecoding {
 message ChoiceConstraint {
   repeated string choices = 1;
 }
+
+message JsonObjectConstraint {}
 ```
 
 `SamplingParams` follows native engine sampling APIs, while stopping, returned
@@ -322,8 +373,11 @@ distinction between an engine default and explicit zero or `false`.
 `priority` uses higher values for higher scheduling priority. `num_sequences`
 defaults to one when omitted and must be greater than zero when present.
 `CandidateTokenSelection` requests either the top N candidates, explicit token
-IDs, or the full vocabulary at each prompt or output position. Selecting `all`
-requires `all = true`.
+IDs, or the full vocabulary at each prompt or output position. Select all
+candidates with `all {}` and JSON-object guidance with `json_object {}`.
+
+`Generate` is always a server-streaming RPC, so response options do not carry a
+second streaming switch.
 
 `include_stop_in_output` controls whether a matched caller-supplied stop token
 or string remains in emitted output. `bypass_prefix_cache = true` skips prefix
@@ -333,41 +387,41 @@ cache reuse but does not prevent newly computed blocks from being cached.
 ```protobuf
 message GenerateResponse {
   string request_id = 1;
-  optional uint32 output_index = 2;
 
   oneof event {
-    PromptOutput prompt = 3;
-    TokenOutput token = 4;
-    PrefillReady prefill_ready = 5;
-    GenerationFinished finished = 6;
-    EngineError error = 7;
+    PromptOutput prompt = 2;
+    TokenOutput token = 3;
+    PrefillReady prefill_ready = 4;
+    GenerationFinished finished = 5;
+    EngineError error = 6;
   }
 
   Usage usage = 10;
 }
 
 message PromptOutput {
-  repeated uint32 token_ids = 1;
-  repeated LogProb logprobs = 2;
-  repeated CandidateLogprobs candidate_logprobs = 3;
+  repeated TokenInfo tokens = 1;
 }
 
 message TokenOutput {
-  repeated uint32 token_ids = 1;
-  string text = 2;
-  repeated LogProb logprobs = 3;
-  repeated CandidateLogprobs candidate_logprobs = 4;
+  optional uint32 output_index = 1;
+  repeated TokenInfo tokens = 2;
+  string text = 3;
+}
+
+message TokenInfo {
+  uint32 token_id = 1;
+  string token = 2;
+  optional double logprob = 3;
+  optional uint32 rank = 4;
+  repeated LogProb candidates = 5;
 }
 
 message LogProb {
   uint32 token_id = 1;
   double logprob = 2;
   string token = 3;
-  uint32 rank = 4;
-}
-
-message CandidateLogprobs {
-  repeated LogProb entries = 1;
+  optional uint32 rank = 4;
 }
 
 message PrefillReady {
@@ -375,9 +429,10 @@ message PrefillReady {
 }
 
 message GenerationFinished {
-  FinishReason reason = 1;
-  string message = 2;
-  StopMatch stop_match = 3;
+  optional uint32 output_index = 1;
+  FinishReason reason = 2;
+  string message = 3;
+  StopMatch stop_match = 4;
 }
 
 message StopMatch {
@@ -404,16 +459,30 @@ message Usage {
 }
 ```
 
-`output_index` is present on every response envelope. It is `0` for a
-single-sequence request and ranges from `0` through `num_sequences - 1` for
-multi-sequence output. Token and terminal events for an output use the same
-stable index.
+`PromptOutput` and `PrefillReady` are request-scoped. `TokenOutput` and
+`GenerationFinished` are output-scoped and must carry `output_index`, including
+index zero. An index is stable for the request and ranges from `0` through
+`num_sequences - 1`.
 
-`PromptOutput` is emitted at most once when prompt logprobs or candidates are
-requested, with `output_index = 0`. Its `logprobs` and `candidate_logprobs`
-entries align positionally with `token_ids`; candidate entries follow the
-request's `prompt_candidates` selection. The corresponding `TokenOutput` arrays
-follow the same positional rule for generated tokens.
+`PromptOutput` is emitted at most once when prompt token information is
+requested. Each prompt or output token is represented by one `TokenInfo`, so
+its ID, text, score, rank, and candidates cannot become positionally
+misaligned. The first prompt token has no conditional probability and therefore
+omits `logprob` and `rank` and has no candidates. Candidate entries for other
+tokens follow the corresponding prompt or output candidate selection.
+
+Every `TokenOutput` contains only newly emitted token records and detokenized
+text; neither field is cumulative. After `GenerationFinished` for an index, the
+engine must not emit another token or terminal event for that index. A
+successful aggregated or decode request emits exactly one
+`GenerationFinished` for each requested output. `PrefillReady` is the terminal
+success event for a prefill-only request.
+
+`EngineError` is request-scoped and terminal. It terminates all outputs and may
+replace `GenerationFinished` for outputs that had not completed. No event may
+follow it. `Usage` is cumulative across every output in the request and is set
+only on the final response, which is the last `GenerationFinished`,
+`PrefillReady`, or the terminal `EngineError`.
 
 When `FinishReason` is `STOP`, `stop_match` identifies the matched caller stop
 token, stop string, or model EOS token. `cached_prompt_tokens` is a subset of
@@ -454,10 +523,10 @@ dedicated field.
 Prefill flow:
 
 1. Orchestrator sends `GenerateRequest` to a `PREFILL` engine.  
-2. Engine returns a `KvSessionRef` in `PrefillReady` when decode may attach.  
+2. Engine returns a `KvSessionRef` in the terminal `PrefillReady` response when
+   decode may attach.
 3. Engine owns KV session lifetime and cleanup, including finish, abort, drain, timeout, and transfer failure paths.  
-4. Engine emits `GenerationFinished` when prefill lifecycle completes, or one
-   terminal `EngineError` if it fails after acceptance.
+4. An accepted prefill failure produces one terminal `EngineError` instead.
 
 Decode flow:
 
@@ -780,10 +849,11 @@ and the server commits the operation for execution. Unary RPCs have no separate
 accepted stream phase and report failures with non-OK gRPC status.
 
 `GenerationFinished` is terminal for its `output_index`; other output indexes
-may continue. `PrefillReady` and `EngineError` terminate a generation stream,
-while `DrainState.COMPLETE` and `EngineError` terminate a drain stream. In
-particular, application failure is neither a `GenerationFinished` reason nor a
-failed drain state.
+may continue. The last `GenerationFinished` ends a successful aggregated or
+decode stream, `PrefillReady` ends a successful prefill stream, and
+`EngineError` ends any failed generation stream. `DrainState.COMPLETE` and
+`EngineError` terminate a drain stream. Application failure is neither a
+`GenerationFinished` reason nor a failed drain state.
 
 `retryable` states whether the unchanged operation can succeed on retry.
 `retry_after_ms` is present only for retryable errors and is the recommended
