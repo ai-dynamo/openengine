@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "openengine-proto"
+version = "0.1.0"
+description = "Generated Python bindings for the OpenEngine gRPC protocol"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+authors = [{ name = "OpenEngine contributors" }]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: System :: Distributed Computing",
+]
+dependencies = [
+  "grpcio>=1.81.1,<2",
+  "protobuf>=6.33.5,<8",
+]
+
+[project.urls]
+Documentation = "https://github.com/ai-dynamo/openengine/tree/main/docs"
+Issues = "https://github.com/ai-dynamo/openengine/issues"
+Repository = "https://github.com/ai-dynamo/openengine"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/README.md",
+  "/pyproject.toml",
+  "/src",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/openengine"]

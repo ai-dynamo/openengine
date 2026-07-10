@@ -28,6 +28,7 @@ SPDX-License-Identifier: Apache-2.0
   <a href="docs/motivation.md">Why OpenEngine?</a>
   · <a href="docs/api.md">API reference</a>
   · <a href="proto/openengine/v1/">Canonical schema</a>
+  · <a href="#generated-packages">Generated packages</a>
   · <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -43,6 +44,7 @@ SPDX-License-Identifier: Apache-2.0
 - [Architecture](#architecture)
 - [Capabilities](#capabilities)
 - [Getting started](#getting-started)
+- [Generated packages](#generated-packages)
 - [Project status](#project-status)
 - [Contributing](#contributing)
 - [Security](#security)
@@ -134,31 +136,68 @@ buf lint
 Buf lint, Markdown lint, and link checks run in GitHub Actions for relevant
 pull requests.
 
-### Generate Python bindings
+### Regenerate package bindings
 
-Use a proto3 toolchain with explicit-optional support (`protoc` 3.15 or newer).
-The contract imports protobuf well-known types, so their include path must be
-available to the compiler.
+The repository checks in generated Python and Rust bindings so that package
+users do not need a protobuf compiler. Contributors changing the schema must
+regenerate both packages:
 
 ```bash
-python -m pip install grpcio-tools
-
-OUT_DIR=/tmp/openengine-python
-mkdir -p "$OUT_DIR"
-
-PROTO_INCLUDE=$(python -c \
-  'import grpc_tools, os; print(os.path.join(os.path.dirname(grpc_tools.__file__), "_proto"))')
-
-python -m grpc_tools.protoc \
-  -I proto \
-  -I "$PROTO_INCLUDE" \
-  --python_out="$OUT_DIR" \
-  --grpc_python_out="$OUT_DIR" \
-  proto/openengine/v1/*.proto
+python -m pip install grpcio-tools==1.81.1
+./scripts/generate-python.sh
+./scripts/generate-rust.sh
+./scripts/check-generated.sh
 ```
 
 Other protobuf-supported languages can generate clients and servers from the
 same canonical package.
+
+## Generated packages
+
+Each OpenEngine release publishes Python and Rust bindings from the same schema
+and version tag. The artifacts contain generated code; installing them does not
+run Buf or `protoc`.
+
+### Python
+
+```bash
+pip install openengine-proto
+```
+
+```python
+import grpc
+
+from openengine.v1.generation_pb2 import GenerateRequest
+from openengine.v1.openengine_pb2_grpc import OpenEngineStub
+
+channel = grpc.aio.insecure_channel("localhost:50051")
+engine = OpenEngineStub(channel)
+request = GenerateRequest(request_id="example", model="model", prompt="Hello")
+```
+
+### Rust
+
+```bash
+cargo add openengine-proto
+```
+
+```rust
+use openengine_proto::openengine::v1::{
+    open_engine_client::OpenEngineClient,
+    GenerateRequest,
+};
+```
+
+The package version is the immutable `schema_release` identifier. Both packages
+also expose schema revision `1`; a client should still inspect `EngineInfo` to
+determine the revision and compatibility advertised by a running engine.
+
+| Package release | Protobuf package | Schema revision |
+| --------------- | ---------------- | --------------- |
+| `0.1.x`         | `openengine.v1`  | `1`             |
+
+See [`RELEASING.md`](RELEASING.md) for the coordinated release process and
+[`CHANGELOG.md`](CHANGELOG.md) for schema and package changes.
 
 ## Project status
 
@@ -189,7 +228,8 @@ git commit --signoff -m "docs: describe the change"
 
 Please validate protobuf changes with Buf and keep
 [`proto/openengine/v1/`](proto/openengine/v1/) and [`docs/api.md`](docs/api.md)
-synchronized.
+synchronized. Changes to the schema must also regenerate and commit both
+language packages.
 
 ## Security
 
