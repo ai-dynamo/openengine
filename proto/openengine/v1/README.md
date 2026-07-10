@@ -16,8 +16,7 @@ share the same package and together define the API.
 | [`generation.proto`](generation.proto) | Generation requests, streamed events, and usage |
 | [`generation_options.proto`](generation_options.proto) | Sampling, stopping, response, KV, and guided-decoding options |
 | [`lora.proto`](lora.proto) | LoRA adapter lifecycle |
-| [`kv.proto`](kv.proto) | KV sessions, endpoints, and connector discovery |
-| [`kv_events.proto`](kv_events.proto) | KV event-source discovery and event streaming |
+| [`kv.proto`](kv.proto) | KV sessions, connector discovery, and cache events |
 | [`lifecycle.proto`](lifecycle.proto) | Health, abort, and drain operations |
 | [`observability.proto`](observability.proto) | Load snapshots and runtime events |
 | [`error.proto`](error.proto) | Terminal errors for accepted streaming requests |

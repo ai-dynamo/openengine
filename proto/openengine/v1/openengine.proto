@@ -19,7 +19,6 @@ package openengine.v1;
 import "openengine/v1/engine.proto";
 import "openengine/v1/generation.proto";
 import "openengine/v1/kv.proto";
-import "openengine/v1/kv_events.proto";
 import "openengine/v1/lifecycle.proto";
 import "openengine/v1/lora.proto";
 import "openengine/v1/model.proto";
