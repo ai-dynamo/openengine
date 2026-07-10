@@ -19,7 +19,7 @@ SPDX-License-Identifier: Apache-2.0
   <a href="https://github.com/ai-dynamo/openengine/actions/workflows/buf.yml"><img alt="Buf CI" src="https://github.com/ai-dynamo/openengine/actions/workflows/buf.yml/badge.svg?branch=main"></a>
   <a href="LICENSE"><img alt="Apache 2.0 License" src="https://img.shields.io/github/license/ai-dynamo/openengine?color=blue"></a>
   <a href="#project-status"><img alt="Status: Experimental" src="https://img.shields.io/badge/status-experimental-f59e0b"></a>
-  <a href="proto/openengine/v1/openengine.proto"><img alt="API: openengine.v1" src="https://img.shields.io/badge/API-openengine.v1-6f42c1"></a>
+  <a href="proto/openengine/v1/"><img alt="API: openengine.v1" src="https://img.shields.io/badge/API-openengine.v1-6f42c1"></a>
   <a href="https://grpc.io/"><img alt="Transport: gRPC" src="https://img.shields.io/badge/transport-gRPC-244c5a"></a>
   <a href="https://protobuf.dev/"><img alt="Schema: Protocol Buffers" src="https://img.shields.io/badge/schema-Protobuf-4285F4"></a>
 </p>
@@ -27,7 +27,7 @@ SPDX-License-Identifier: Apache-2.0
 <p align="center">
   <a href="docs/motivation.md">Why OpenEngine?</a>
   · <a href="docs/api.md">API reference</a>
-  · <a href="proto/openengine/v1/openengine.proto">Canonical proto</a>
+  · <a href="proto/openengine/v1/">Canonical schema</a>
   · <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -98,8 +98,9 @@ exist alongside OpenEngine.
 
 ## Capabilities
 
-The complete service is defined in
-[`proto/openengine/v1/openengine.proto`](proto/openengine/v1/openengine.proto).
+The canonical schema is organized by domain under
+[`proto/openengine/v1/`](proto/openengine/v1/), with the service definition in
+[`openengine.proto`](proto/openengine/v1/openengine.proto).
 
 | Area                  | What the contract provides                                                                                        |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------- |
@@ -153,11 +154,11 @@ python -m grpc_tools.protoc \
   -I "$PROTO_INCLUDE" \
   --python_out="$OUT_DIR" \
   --grpc_python_out="$OUT_DIR" \
-  proto/openengine/v1/openengine.proto
+  proto/openengine/v1/*.proto
 ```
 
 Other protobuf-supported languages can generate clients and servers from the
-same canonical file.
+same canonical package.
 
 ## Project status
 
@@ -187,8 +188,8 @@ git commit --signoff -m "docs: describe the change"
 ```
 
 Please validate protobuf changes with Buf and keep
-[`proto/openengine/v1/openengine.proto`](proto/openengine/v1/openengine.proto) and
-[`docs/api.md`](docs/api.md) synchronized.
+[`proto/openengine/v1/`](proto/openengine/v1/) and [`docs/api.md`](docs/api.md)
+synchronized.
 
 ## Security
 

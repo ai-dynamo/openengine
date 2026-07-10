@@ -5,9 +5,9 @@ SPDX-License-Identifier: Apache-2.0
 
 # OpenEngine API v1
 
-This is the human-readable reference for
-[`openengine.v1`](../proto/openengine/v1/openengine.proto).
-The proto is the source of truth.
+This is the human-readable reference for the
+[`openengine.v1` schema](../proto/openengine/v1/). The proto package is the
+source of truth.
 
 ---
 
