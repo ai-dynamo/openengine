@@ -67,7 +67,7 @@ request and control data needed across the process boundary.
 | KV routing | Event streams and native event-source discovery |
 
 The [API reference](api.md) defines the fields. The
-[proto](../proto/openengine/v1/openengine.proto) is the source of truth.
+[`openengine.v1` schema](../proto/openengine/v1/) is the source of truth.
 
 ## What stays engine-specific
 

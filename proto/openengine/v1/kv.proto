@@ -1,0 +1,42 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+// KV sessions, endpoints, and connector discovery.
+
+syntax = "proto3";
+
+package openengine.v1;
+
+import "google/protobuf/struct.proto";
+
+message KvSessionRef {
+  string session_id = 1;
+  string transfer_backend = 2;
+  repeated KvEndpoint endpoints = 3;
+  uint32 dp_rank = 4;
+  // Engine-specific KV-transfer parameters (e.g. NixlConnector
+  // remote_host / remote_port / tp_size / remote_block_ids / do_remote_*),
+  // carried as a Struct so numbers, booleans, and arrays survive the wire with
+  // their JSON type intact. Struct numbers are IEEE-754 doubles (exact only to
+  // 2^53); carry larger integer values as strings or use a dedicated field.
+  google.protobuf.Struct attributes_struct = 5;
+}
+
+message KvEndpoint {
+  string host = 1;
+  uint32 port = 2;
+  string protocol = 3; // grpc, nixl, ucx, tcp, shm, etc.
+}
+message GetKvConnectorInfoRequest {}
+
+message KvConnectorInfo {
+  optional bool enabled = 1;
+  string transfer_backend = 2;
+  repeated KvEndpoint local_endpoints = 3;
+  repeated string supported_protocols = 4;
+  optional bool supports_remote_prefill = 5;
+  optional bool supports_decode_pull = 6;
+  optional bool supports_abort_cleanup = 7;
+  optional bool supports_drain = 8;
+  optional uint32 schema_version = 9;
+}

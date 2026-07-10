@@ -1,0 +1,40 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+// Engine identity, role, and parallelism metadata.
+
+syntax = "proto3";
+
+package openengine.v1;
+
+import "openengine/v1/kv.proto";
+
+enum EngineRole {
+  ENGINE_ROLE_UNSPECIFIED = 0;
+  ENGINE_ROLE_AGGREGATED = 1;
+  ENGINE_ROLE_PREFILL = 2;
+  ENGINE_ROLE_DECODE = 3;
+}
+
+message GetEngineInfoRequest {}
+
+message EngineInfo {
+  string engine_name = 1; // sglang, vllm, tensorrt_llm, etc.
+  string engine_version = 2;
+  EngineRole role = 3;
+  string instance_id = 4;
+  repeated string supported_models = 5;
+  ParallelismInfo parallelism = 6;
+  KvConnectorInfo kv_connector = 7;
+  uint32 schema_revision = 8; // Monotonic wire contract revision; zero is invalid.
+  uint32 minimum_client_revision = 9; // Oldest compatible client revision.
+  string schema_release = 10; // Immutable release or source tag for this schema.
+}
+
+message ParallelismInfo {
+  optional uint32 tensor_parallel_size = 1;
+  optional uint32 pipeline_parallel_size = 2;
+  optional uint32 data_parallel_size = 3;
+  optional uint32 data_parallel_rank = 4;
+  optional uint32 data_parallel_start_rank = 5;
+}

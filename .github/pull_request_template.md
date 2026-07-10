@@ -19,7 +19,7 @@
 
 <!-- Delete this section when the wire contract is unchanged. -->
 
-- [ ] The canonical proto and API documentation are synchronized
+- [ ] The canonical schema and API documentation are synchronized
 - [ ] Presence, defaults, and invalid states are defined
 - [ ] Acceptance, streaming, terminal, and error behavior are defined
 - [ ] Discovery and capability impacts are documented

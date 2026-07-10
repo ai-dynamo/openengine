@@ -1,0 +1,145 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+// Generation requests, streamed events, and usage.
+
+syntax = "proto3";
+
+package openengine.v1;
+
+import "openengine/v1/error.proto";
+import "openengine/v1/generation_options.proto";
+import "openengine/v1/kv.proto";
+
+message GenerateRequest {
+  string request_id = 1;
+  string model = 2;
+
+  oneof input {
+    string prompt = 3;
+    TokenIds token_ids = 4;
+  }
+
+  SamplingParams sampling = 5;
+  StoppingOptions stopping = 6;
+  ResponseOptions response = 7;
+  KvOptions kv = 8;
+  GuidedDecoding guided = 9;
+
+  // Multimodal inputs. Order is significant: the i-th item aligns with the
+  // i-th (un-expanded) placeholder marker carried in the prompt/token_ids.
+  // The engine fetches/decodes and preprocesses each item, then expands the
+  // marker into the model's replacement run. Empty for text-only requests.
+  repeated MediaItem media = 10;
+
+  // Loaded LoRA adapter name to apply to this request. Empty = base model.
+  // ModelInfo.supports_lora advertises whether lifecycle and selection are
+  // available through OpenEngine.
+  string lora_name = 11;
+
+  // Higher values receive higher scheduling priority.
+  optional int32 priority = 12;
+
+  // Optional request metadata for tracing/admission/routing.
+  map<string, string> metadata = 13;
+}
+
+// Multimodal modality discriminator. 0 is treated as image for forward
+// compatibility with senders that omit the field.
+enum Modality {
+  MODALITY_UNSPECIFIED = 0;
+  MODALITY_IMAGE = 1;
+  MODALITY_VIDEO = 2;
+  MODALITY_AUDIO = 3;
+}
+
+// A single multimodal input. Exactly one `source` should be set. The engine
+// owns fetch, decode, and preprocessing, so pre-decoded or RDMA media
+// descriptors are not represented here.
+message MediaItem {
+  Modality modality = 1;
+  oneof source {
+    string url = 2; // http(s):// -- engine fetches
+    string data_uri = 3; // data:<mime>;base64,<...> -- engine decodes
+    bytes raw_bytes = 4; // pre-fetched bytes -- engine still preprocesses
+  }
+  string mime_type = 5; // optional, hints raw_bytes decode
+  string uuid = 6; // optional caller id / mm_hash
+}
+
+message GenerateResponse {
+  string request_id = 1;
+
+  // PromptOutput, PrefillReady, and EngineError are request-scoped.
+  // TokenOutput and GenerationFinished are output-scoped.
+  oneof event {
+    PromptOutput prompt = 2;
+    TokenOutput token = 3;
+    PrefillReady prefill_ready = 4;
+    GenerationFinished finished = 5;
+    EngineError error = 6;
+  }
+
+  Usage usage = 10; // Cumulative request usage; only set on the final response.
+}
+
+// Request-scoped prompt token information, emitted at most once.
+message PromptOutput {
+  repeated TokenInfo tokens = 1;
+}
+
+// An incremental output delta. Tokens and text are never cumulative.
+message TokenOutput {
+  optional uint32 output_index = 1; // Required, including for output zero.
+  repeated TokenInfo tokens = 2;
+  string text = 3;
+}
+
+message TokenInfo {
+  uint32 token_id = 1;
+  string token = 2;
+  optional double logprob = 3;
+  optional uint32 rank = 4;
+  repeated LogProb candidates = 5;
+}
+
+message LogProb {
+  uint32 token_id = 1;
+  double logprob = 2;
+  string token = 3;
+  optional uint32 rank = 4;
+}
+
+message PrefillReady {
+  KvSessionRef kv_session = 1;
+}
+
+message GenerationFinished {
+  optional uint32 output_index = 1; // Required, including for output zero.
+  FinishReason reason = 2;
+  string message = 3;
+  StopMatch stop_match = 4;
+}
+
+message StopMatch {
+  oneof match {
+    uint32 stop_token_id = 1;
+    string stop_text = 2;
+    uint32 eos_token_id = 3;
+  }
+}
+
+enum FinishReason {
+  FINISH_REASON_UNSPECIFIED = 0;
+  FINISH_REASON_STOP = 1;
+  FINISH_REASON_LENGTH = 2;
+  FINISH_REASON_CANCELLED = 3;
+}
+
+message Usage {
+  uint32 prompt_tokens = 1;
+  uint32 completion_tokens = 2;
+  uint32 total_tokens = 3;
+  optional uint32 cached_prompt_tokens = 4;
+  optional uint32 reasoning_tokens = 5;
+}
