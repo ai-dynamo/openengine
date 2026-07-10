@@ -14,7 +14,7 @@ share the same package and together define the API.
 | [`engine.proto`](engine.proto) | Engine identity, roles, and parallelism |
 | [`model.proto`](model.proto) | Model metadata and generation capabilities |
 | [`generation.proto`](generation.proto) | Generation requests, streamed events, and usage |
-| [`generation_options.proto`](generation_options.proto) | Sampling, stopping, response, KV, and guided-decoding options |
+| [`generation_params.proto`](generation_params.proto) | Sampling, stopping, response, KV, and guided-decoding parameters |
 | [`lora.proto`](lora.proto) | LoRA adapter lifecycle |
 | [`kv.proto`](kv.proto) | KV sessions, connector discovery, and cache events |
 | [`lifecycle.proto`](lifecycle.proto) | Health, abort, and drain operations |

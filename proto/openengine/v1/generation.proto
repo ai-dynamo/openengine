@@ -8,7 +8,7 @@ syntax = "proto3";
 package openengine.v1;
 
 import "openengine/v1/error.proto";
-import "openengine/v1/generation_options.proto";
+import "openengine/v1/generation_params.proto";
 import "openengine/v1/kv.proto";
 
 message GenerateRequest {
