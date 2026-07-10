@@ -1,11 +1,13 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-// Model metadata and portable generation capabilities.
+// Model metadata and portable inference capabilities.
 
 syntax = "proto3";
 
 package openengine.v1;
+
+import "openengine/v1/tasks.proto";
 
 message GetModelInfoRequest {
   string model = 1;
@@ -34,6 +36,9 @@ message ModelInfo {
   // Empty means no parser is configured for this model.
   string reasoning_parser = 25;
   string tool_call_parser = 26;
+
+  // Optional non-generative task support for this model.
+  TaskCapabilities tasks = 27;
 }
 
 message GenerationCapabilities {

@@ -105,6 +105,7 @@ The canonical schema is organized by domain under
 | Area                  | What the contract provides                                                                                        |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Portable generation   | Text or token input, sampling, stopping, priorities, multiple sequences, and deterministic seeds                  |
+| Non-generative tasks  | Typed embedding, classification, and grouped query/candidate scoring with stable correlation                      |
 | Structured output     | JSON Schema, JSON object, regex, EBNF grammar, structural tags, and fixed choices                                 |
 | Token information     | Prompt and output logprobs, ranks, candidate-token selection, per-token records, and streamed text deltas         |
 | Discovery             | Engine identity, schema revision, role, model limits, topology, parser configuration, and generation capabilities |
@@ -168,7 +169,7 @@ depend on it. Expect direct schema refinement during this phase.
 
 The intended adoption path is incremental:
 
-1. Aggregated text generation, discovery, health, abort, and drain.
+1. Aggregated generation and non-generative tasks, discovery, health, abort, and drain.
 2. Prefill/decode roles, KV handoff, rank affinity, and KV event integration.
 3. Logprobs, guided decoding, LoRA, and multimodal input as needed.
 
