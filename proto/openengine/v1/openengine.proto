@@ -16,6 +16,8 @@ syntax = "proto3";
 
 package openengine.v1;
 
+import "openengine/v1/classification.proto";
+import "openengine/v1/embedding.proto";
 import "openengine/v1/engine.proto";
 import "openengine/v1/generation.proto";
 import "openengine/v1/kv.proto";
@@ -23,10 +25,16 @@ import "openengine/v1/lifecycle.proto";
 import "openengine/v1/lora.proto";
 import "openengine/v1/model.proto";
 import "openengine/v1/observability.proto";
+import "openengine/v1/scoring.proto";
 
 service OpenEngine {
   // Core inference path.
   rpc Generate(GenerateRequest) returns (stream GenerateResponse);
+
+  // Non-generative inference paths.
+  rpc Embed(EmbedRequest) returns (EmbedResponse);
+  rpc Classify(ClassifyRequest) returns (ClassifyResponse);
+  rpc Score(ScoreRequest) returns (ScoreResponse);
 
   // Runtime metadata and scheduling state.
   rpc GetEngineInfo(GetEngineInfoRequest) returns (EngineInfo);

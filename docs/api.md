@@ -24,6 +24,11 @@ service OpenEngine {
   // Core inference path.
   rpc Generate(GenerateRequest) returns (stream GenerateResponse);
 
+  // Non-generative inference paths.
+  rpc Embed(EmbedRequest) returns (EmbedResponse);
+  rpc Classify(ClassifyRequest) returns (ClassifyResponse);
+  rpc Score(ScoreRequest) returns (ScoreResponse);
+
   // Runtime metadata and scheduling state.
   rpc GetEngineInfo(GetEngineInfoRequest) returns (EngineInfo);
   rpc GetModelInfo(GetModelInfoRequest) returns (ModelInfo);
@@ -143,6 +148,7 @@ message ModelInfo {
 
   string reasoning_parser = 25;
   string tool_call_parser = 26;
+  TaskCapabilities tasks = 27;
 }
 
 message GenerationCapabilities {
@@ -195,6 +201,353 @@ for the corresponding request options.
 
 `supports_lora=true` means the engine accepts `GenerateRequest.lora_name` and
 the LoRA lifecycle RPCs on `OpenEngine`.
+
+---
+
+## Non-generative task API
+
+`Embed`, `Classify`, and `Score` are unary inference operations. They share a
+request context and typed inputs, but retain task-specific options and outputs.
+Support is optional per model and advertised through `ModelInfo.tasks`.
+
+```protobuf
+message TaskRequestContext {
+  string request_id = 1;
+  string model = 2;
+  string lora_name = 3;
+  optional int32 priority = 4;
+  map<string, string> metadata = 5;
+}
+
+message TaskInput {
+  string item_id = 1;
+  oneof input {
+    string text = 2;
+    TokenIds token_ids = 3;
+    MultimodalTaskInput multimodal = 4;
+  }
+}
+
+message MultimodalTaskInput {
+  oneof prompt {
+    string text = 1;
+    TokenIds token_ids = 2;
+  }
+  repeated MediaItem media = 3;
+}
+
+message DenseFloatTensor {
+  repeated uint64 shape = 1;
+  repeated float values = 2;
+}
+
+message SparseFloatTensor {
+  repeated uint64 shape = 1;
+  repeated uint64 indices = 2;
+  repeated float values = 3;
+}
+
+message TaskUsage {
+  uint64 input_tokens = 1;
+  optional uint64 cached_input_tokens = 2;
+}
+
+enum TaskInputType {
+  TASK_INPUT_TYPE_UNSPECIFIED = 0;
+  TASK_INPUT_TYPE_TEXT = 1;
+  TASK_INPUT_TYPE_TOKEN_IDS = 2;
+  TASK_INPUT_TYPE_MULTIMODAL = 3;
+}
+
+enum TaskOutputGranularity {
+  TASK_OUTPUT_GRANULARITY_UNSPECIFIED = 0;
+  TASK_OUTPUT_GRANULARITY_SEQUENCE = 1;
+  TASK_OUTPUT_GRANULARITY_TOKEN = 2;
+}
+
+enum EmbeddingEncoding {
+  EMBEDDING_ENCODING_UNSPECIFIED = 0;
+  EMBEDDING_ENCODING_DENSE = 1;
+  EMBEDDING_ENCODING_SPARSE = 2;
+}
+
+enum TaskValueSemantics {
+  TASK_VALUE_SEMANTICS_UNSPECIFIED = 0;
+  TASK_VALUE_SEMANTICS_LOGITS = 1;
+  TASK_VALUE_SEMANTICS_PROBABILITIES = 2;
+  TASK_VALUE_SEMANTICS_LOG_PROBABILITIES = 3;
+  TASK_VALUE_SEMANTICS_SIMILARITY = 4;
+  TASK_VALUE_SEMANTICS_RELEVANCE = 5;
+  TASK_VALUE_SEMANTICS_REWARD = 6;
+  TASK_VALUE_SEMANTICS_MODEL_DEFINED = 7;
+}
+
+enum ScoreNormalization {
+  SCORE_NORMALIZATION_UNSPECIFIED = 0;
+  SCORE_NORMALIZATION_NONE = 1;
+  SCORE_NORMALIZATION_SOFTMAX = 2;
+}
+```
+
+`TaskRequestContext.request_id` and `model` are required and non-empty. Request
+IDs share the same namespace and abort semantics as generation request IDs.
+`priority` uses the generation ordering convention: larger values have higher
+priority. A non-empty `lora_name` selects an already loaded adapter. Clients
+must use either option only when the corresponding task capability advertises
+support.
+
+Each request batch must be non-empty. `item_id` is required and unique within
+an embed/classify batch, and every query/candidate item ID is unique within one
+score group. Exactly one `TaskInput.input` variant is set. A multimodal input must
+contain at least one `MediaItem`; its optional prompt is either text or token
+IDs, never both. Media ordering and validation follow `GenerateRequest.media`.
+
+`DenseFloatTensor` is row-major FP32 data. Every dimension is greater than zero,
+the product of `shape` equals `values.size()`, and every value is finite.
+`SparseFloatTensor` uses flattened row-major indices; `indices` and `values`
+have equal length, indices are unique and strictly increasing, and every index
+is smaller than the product of `shape`. A scalar is encoded with shape `[1]`,
+not an empty shape. `cached_input_tokens`, when present, does not exceed
+`input_tokens`.
+
+### Embedding
+
+```protobuf
+message EmbedRequest {
+  TaskRequestContext context = 1;
+  repeated TaskInput inputs = 2;
+  EmbedOptions options = 3;
+}
+
+message EmbedOptions {
+  optional TaskOutputGranularity granularity = 1;
+  optional bool normalize = 2;
+  optional uint32 dimensions = 3;
+  optional EmbeddingEncoding encoding = 4;
+}
+
+message EmbedResponse {
+  string request_id = 1;
+  repeated EmbeddingOutput outputs = 2;
+  TaskUsage usage = 3;
+}
+
+message EmbeddingOutput {
+  string item_id = 1;
+  optional uint32 input_index = 2;
+  TaskOutputGranularity granularity = 3;
+  oneof embedding {
+    DenseFloatTensor dense = 4;
+    SparseFloatTensor sparse = 5;
+  }
+  repeated uint32 token_ids = 6;
+}
+```
+
+Absent embedding options select model defaults. An explicit granularity,
+normalization, or encoding request must be implemented exactly or rejected.
+`dimensions` must be greater than zero and requests dimensionality reduction;
+it does not permit padding a smaller model output.
+
+Sequence embeddings have shape `[dimension]`. Token embeddings have shape
+`[token_count, dimension]`; `token_ids`, when returned, has `token_count`
+entries aligned to the first tensor dimension. Outputs preserve request order,
+and `input_index` is present even for index zero and identifies the matching
+input. A successful response contains exactly one output for every request
+input.
+
+### Classification
+
+```protobuf
+message ClassifyRequest {
+  TaskRequestContext context = 1;
+  repeated TaskInput inputs = 2;
+  ClassifyOptions options = 3;
+}
+
+message ClassifyOptions {
+  optional TaskOutputGranularity granularity = 1;
+  optional TaskValueSemantics output_semantics = 2;
+}
+
+message ClassifyResponse {
+  string request_id = 1;
+  repeated ClassificationOutput outputs = 2;
+  TaskUsage usage = 3;
+}
+
+message ClassificationOutput {
+  string item_id = 1;
+  optional uint32 input_index = 2;
+  TaskOutputGranularity granularity = 3;
+  TaskValueSemantics semantics = 4;
+  DenseFloatTensor scores = 5;
+  repeated string labels = 6;
+  repeated uint32 token_ids = 7;
+}
+```
+
+Classification normally returns logits, probabilities, log probabilities, or
+model-defined values. The engine reports the actual non-`UNSPECIFIED`
+semantics. Sequence classification has shape `[class_count]`; token
+classification has shape `[token_count, class_count]`. When labels are
+returned, their count equals `class_count` and their order matches the final
+tensor dimension. Token IDs follow the same alignment rule as token
+embeddings. Outputs preserve request order and correlation. A successful
+response contains exactly one output for every request input, and `input_index`
+is present even for index zero.
+
+### Scoring
+
+```protobuf
+message ScoreRequest {
+  TaskRequestContext context = 1;
+  repeated ScoreGroup groups = 2;
+  ScoreOptions options = 3;
+}
+
+message ScoreGroup {
+  string group_id = 1;
+  TaskInput query = 2;
+  repeated TaskInput candidates = 3;
+}
+
+message ScoreOptions {
+  optional TaskOutputGranularity granularity = 1;
+  optional TaskValueSemantics output_semantics = 2;
+  ScoreNormalization normalization = 3;
+  repeated uint32 label_token_ids = 4;
+  string instruction = 5;
+}
+
+message ScoreResponse {
+  string request_id = 1;
+  repeated ScoreGroupOutput groups = 2;
+  TaskOutputGranularity granularity = 3;
+  TaskValueSemantics semantics = 4;
+  optional bool higher_is_better = 5;
+  ScoreNormalization normalization = 6;
+  repeated uint32 label_token_ids = 7;
+  TaskUsage usage = 8;
+}
+
+message ScoreGroupOutput {
+  string group_id = 1;
+  optional uint32 group_index = 2;
+  repeated ScoreCandidateOutput candidates = 3;
+}
+
+message ScoreCandidateOutput {
+  string candidate_id = 1;
+  optional uint32 candidate_index = 2;
+  DenseFloatTensor scores = 3;
+  repeated uint32 token_ids = 4;
+}
+```
+
+Every score request has at least one group. Group IDs are unique, every group
+has one query and at least one candidate, and candidate IDs are unique within
+the group. Repeating groups represents N:N paired scoring; one group with many
+candidates represents the optimized 1:N path used by rerankers and multi-item
+scoring engines.
+
+Absent granularity and output semantics select model defaults. An explicit
+value must be supported. `SCORE_NORMALIZATION_UNSPECIFIED` selects the model
+default, `NONE` requests native unnormalized values, and `SOFTMAX` requests
+normalization across each returned label vector. Duplicate label token IDs are
+invalid. When `label_token_ids` is non-empty, the engine performs causal-model
+label-token scoring and the response repeats those IDs in the same order.
+When it is empty, the engine performs its advertised model-native scoring
+operation. A non-empty `instruction` is valid only when instruction support is
+advertised; template selection and rendering remain engine-owned.
+
+`ScoreResponse` reports the actual granularity, semantics, normalization, and
+label-token order. Group and candidate results preserve request order and carry
+their present zero-based original indexes, including index zero. A successful
+response contains every group and candidate exactly once; partial success is
+not represented. Token-granularity candidate tensors may return aligned token
+IDs. The engine never sorts candidates or echoes source documents.
+
+A gateway may derive reranking only when every candidate has exactly one score
+and `higher_is_better` is present. It stable-sorts using that direction, breaks
+ties by `candidate_index`, applies its external `top_n`, and attaches documents
+from gateway-owned request state. Reranking is response shaping, not a separate
+OpenEngine inference capability.
+
+### Task capability discovery
+
+```protobuf
+message TaskCapabilities {
+  EmbedCapabilities embed = 1;
+  ClassifyCapabilities classify = 2;
+  ScoreCapabilities score = 3;
+}
+
+message EmbedCapabilities {
+  optional bool supported = 1;
+  repeated TaskInputType input_types = 2;
+  repeated TaskOutputGranularity granularities = 3;
+  repeated EmbeddingEncoding encodings = 4;
+  optional uint32 dimension = 5;
+  optional uint32 max_batch_size = 6;
+  optional uint64 max_output_values_per_item = 7;
+  optional bool supports_priority = 8;
+  optional bool supports_lora = 9;
+  optional bool supports_normalization = 10;
+  optional bool supports_dimension_override = 11;
+  repeated Modality modalities = 12;
+}
+
+message ClassifyCapabilities {
+  optional bool supported = 1;
+  repeated TaskInputType input_types = 2;
+  repeated TaskOutputGranularity granularities = 3;
+  repeated TaskValueSemantics semantics = 4;
+  optional uint32 max_batch_size = 5;
+  optional uint64 max_output_values_per_item = 6;
+  optional bool supports_priority = 7;
+  optional bool supports_lora = 8;
+  repeated Modality modalities = 9;
+}
+
+message ScoreCapabilities {
+  optional bool supported = 1;
+  repeated TaskInputType input_types = 2;
+  repeated TaskOutputGranularity granularities = 3;
+  repeated TaskValueSemantics semantics = 4;
+  repeated ScoreNormalization normalizations = 5;
+  optional bool supports_label_token_scoring = 6;
+  optional bool supports_instruction = 7;
+  optional uint32 max_groups = 8;
+  optional uint32 max_candidates_per_group = 9;
+  optional uint64 max_output_values_per_candidate = 10;
+  optional bool supports_priority = 11;
+  optional bool supports_lora = 12;
+  optional bool higher_is_better = 13;
+  repeated Modality modalities = 14;
+  optional uint32 max_label_token_ids = 15;
+}
+```
+
+An absent `ModelInfo.tasks` means the model does not advertise non-generative
+task support. Within it, an absent task capability is unreported; a present
+capability uses `supported` presence to distinguish unreported support from an
+explicit `true` or `false`. Capability lists never contain `UNSPECIFIED`.
+Reported dimensions and limits are greater than zero. `dimension` is present
+only when a model has one fixed native embedding dimension. A rankable native
+score advertises its default direction through `higher_is_better`; the response
+still reports the actual direction for each request. `modalities` is meaningful
+only when the task includes `TASK_INPUT_TYPE_MULTIMODAL`, and never contains
+`MODALITY_UNSPECIFIED`.
+For dense embeddings, `max_output_values_per_item` limits the flattened element
+count; for sparse embeddings, it limits the number of returned nonzero values.
+
+The server rejects an unsupported task with `FAILED_PRECONDITION`, an unknown
+model with `NOT_FOUND`, malformed input or unsupported explicit options with
+`INVALID_ARGUMENT`, and admission/capacity exhaustion with
+`RESOURCE_EXHAUSTED`. A successful unary response is terminal. Client
+cancellation or deadline expiration stops queued or running work, and
+`Abort(request_id)` follows the same semantics as generation.
 
 ---
 

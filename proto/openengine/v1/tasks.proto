@@ -1,0 +1,46 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+// Shared request and output vocabulary for non-generative inference tasks.
+
+syntax = "proto3";
+
+package openengine.v1;
+
+// Request metadata shared by every non-generative task.
+message TaskRequestContext {
+  string request_id = 1;
+  string model = 2;
+  string lora_name = 3;
+  optional int32 priority = 4;
+  map<string, string> metadata = 5;
+}
+
+// Row-major FP32 tensor. The product of shape must equal values.size().
+message DenseFloatTensor {
+  repeated uint64 shape = 1;
+  repeated float values = 2;
+}
+
+// Token accounting for one complete unary task request.
+message TaskUsage {
+  uint64 input_tokens = 1;
+  optional uint64 cached_input_tokens = 2;
+}
+
+enum TaskOutputGranularity {
+  TASK_OUTPUT_GRANULARITY_UNSPECIFIED = 0;
+  TASK_OUTPUT_GRANULARITY_SEQUENCE = 1;
+  TASK_OUTPUT_GRANULARITY_TOKEN = 2;
+}
+
+enum TaskValueSemantics {
+  TASK_VALUE_SEMANTICS_UNSPECIFIED = 0;
+  TASK_VALUE_SEMANTICS_LOGITS = 1;
+  TASK_VALUE_SEMANTICS_PROBABILITIES = 2;
+  TASK_VALUE_SEMANTICS_LOG_PROBABILITIES = 3;
+  TASK_VALUE_SEMANTICS_SIMILARITY = 4;
+  TASK_VALUE_SEMANTICS_RELEVANCE = 5;
+  TASK_VALUE_SEMANTICS_REWARD = 6;
+  TASK_VALUE_SEMANTICS_MODEL_DEFINED = 7;
+}
