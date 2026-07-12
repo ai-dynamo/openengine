@@ -1,0 +1,69 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+// Portable dense and sparse embedding inference.
+
+syntax = "proto3";
+
+package openengine.v1;
+
+import "openengine/v1/input.proto";
+import "openengine/v1/tasks.proto";
+
+enum EmbeddingEncoding {
+  EMBEDDING_ENCODING_UNSPECIFIED = 0;
+  EMBEDDING_ENCODING_DENSE = 1;
+  EMBEDDING_ENCODING_SPARSE = 2;
+}
+
+// Row-major sparse FP32 tensor with flattened, strictly increasing indices.
+message SparseFloatTensor {
+  repeated uint64 shape = 1;
+  repeated uint64 indices = 2;
+  repeated float values = 3;
+}
+
+message EmbedCapabilities {
+  optional bool supported = 1;
+  repeated TaskInputType input_types = 2;
+  repeated TaskOutputGranularity granularities = 3;
+  repeated EmbeddingEncoding encodings = 4;
+  optional uint32 dimension = 5;
+  optional uint32 max_batch_size = 6;
+  optional uint64 max_output_values_per_item = 7;
+  optional bool supports_priority = 8;
+  optional bool supports_lora = 9;
+  optional bool supports_normalization = 10;
+  optional bool supports_dimension_override = 11;
+  repeated Modality modalities = 12;
+}
+
+message EmbedRequest {
+  TaskRequestContext context = 1;
+  repeated TaskInput inputs = 2;
+  EmbedOptions options = 3;
+}
+
+message EmbedOptions {
+  optional TaskOutputGranularity granularity = 1;
+  optional bool normalize = 2;
+  optional uint32 dimensions = 3;
+  optional EmbeddingEncoding encoding = 4;
+}
+
+message EmbedResponse {
+  string request_id = 1;
+  repeated EmbeddingOutput outputs = 2;
+  TaskUsage usage = 3;
+}
+
+message EmbeddingOutput {
+  string item_id = 1;
+  optional uint32 input_index = 2;
+  TaskOutputGranularity granularity = 3;
+  oneof embedding {
+    DenseFloatTensor dense = 4;
+    SparseFloatTensor sparse = 5;
+  }
+  repeated uint32 token_ids = 6;
+}

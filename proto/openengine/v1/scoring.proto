@@ -1,0 +1,80 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+// Portable grouped query and candidate scoring inference.
+
+syntax = "proto3";
+
+package openengine.v1;
+
+import "openengine/v1/input.proto";
+import "openengine/v1/tasks.proto";
+
+enum ScoreNormalization {
+  SCORE_NORMALIZATION_UNSPECIFIED = 0;
+  SCORE_NORMALIZATION_NONE = 1;
+  SCORE_NORMALIZATION_SOFTMAX = 2;
+}
+
+message ScoreCapabilities {
+  optional bool supported = 1;
+  repeated TaskInputType input_types = 2;
+  repeated TaskOutputGranularity granularities = 3;
+  repeated TaskValueSemantics semantics = 4;
+  repeated ScoreNormalization normalizations = 5;
+  optional bool supports_label_token_scoring = 6;
+  optional bool supports_instruction = 7;
+  optional uint32 max_groups = 8;
+  optional uint32 max_candidates_per_group = 9;
+  optional uint64 max_output_values_per_candidate = 10;
+  optional bool supports_priority = 11;
+  optional bool supports_lora = 12;
+  optional bool higher_is_better = 13;
+  repeated Modality modalities = 14;
+  optional uint32 max_label_token_ids = 15;
+}
+
+message ScoreRequest {
+  TaskRequestContext context = 1;
+  repeated ScoreGroup groups = 2;
+  ScoreOptions options = 3;
+}
+
+// A query and one or more candidates scored as one correlation group.
+message ScoreGroup {
+  string group_id = 1;
+  TaskInput query = 2;
+  repeated TaskInput candidates = 3;
+}
+
+message ScoreOptions {
+  optional TaskOutputGranularity granularity = 1;
+  optional TaskValueSemantics output_semantics = 2;
+  ScoreNormalization normalization = 3;
+  repeated uint32 label_token_ids = 4;
+  string instruction = 5;
+}
+
+message ScoreResponse {
+  string request_id = 1;
+  repeated ScoreGroupOutput groups = 2;
+  TaskOutputGranularity granularity = 3;
+  TaskValueSemantics semantics = 4;
+  optional bool higher_is_better = 5;
+  ScoreNormalization normalization = 6;
+  repeated uint32 label_token_ids = 7;
+  TaskUsage usage = 8;
+}
+
+message ScoreGroupOutput {
+  string group_id = 1;
+  optional uint32 group_index = 2;
+  repeated ScoreCandidateOutput candidates = 3;
+}
+
+message ScoreCandidateOutput {
+  string candidate_id = 1;
+  optional uint32 candidate_index = 2;
+  DenseFloatTensor scores = 3;
+  repeated uint32 token_ids = 4;
+}

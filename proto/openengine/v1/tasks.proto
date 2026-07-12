@@ -1,14 +1,11 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-// Portable non-generative inference tasks and model capabilities.
+// Shared request and output vocabulary for non-generative inference tasks.
 
 syntax = "proto3";
 
 package openengine.v1;
-
-import "openengine/v1/generation.proto";
-import "openengine/v1/generation_params.proto";
 
 // Request metadata shared by every non-generative task.
 message TaskRequestContext {
@@ -19,36 +16,10 @@ message TaskRequestContext {
   map<string, string> metadata = 5;
 }
 
-// Text and token prompts may accompany media in a multimodal task input.
-message MultimodalTaskInput {
-  oneof prompt {
-    string text = 1;
-    TokenIds token_ids = 2;
-  }
-  repeated MediaItem media = 3;
-}
-
-// One independently correlated task input.
-message TaskInput {
-  string item_id = 1;
-  oneof input {
-    string text = 2;
-    TokenIds token_ids = 3;
-    MultimodalTaskInput multimodal = 4;
-  }
-}
-
 // Row-major FP32 tensor. The product of shape must equal values.size().
 message DenseFloatTensor {
   repeated uint64 shape = 1;
   repeated float values = 2;
-}
-
-// Row-major sparse FP32 tensor with flattened, strictly increasing indices.
-message SparseFloatTensor {
-  repeated uint64 shape = 1;
-  repeated uint64 indices = 2;
-  repeated float values = 3;
 }
 
 // Token accounting for one complete unary task request.
@@ -57,23 +28,10 @@ message TaskUsage {
   optional uint64 cached_input_tokens = 2;
 }
 
-enum TaskInputType {
-  TASK_INPUT_TYPE_UNSPECIFIED = 0;
-  TASK_INPUT_TYPE_TEXT = 1;
-  TASK_INPUT_TYPE_TOKEN_IDS = 2;
-  TASK_INPUT_TYPE_MULTIMODAL = 3;
-}
-
 enum TaskOutputGranularity {
   TASK_OUTPUT_GRANULARITY_UNSPECIFIED = 0;
   TASK_OUTPUT_GRANULARITY_SEQUENCE = 1;
   TASK_OUTPUT_GRANULARITY_TOKEN = 2;
-}
-
-enum EmbeddingEncoding {
-  EMBEDDING_ENCODING_UNSPECIFIED = 0;
-  EMBEDDING_ENCODING_DENSE = 1;
-  EMBEDDING_ENCODING_SPARSE = 2;
 }
 
 enum TaskValueSemantics {
@@ -85,164 +43,4 @@ enum TaskValueSemantics {
   TASK_VALUE_SEMANTICS_RELEVANCE = 5;
   TASK_VALUE_SEMANTICS_REWARD = 6;
   TASK_VALUE_SEMANTICS_MODEL_DEFINED = 7;
-}
-
-enum ScoreNormalization {
-  SCORE_NORMALIZATION_UNSPECIFIED = 0;
-  SCORE_NORMALIZATION_NONE = 1;
-  SCORE_NORMALIZATION_SOFTMAX = 2;
-}
-
-// Per-model support and limits for non-generative tasks.
-message TaskCapabilities {
-  EmbedCapabilities embed = 1;
-  ClassifyCapabilities classify = 2;
-  ScoreCapabilities score = 3;
-}
-
-message EmbedCapabilities {
-  optional bool supported = 1;
-  repeated TaskInputType input_types = 2;
-  repeated TaskOutputGranularity granularities = 3;
-  repeated EmbeddingEncoding encodings = 4;
-  optional uint32 dimension = 5;
-  optional uint32 max_batch_size = 6;
-  optional uint64 max_output_values_per_item = 7;
-  optional bool supports_priority = 8;
-  optional bool supports_lora = 9;
-  optional bool supports_normalization = 10;
-  optional bool supports_dimension_override = 11;
-  repeated Modality modalities = 12;
-}
-
-message ClassifyCapabilities {
-  optional bool supported = 1;
-  repeated TaskInputType input_types = 2;
-  repeated TaskOutputGranularity granularities = 3;
-  repeated TaskValueSemantics semantics = 4;
-  optional uint32 max_batch_size = 5;
-  optional uint64 max_output_values_per_item = 6;
-  optional bool supports_priority = 7;
-  optional bool supports_lora = 8;
-  repeated Modality modalities = 9;
-}
-
-message ScoreCapabilities {
-  optional bool supported = 1;
-  repeated TaskInputType input_types = 2;
-  repeated TaskOutputGranularity granularities = 3;
-  repeated TaskValueSemantics semantics = 4;
-  repeated ScoreNormalization normalizations = 5;
-  optional bool supports_label_token_scoring = 6;
-  optional bool supports_instruction = 7;
-  optional uint32 max_groups = 8;
-  optional uint32 max_candidates_per_group = 9;
-  optional uint64 max_output_values_per_candidate = 10;
-  optional bool supports_priority = 11;
-  optional bool supports_lora = 12;
-  optional bool higher_is_better = 13;
-  repeated Modality modalities = 14;
-  optional uint32 max_label_token_ids = 15;
-}
-
-message EmbedRequest {
-  TaskRequestContext context = 1;
-  repeated TaskInput inputs = 2;
-  EmbedOptions options = 3;
-}
-
-message EmbedOptions {
-  optional TaskOutputGranularity granularity = 1;
-  optional bool normalize = 2;
-  optional uint32 dimensions = 3;
-  optional EmbeddingEncoding encoding = 4;
-}
-
-message EmbedResponse {
-  string request_id = 1;
-  repeated EmbeddingOutput outputs = 2;
-  TaskUsage usage = 3;
-}
-
-message EmbeddingOutput {
-  string item_id = 1;
-  optional uint32 input_index = 2;
-  TaskOutputGranularity granularity = 3;
-  oneof embedding {
-    DenseFloatTensor dense = 4;
-    SparseFloatTensor sparse = 5;
-  }
-  repeated uint32 token_ids = 6;
-}
-
-message ClassifyRequest {
-  TaskRequestContext context = 1;
-  repeated TaskInput inputs = 2;
-  ClassifyOptions options = 3;
-}
-
-message ClassifyOptions {
-  optional TaskOutputGranularity granularity = 1;
-  optional TaskValueSemantics output_semantics = 2;
-}
-
-message ClassifyResponse {
-  string request_id = 1;
-  repeated ClassificationOutput outputs = 2;
-  TaskUsage usage = 3;
-}
-
-message ClassificationOutput {
-  string item_id = 1;
-  optional uint32 input_index = 2;
-  TaskOutputGranularity granularity = 3;
-  TaskValueSemantics semantics = 4;
-  DenseFloatTensor scores = 5;
-  repeated string labels = 6;
-  repeated uint32 token_ids = 7;
-}
-
-message ScoreRequest {
-  TaskRequestContext context = 1;
-  repeated ScoreGroup groups = 2;
-  ScoreOptions options = 3;
-}
-
-// A query and one or more candidates scored as one correlation group.
-message ScoreGroup {
-  string group_id = 1;
-  TaskInput query = 2;
-  repeated TaskInput candidates = 3;
-}
-
-message ScoreOptions {
-  optional TaskOutputGranularity granularity = 1;
-  optional TaskValueSemantics output_semantics = 2;
-  ScoreNormalization normalization = 3;
-  repeated uint32 label_token_ids = 4;
-  string instruction = 5;
-}
-
-message ScoreResponse {
-  string request_id = 1;
-  repeated ScoreGroupOutput groups = 2;
-  TaskOutputGranularity granularity = 3;
-  TaskValueSemantics semantics = 4;
-  optional bool higher_is_better = 5;
-  ScoreNormalization normalization = 6;
-  repeated uint32 label_token_ids = 7;
-  TaskUsage usage = 8;
-}
-
-message ScoreGroupOutput {
-  string group_id = 1;
-  optional uint32 group_index = 2;
-  repeated ScoreCandidateOutput candidates = 3;
-}
-
-message ScoreCandidateOutput {
-  string candidate_id = 1;
-  optional uint32 candidate_index = 2;
-  DenseFloatTensor scores = 3;
-  repeated uint32 token_ids = 4;
 }

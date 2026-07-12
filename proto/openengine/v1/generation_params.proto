@@ -7,11 +7,8 @@ syntax = "proto3";
 
 package openengine.v1;
 
+import "openengine/v1/input.proto";
 import "openengine/v1/kv.proto";
-
-message TokenIds {
-  repeated uint32 ids = 1;
-}
 
 message SamplingParams {
   optional double temperature = 1;
