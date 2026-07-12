@@ -8,7 +8,6 @@ syntax = "proto3";
 package openengine.v1;
 
 import "openengine/v1/error.proto";
-import "openengine/v1/generation_params.proto";
 import "openengine/v1/input.proto";
 import "openengine/v1/kv.proto";
 
@@ -44,6 +43,81 @@ message GenerateRequest {
   // Optional request metadata for tracing/admission/routing.
   map<string, string> metadata = 13;
 }
+
+message SamplingParams {
+  optional double temperature = 1;
+  optional double top_p = 2;
+  optional int32 top_k = 3;
+  optional double min_p = 4;
+  optional double frequency_penalty = 5;
+  optional double presence_penalty = 6;
+  optional double repetition_penalty = 7;
+  optional uint64 seed = 8;
+  optional uint32 num_sequences = 9;
+}
+
+message StoppingOptions {
+  optional uint32 max_tokens = 1;
+  optional uint32 min_tokens = 2;
+  repeated StopCondition conditions = 3;
+  optional bool ignore_eos = 4;
+  optional bool include_stop_in_output = 5;
+}
+
+message ResponseOptions {
+  optional bool return_prompt_logprobs = 1;
+  CandidateTokenSelection prompt_candidates = 2;
+  optional bool return_output_logprobs = 3;
+  CandidateTokenSelection output_candidates = 4;
+  optional uint32 prompt_logprob_start = 5;
+}
+
+message CandidateTokenSelection {
+  oneof selection {
+    uint32 top_n = 1;
+    TokenIds token_ids = 2;
+    AllCandidates all = 3;
+  }
+}
+
+message AllCandidates {}
+
+message KvOptions {
+  KvSessionRef session = 1;
+  optional uint32 data_parallel_rank = 2;
+  optional bool bypass_prefix_cache = 3;
+  optional string cache_salt = 4;
+}
+
+message StopCondition {
+  oneof condition {
+    string stop_text = 1;
+    uint32 stop_token_id = 2;
+  }
+}
+
+// Constrained / guided decoding spec. At most one of `guide` should be set.
+// The engine enforces the constraint during sampling via its grammar backend
+// (xgrammar / outlines / llguidance); clients cannot apply it post-hoc.
+message GuidedDecoding {
+  oneof guide {
+    string json_schema = 1; // output conforms to this JSON schema
+    string regex = 2; // output matches this regex
+    string ebnf_grammar = 3; // output follows this EBNF / context-free grammar
+    string structural_tag = 4; // xgrammar structural-tag constraint (JSON string)
+    ChoiceConstraint choice = 5;
+    JsonObjectConstraint json_object = 6;
+  }
+  // Optional grammar backend override (e.g. "xgrammar", "outlines",
+  // "llguidance"). Empty = engine default.
+  string backend = 7;
+}
+
+message ChoiceConstraint {
+  repeated string choices = 1;
+}
+
+message JsonObjectConstraint {}
 
 message GenerateResponse {
   string request_id = 1;

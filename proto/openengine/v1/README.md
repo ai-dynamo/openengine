@@ -14,8 +14,7 @@ share the same package and together define the API.
 | [`input.proto`](input.proto) | Shared text, token, and multimodal inputs |
 | [`engine.proto`](engine.proto) | Engine identity, roles, and parallelism |
 | [`model.proto`](model.proto) | Model metadata and inference capabilities |
-| [`generation.proto`](generation.proto) | Generation requests, streamed events, and usage |
-| [`generation_params.proto`](generation_params.proto) | Sampling, stopping, response, KV, and guided-decoding parameters |
+| [`generation.proto`](generation.proto) | Generation requests, parameters, streamed events, and usage |
 | [`tasks.proto`](tasks.proto) | Shared non-generative task request and output vocabulary |
 | [`embedding.proto`](embedding.proto) | Dense and sparse embedding inference |
 | [`classification.proto`](classification.proto) | Sequence and token classification inference |
