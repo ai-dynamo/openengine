@@ -20,6 +20,15 @@ enum Modality {
   MODALITY_AUDIO = 3;
 }
 
+// Portable source encodings accepted for multimodal media. Capability
+// discovery advertises which encodings a model can dereference.
+enum MediaSourceType {
+  MEDIA_SOURCE_TYPE_UNSPECIFIED = 0;
+  MEDIA_SOURCE_TYPE_URL = 1;
+  MEDIA_SOURCE_TYPE_DATA_URI = 2;
+  MEDIA_SOURCE_TYPE_RAW_BYTES = 3;
+}
+
 // A single multimodal input. Exactly one `source` should be set. The engine
 // owns fetch, decode, and preprocessing, so pre-decoded or RDMA media
 // descriptors are not represented here.

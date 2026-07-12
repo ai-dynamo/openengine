@@ -8,6 +8,10 @@ SPDX-License-Identifier: Apache-2.0
 This directory is the canonical `openengine.v1` wire contract. All proto files
 share the same package and together define the API.
 
+The current contract is schema revision 2 and remains compatible with clients
+at revision 1. Servers built from source advertise the immutable OpenEngine
+commit SHA in `EngineInfo.schema_release`.
+
 | File | Area |
 | --- | --- |
 | [`openengine.proto`](openengine.proto) | `OpenEngine` service and RPC declarations |
@@ -27,3 +31,7 @@ share the same package and together define the API.
 
 Generate bindings from every `.proto` file in this directory. Compiling only
 `openengine.proto` does not generate bindings for its imported message files.
+
+OpenEngine provides pre-generated bindings from this package for Python and
+Rust. Their sources and package manifests live under [`packages/`](../../../packages/),
+and the generation entry points live under [`scripts/`](../../../scripts/).

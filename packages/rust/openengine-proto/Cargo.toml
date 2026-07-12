@@ -1,0 +1,17 @@
+[package]
+name = "openengine-proto"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Generated Rust bindings for the OpenEngine gRPC protocol"
+readme = "README.md"
+keywords = ["grpc", "inference", "protobuf"]
+categories = ["api-bindings", "network-programming"]
+
+[dependencies]
+prost = "0.14.4"
+prost-types = "0.14.4"
+tonic = "0.14.6"
+tonic-prost = "0.14.6"

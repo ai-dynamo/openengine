@@ -90,16 +90,17 @@ message ParallelismInfo {
 }
 ```
 
-Revision `1` is the schema in this repository. Every server must populate:
+Revision `2` is the schema in this repository. Every server must populate:
 
 - `schema_revision` with the exact monotonically increasing contract revision it
   implements. Zero is invalid.
 - `minimum_client_revision` with the oldest client revision the server supports.
   A client below this revision must reject the server as incompatible.
-- `schema_release` with an immutable OpenEngine repository release or source tag
-  containing that revision. Moving branch names such as `main` are not valid.
+- `schema_release` with the immutable OpenEngine commit SHA containing that
+  revision. Release builds may use an immutable signed release tag instead;
+  moving branch names such as `main` are not valid.
 
-Servers implementing this contract advertise `schema_revision = 1` and
+Servers implementing this contract advertise `schema_revision = 2` and
 `minimum_client_revision = 1`.
 
 Clients should also define the oldest server revision they support and fail
@@ -149,6 +150,14 @@ message ModelInfo {
   string reasoning_parser = 25;
   string tool_call_parser = 26;
   TaskCapabilities tasks = 27;
+  MultimodalCapabilities multimodal_capabilities = 28;
+}
+
+message MultimodalCapabilities {
+  repeated Modality aggregate_modalities = 1;
+  repeated Modality prefill_decode_modalities = 2;
+  repeated MediaSourceType source_types = 3;
+  optional bool supports_per_request_media_options = 4;
 }
 
 message GenerationCapabilities {
@@ -201,6 +210,16 @@ for the corresponding request options.
 
 `supports_lora=true` means the engine accepts `GenerateRequest.lora_name` and
 the LoRA lifecycle RPCs on `OpenEngine`.
+
+`supports_multimodal` remains the revision-1 compatibility signal. Revision-2
+clients use `multimodal_capabilities` to validate a request before scheduling.
+`aggregate_modalities` lists modalities accepted for normal generation;
+`prefill_decode_modalities` lists modalities accepted by the context-first
+prefill/decode path. The latter may be a strict subset, such as image and video
+for a model that only supports audio in aggregated mode. `source_types` lists
+the URL, data-URI, and raw-byte encodings the engine can consume. An absent
+`supports_per_request_media_options` is unreported, while an explicitly false
+value rejects non-empty `GenerateRequest.media_options`.
 
 ---
 
@@ -618,6 +637,7 @@ message GenerateRequest {
   string lora_name = 11;
   optional int32 priority = 12;
   map<string, string> metadata = 13;
+  google.protobuf.Struct media_options = 14;
 }
 
 message TokenIds {
@@ -685,6 +705,13 @@ enum Modality {
   MODALITY_AUDIO = 3;
 }
 
+enum MediaSourceType {
+  MEDIA_SOURCE_TYPE_UNSPECIFIED = 0;
+  MEDIA_SOURCE_TYPE_URL = 1;
+  MEDIA_SOURCE_TYPE_DATA_URI = 2;
+  MEDIA_SOURCE_TYPE_RAW_BYTES = 3;
+}
+
 // A single multimodal input. Exactly one `source` should be set. The engine
 // owns fetch, decode, and preprocessing, so pre-decoded or RDMA media
 // descriptors are not represented here.
@@ -731,6 +758,15 @@ candidates with `all {}` and JSON-object guidance with `json_object {}`.
 
 `Generate` is always a server-streaming RPC, so response options do not carry a
 second streaming switch.
+
+`media` order is significant and is preserved independently of modality. Each
+item uses exactly one source whose encoding is advertised in
+`ModelInfo.multimodal_capabilities.source_types`. `media_options` is keyed by
+the modality names `image`, `video`, and `audio`. The server applies its media
+processor defaults first, then shallow-merges request keys over the matching
+modality defaults. Existing modality-specific conflict rules continue to
+apply. Engines reject unsupported modalities, source types, option keys, or
+per-request options rather than silently ignoring them.
 
 `include_stop_in_output` controls whether a matched caller-supplied stop token
 or string remains in emitted output. `bypass_prefix_cache = true` skips prefix

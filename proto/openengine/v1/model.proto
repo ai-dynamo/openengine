@@ -9,6 +9,7 @@ package openengine.v1;
 
 import "openengine/v1/classification.proto";
 import "openengine/v1/embedding.proto";
+import "openengine/v1/input.proto";
 import "openengine/v1/scoring.proto";
 
 message GetModelInfoRequest {
@@ -41,6 +42,24 @@ message ModelInfo {
 
   // Optional non-generative task support for this model.
   TaskCapabilities tasks = 27;
+
+  // Detailed multimodal support. The legacy supports_multimodal field remains
+  // the coarse compatibility signal for revision-1 clients.
+  MultimodalCapabilities multimodal_capabilities = 28;
+}
+
+message MultimodalCapabilities {
+  // Modalities accepted by an aggregated engine.
+  repeated Modality aggregate_modalities = 1;
+
+  // Modalities that can participate in a context-first prefill/decode flow.
+  repeated Modality prefill_decode_modalities = 2;
+
+  // Media source encodings accepted by the engine.
+  repeated MediaSourceType source_types = 3;
+
+  // Whether GenerateRequest.media_options can override server media defaults.
+  optional bool supports_per_request_media_options = 4;
 }
 
 message TaskCapabilities {

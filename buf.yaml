@@ -12,3 +12,7 @@ lint:
     # Discovery and event RPCs intentionally return their domain message type
     # directly instead of adding one-field response wrappers.
     - RPC_RESPONSE_STANDARD_NAME
+
+breaking:
+  use:
+    - FILE

@@ -7,6 +7,7 @@ syntax = "proto3";
 
 package openengine.v1;
 
+import "google/protobuf/struct.proto";
 import "openengine/v1/error.proto";
 import "openengine/v1/input.proto";
 import "openengine/v1/kv.proto";
@@ -42,6 +43,12 @@ message GenerateRequest {
 
   // Optional request metadata for tracing/admission/routing.
   map<string, string> metadata = 13;
+
+  // Per-request media processor options keyed by modality name: `image`,
+  // `video`, and `audio`. Engines apply their server defaults first, then
+  // shallow-merge request keys over the matching modality defaults. Existing
+  // modality-specific conflict rules continue to apply.
+  google.protobuf.Struct media_options = 14;
 }
 
 message SamplingParams {
