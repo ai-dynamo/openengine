@@ -12,6 +12,8 @@
 
 - [ ] `buf build`
 - [ ] `buf lint`
+- [ ] `buf format --diff --exit-code`
+- [ ] `buf breaking` against the target branch
 - [ ] Markdown and links checked when documentation changed
 - [ ] Commits include a DCO sign-off
 

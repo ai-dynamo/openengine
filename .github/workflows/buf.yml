@@ -4,33 +4,40 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*"
     paths:
       - "proto/**"
       - "buf.yaml"
       - ".github/workflows/buf.yml"
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
+      - unlabeled
     paths:
       - "proto/**"
       - "buf.yaml"
       - ".github/workflows/buf.yml"
+  delete:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
-  lint:
+  schema:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Lint schema
+      - name: Validate and publish schema
         uses: bufbuild/buf-action@v1
         with:
           version: "1.71.0"
-          lint: true
-          format: false
-          breaking: false
-          push: false
-          archive: false
-          pr_comment: false
+          token: ${{ secrets.BUF_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          push_create_visibility: public
