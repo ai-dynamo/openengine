@@ -20,7 +20,7 @@ package openengine.v1;
 
 import "google/protobuf/struct.proto";
 
-service OpenEngine {
+service Inference {
   // Core inference path.
   rpc Generate(GenerateRequest) returns (stream GenerateResponse);
 
@@ -30,7 +30,7 @@ service OpenEngine {
   rpc Score(ScoreRequest) returns (ScoreResponse);
 }
 
-service OpenEngineControl {
+service Control {
   // Runtime metadata and scheduling state.
   rpc GetServerInfo(GetServerInfoRequest) returns (ServerInfo);
   rpc GetModelInfo(GetModelInfoRequest) returns (ModelInfo);
@@ -56,10 +56,10 @@ service OpenEngineControl {
 }
 ```
 
-`OpenEngine` is the inference data plane. `OpenEngineControl` is the discovery,
-lifecycle, and coordination control plane. Implementations may expose both
-services on the same listener, or isolate them on separate listeners and access
-policies without changing the protocol contract.
+`Inference` is the inference data plane. `Control` is the discovery, lifecycle,
+and coordination control plane. Implementations may expose both services on the
+same listener, or isolate them on separate listeners and access policies without
+changing the protocol contract.
 
 ---
 
@@ -78,7 +78,7 @@ message GetServerInfoRequest {}
 message ServerInfo {
   string engine_name = 1;          // sglang, vllm, tensorrt_llm, etc.
   string engine_version = 2;
-  EngineRole role = 3;
+  EngineRole engine_role = 3;
   string instance_id = 4;
   repeated string supported_models = 5;
   ParallelismInfo parallelism = 6;
@@ -215,7 +215,7 @@ output logprobs. The remaining generation fields advertise support and limits
 for the corresponding request options.
 
 `supports_lora=true` means the engine accepts `GenerateRequest.lora_name` and
-the LoRA lifecycle RPCs on `OpenEngineControl`.
+the LoRA lifecycle RPCs on `Control`.
 
 ---
 

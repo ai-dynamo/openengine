@@ -18,7 +18,6 @@ package openengine.v1;
 
 import "openengine/v1/classification.proto";
 import "openengine/v1/embedding.proto";
-import "openengine/v1/engine.proto";
 import "openengine/v1/generation.proto";
 import "openengine/v1/kv.proto";
 import "openengine/v1/lifecycle.proto";
@@ -26,8 +25,9 @@ import "openengine/v1/lora.proto";
 import "openengine/v1/model.proto";
 import "openengine/v1/observability.proto";
 import "openengine/v1/scoring.proto";
+import "openengine/v1/server.proto";
 
-service OpenEngine {
+service Inference {
   // Core inference path.
   rpc Generate(GenerateRequest) returns (stream GenerateResponse);
 
@@ -37,7 +37,7 @@ service OpenEngine {
   rpc Score(ScoreRequest) returns (ScoreResponse);
 }
 
-service OpenEngineControl {
+service Control {
   // Runtime metadata and scheduling state.
   rpc GetServerInfo(GetServerInfoRequest) returns (ServerInfo);
   rpc GetModelInfo(GetModelInfoRequest) returns (ModelInfo);

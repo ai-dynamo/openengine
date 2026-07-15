@@ -7,9 +7,9 @@ syntax = "proto3";
 
 package openengine.v1;
 
-import "openengine/v1/engine.proto";
 import "openengine/v1/error.proto";
 import "openengine/v1/kv.proto";
+import "openengine/v1/server.proto";
 
 message HealthRequest {
   // False means a lightweight readiness/liveness check. True asks the engine to

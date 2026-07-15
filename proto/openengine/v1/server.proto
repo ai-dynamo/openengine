@@ -21,7 +21,7 @@ message GetServerInfoRequest {}
 message ServerInfo {
   string engine_name = 1; // sglang, vllm, tensorrt_llm, etc.
   string engine_version = 2;
-  EngineRole role = 3;
+  EngineRole engine_role = 3;
   string instance_id = 4;
   repeated string supported_models = 5;
   ParallelismInfo parallelism = 6;

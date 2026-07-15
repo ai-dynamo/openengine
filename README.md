@@ -52,10 +52,9 @@ SPDX-License-Identifier: Apache-2.0
 ## Overview
 
 OpenEngine defines a runtime boundary around an inference engine. An engine
-exposes the `openengine.v1.OpenEngine` inference service and the
-`openengine.v1.OpenEngineControl` control service. Applications can call the
-inference service directly, while distributed frameworks use both services to
-coordinate engine workers.
+exposes the `openengine.v1.Inference` and `openengine.v1.Control` services.
+Applications can call the inference service directly, while distributed
+frameworks use both services to coordinate engine workers.
 
 Both paths use generated clients and the same typed contract without sharing a
 process, Python environment, dependency tree, or private control API.
