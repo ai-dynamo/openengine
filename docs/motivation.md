@@ -60,9 +60,9 @@ request and control data needed across the process boundary.
 | Area | Contract |
 | --- | --- |
 | Generation | Streaming tokens, usage, finish state, and errors |
-| Discovery | Engine, model, role, topology, limits, and capabilities |
+| Discovery | Server, model, engine role, topology, limits, and capabilities |
 | Lifecycle | Health, abort, and drain |
-| Scheduling | Load data and data-parallel rank affinity |
+| Scheduling | Load data, data-parallel rank affinity, and decode-context parallel topology |
 | Disaggregation | Prefill readiness, KV-session handoff, and connector data |
 | KV routing | Event streams and native event-source discovery |
 

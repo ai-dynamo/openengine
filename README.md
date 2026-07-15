@@ -52,8 +52,10 @@ SPDX-License-Identifier: Apache-2.0
 ## Overview
 
 OpenEngine defines a runtime boundary around an inference engine. An engine
-exposes the `openengine.v1.OpenEngine` gRPC service, which applications can call
-directly or distributed frameworks can use to coordinate engine workers.
+exposes the `openengine.v1.OpenEngine` inference service and the
+`openengine.v1.OpenEngineControl` control service. Applications can call the
+inference service directly, while distributed frameworks use both services to
+coordinate engine workers.
 
 Both paths use generated clients and the same typed contract without sharing a
 process, Python environment, dependency tree, or private control API.
@@ -67,7 +69,7 @@ scheduler implementation details.
 
 | Without a shared contract                           | With OpenEngine                                     |
 | --------------------------------------------------- | --------------------------------------------------- |
-| Engine-specific clients and framework integrations  | One generated service contract                      |
+| Engine-specific clients and framework integrations  | One generated protocol contract                     |
 | Configuration duplicated into sidecars              | Engine capabilities discovered over RPC             |
 | Engine upgrades coupled to framework code           | Engine-native execution behind a common endpoint    |
 | Ad hoc cancellation and failure behavior            | Explicit lifecycle and terminal error semantics     |
@@ -108,9 +110,9 @@ The canonical schema is organized by domain under
 | Non-generative tasks  | Typed embedding, classification, and grouped query/candidate scoring with stable correlation                      |
 | Structured output     | JSON Schema, JSON object, regex, EBNF grammar, structural tags, and fixed choices                                 |
 | Token information     | Prompt and output logprobs, ranks, candidate-token selection, per-token records, and streamed text deltas         |
-| Discovery             | Engine identity, schema revision, role, model limits, topology, parser configuration, and generation capabilities |
+| Discovery             | Server identity, schema revision, role, model limits, topology, parser configuration, and generation capabilities |
 | Lifecycle             | Health checks, targeted or global abort, graceful drain, progress, and terminal failures                          |
-| Disaggregated serving | Prefill/decode roles, KV session handoff, connector discovery, rank affinity, and cache controls                  |
+| Disaggregated serving | Prefill/decode roles, decode-context parallel topology, KV handoff, connector discovery, and cache controls        |
 | KV-aware routing      | Typed KV event streams plus discovery of engine-native event sources                                              |
 | Model extensions      | Multimodal inputs and LoRA adapter lifecycle                                                                      |
 | Observability         | Point-in-time load snapshots and structured runtime event streams                                                 |

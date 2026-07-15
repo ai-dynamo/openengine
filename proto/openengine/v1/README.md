@@ -10,9 +10,9 @@ share the same package and together define the API.
 
 | File | Area |
 | --- | --- |
-| [`openengine.proto`](openengine.proto) | `OpenEngine` service and RPC declarations |
+| [`openengine.proto`](openengine.proto) | `OpenEngine` inference and `OpenEngineControl` control service declarations |
 | [`input.proto`](input.proto) | Shared text, token, and multimodal inputs |
-| [`engine.proto`](engine.proto) | Engine identity, roles, and parallelism |
+| [`engine.proto`](engine.proto) | Server identity, engine roles, and parallelism |
 | [`model.proto`](model.proto) | Model metadata and inference capabilities |
 | [`generation.proto`](generation.proto) | Generation requests, parameters, streamed events, and usage |
 | [`tasks.proto`](tasks.proto) | Shared non-generative task request and output vocabulary |

@@ -35,9 +35,11 @@ service OpenEngine {
   rpc Embed(EmbedRequest) returns (EmbedResponse);
   rpc Classify(ClassifyRequest) returns (ClassifyResponse);
   rpc Score(ScoreRequest) returns (ScoreResponse);
+}
 
+service OpenEngineControl {
   // Runtime metadata and scheduling state.
-  rpc GetEngineInfo(GetEngineInfoRequest) returns (EngineInfo);
+  rpc GetServerInfo(GetServerInfoRequest) returns (ServerInfo);
   rpc GetModelInfo(GetModelInfoRequest) returns (ModelInfo);
   rpc GetLoad(GetLoadRequest) returns (LoadInfo);
 

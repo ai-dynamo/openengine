@@ -60,7 +60,7 @@ git push origin v1.0.0
 ```
 
 Servers built from a versioned release should advertise that immutable tag in
-`EngineInfo.schema_release`. Consumers can reference the release label in
+`ServerInfo.schema_release`. Consumers can reference the release label in
 `buf.yaml`; committing `buf.lock` pins the label to its content-addressed BSR
 commit and digest.
 
