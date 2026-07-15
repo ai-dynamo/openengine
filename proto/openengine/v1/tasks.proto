@@ -9,9 +9,6 @@ package openengine.v1;
 
 // Request identity and model selection shared by every non-generative task.
 message TaskRequestContext {
-  reserved 4, 5;
-  reserved "priority", "metadata";
-
   string request_id = 1;
   string model = 2;
   string lora_name = 3;

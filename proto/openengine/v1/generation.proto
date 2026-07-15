@@ -12,9 +12,6 @@ import "openengine/v1/input.proto";
 import "openengine/v1/kv.proto";
 
 message GenerateRequest {
-  reserved 12, 13;
-  reserved "priority", "metadata";
-
   string request_id = 1;
   string model = 2;
 
@@ -80,9 +77,6 @@ message CandidateTokenSelection {
 message AllCandidates {}
 
 message KvOptions {
-  reserved 2;
-  reserved "data_parallel_rank";
-
   KvSessionRef session = 1;
   optional bool bypass_prefix_cache = 3;
   optional string cache_salt = 4;

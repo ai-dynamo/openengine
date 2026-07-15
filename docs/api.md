@@ -115,15 +115,15 @@ message ServerInfo {
   uint32 schema_revision = 8;
   uint32 minimum_client_revision = 9;
   string schema_release = 10;
-  DeploymentCapacity capacity = 11;
+  DeploymentCapacity capacity = 11; // Configured capacity for this deployed server.
 }
 
 message DeploymentCapacity {
-  optional uint32 kv_block_size = 1;
-  optional uint64 total_kv_blocks = 2;
-  optional uint64 max_running_requests = 3;
-  optional uint64 max_batched_tokens = 4;
-  optional uint32 max_loras = 5;
+  optional uint32 kv_block_size = 1; // Tokens per deployed KV-cache block.
+  optional uint64 total_kv_blocks = 2; // Allocatable KV blocks in the reporting scope.
+  optional uint64 max_running_requests = 3; // Concurrent running-request ceiling.
+  optional uint64 max_batched_tokens = 4; // Scheduler token ceiling per batch.
+  optional uint32 max_loras = 5; // Maximum simultaneously resident LoRA adapters.
 }
 
 message ParallelismInfo {
@@ -132,8 +132,7 @@ message ParallelismInfo {
   optional uint32 data_parallel_size = 3;
   optional uint32 data_parallel_rank = 4;
   optional uint32 data_parallel_start_rank = 5;
-  // Number of ranks in each decode-context-parallel group. Must be at least 1.
-  optional uint32 decode_context_parallel_size = 6;
+  optional uint32 decode_context_parallel_size = 6; // Ranks per decode-context group; at least 1.
 }
 ```
 
@@ -189,14 +188,11 @@ message GetModelInfoRequest {
 }
 
 message ModelInfo {
-  reserved 6 to 9;
-  reserved "kv_block_size", "total_kv_blocks", "max_running_requests", "max_batched_tokens";
-
   string model_id = 1;
   string served_model_name = 2;
   repeated string served_model_aliases = 3;
-  optional uint32 max_context_length = 4;
-  optional uint32 max_output_tokens = 5;
+  optional uint32 max_context_length = 4; // Effective context-window limit in this deployment.
+  optional uint32 max_output_tokens = 5; // Effective generated-token limit in this deployment.
   repeated string tokenizer_modes = 10;
 
   optional bool supports_text_input = 20;
@@ -207,7 +203,7 @@ message ModelInfo {
 
   string reasoning_parser = 25;
   string tool_call_parser = 26;
-  TaskCapabilities tasks = 27;
+  TaskCapabilities tasks = 27; // Optional non-generative task support for this model.
 }
 
 message GenerationCapabilities {
@@ -275,9 +271,6 @@ Support is optional per model and advertised through `ModelInfo.tasks`.
 
 ```protobuf
 message TaskRequestContext {
-  reserved 4, 5;
-  reserved "priority", "metadata";
-
   string request_id = 1;
   string model = 2;
   string lora_name = 3;
@@ -663,9 +656,6 @@ Generation is the core runtime completion primitive. Frontends or gateways may l
 
 ```protobuf
 message GenerateRequest {
-  reserved 12, 13;
-  reserved "priority", "metadata";
-
   string request_id = 1;
   string model = 2;
 
@@ -727,9 +717,6 @@ message CandidateTokenSelection {
 message AllCandidates {}
 
 message KvOptions {
-  reserved 2;
-  reserved "data_parallel_rank";
-
   KvSessionRef session = 1;
   optional bool bypass_prefix_cache = 3;
   optional string cache_salt = 4;

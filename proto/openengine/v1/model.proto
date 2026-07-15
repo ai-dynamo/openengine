@@ -16,16 +16,11 @@ message GetModelInfoRequest {
 }
 
 message ModelInfo {
-  reserved 6 to 9;
-  reserved "kv_block_size", "total_kv_blocks", "max_running_requests", "max_batched_tokens";
-
   string model_id = 1;
   string served_model_name = 2;
   repeated string served_model_aliases = 3;
-  // Effective context-window limit for this model in the current deployment.
-  optional uint32 max_context_length = 4;
-  // Effective generated-token limit for this model in the current deployment.
-  optional uint32 max_output_tokens = 5;
+  optional uint32 max_context_length = 4; // Effective context-window limit in this deployment.
+  optional uint32 max_output_tokens = 5; // Effective generated-token limit in this deployment.
   repeated string tokenizer_modes = 10;
 
   optional bool supports_text_input = 20;
@@ -40,8 +35,7 @@ message ModelInfo {
   string reasoning_parser = 25;
   string tool_call_parser = 26;
 
-  // Optional non-generative task support for this model.
-  TaskCapabilities tasks = 27;
+  TaskCapabilities tasks = 27; // Optional non-generative task support for this model.
 }
 
 message TaskCapabilities {
