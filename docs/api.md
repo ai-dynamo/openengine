@@ -20,7 +20,7 @@ package openengine.v1;
 
 import "google/protobuf/struct.proto";
 
-service OpenEngine {
+service Inference {
   // Core inference path.
   rpc Generate(GenerateRequest) returns (stream GenerateResponse);
 
@@ -28,9 +28,11 @@ service OpenEngine {
   rpc Embed(EmbedRequest) returns (EmbedResponse);
   rpc Classify(ClassifyRequest) returns (ClassifyResponse);
   rpc Score(ScoreRequest) returns (ScoreResponse);
+}
 
+service Control {
   // Runtime metadata and scheduling state.
-  rpc GetEngineInfo(GetEngineInfoRequest) returns (EngineInfo);
+  rpc GetServerInfo(GetServerInfoRequest) returns (ServerInfo);
   rpc GetModelInfo(GetModelInfoRequest) returns (ModelInfo);
   rpc GetLoad(GetLoadRequest) returns (LoadInfo);
 
@@ -54,9 +56,14 @@ service OpenEngine {
 }
 ```
 
+`Inference` is the inference data plane. `Control` is the discovery, lifecycle,
+and coordination control plane. Implementations may expose both services on the
+same listener, or isolate them on separate listeners and access policies without
+changing the protocol contract.
+
 ---
 
-## Core identity and roles
+## Server identity and engine roles
 
 ```protobuf
 enum EngineRole {
@@ -66,12 +73,12 @@ enum EngineRole {
   ENGINE_ROLE_DECODE = 3;
 }
 
-message GetEngineInfoRequest {}
+message GetServerInfoRequest {}
 
-message EngineInfo {
+message ServerInfo {
   string engine_name = 1;          // sglang, vllm, tensorrt_llm, etc.
   string engine_version = 2;
-  EngineRole role = 3;
+  EngineRole engine_role = 3;
   string instance_id = 4;
   repeated string supported_models = 5;
   ParallelismInfo parallelism = 6;
@@ -87,6 +94,8 @@ message ParallelismInfo {
   optional uint32 data_parallel_size = 3;
   optional uint32 data_parallel_rank = 4;
   optional uint32 data_parallel_start_rank = 5;
+  // Number of ranks in each decode-context-parallel group. Must be at least 1.
+  optional uint32 decode_context_parallel_size = 6;
 }
 ```
 
@@ -110,6 +119,12 @@ name remains `openengine.v1`.
 Discovery response scalars use proto3 `optional` presence. An absent value means
 the engine cannot report the value; an explicitly present zero or `false` is a
 reported value and must not be replaced with a client default.
+
+`decode_context_parallel_size` reports the number of ranks across which decode
+context is sharded. It describes a group within the server's execution topology
+and does not, by itself, imply additional workers beyond the reported tensor,
+pipeline, and data-parallel topology. When present, the value must be at least
+one; one means decode-context parallelism is disabled.
 
 Role semantics:
 
@@ -192,7 +207,7 @@ enum GuidedDecodingMode {
 ```
 
 `GetModelInfoRequest.model` is required and selects one of
-`EngineInfo.supported_models`; an unknown model returns gRPC `NOT_FOUND`.
+`ServerInfo.supported_models`; an unknown model returns gRPC `NOT_FOUND`.
 Capability submessages distinguish unreported support (message absent) from
 reported support or lack of support (`supported = true` or `false`). Candidate
 selection modes and `max_top_n` are reported independently for prompt and
@@ -200,7 +215,7 @@ output logprobs. The remaining generation fields advertise support and limits
 for the corresponding request options.
 
 `supports_lora=true` means the engine accepts `GenerateRequest.lora_name` and
-the LoRA lifecycle RPCs on `OpenEngine`.
+the LoRA lifecycle RPCs on `Control`.
 
 ---
 

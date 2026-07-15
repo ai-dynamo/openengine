@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-// Engine identity, role, and parallelism metadata.
+// Server identity, engine role, and parallelism metadata.
 
 syntax = "proto3";
 
@@ -16,12 +16,12 @@ enum EngineRole {
   ENGINE_ROLE_DECODE = 3;
 }
 
-message GetEngineInfoRequest {}
+message GetServerInfoRequest {}
 
-message EngineInfo {
+message ServerInfo {
   string engine_name = 1; // sglang, vllm, tensorrt_llm, etc.
   string engine_version = 2;
-  EngineRole role = 3;
+  EngineRole engine_role = 3;
   string instance_id = 4;
   repeated string supported_models = 5;
   ParallelismInfo parallelism = 6;
@@ -37,4 +37,6 @@ message ParallelismInfo {
   optional uint32 data_parallel_size = 3;
   optional uint32 data_parallel_rank = 4;
   optional uint32 data_parallel_start_rank = 5;
+  // Number of ranks in each decode-context-parallel group. Must be at least 1.
+  optional uint32 decode_context_parallel_size = 6;
 }
