@@ -7,13 +7,11 @@ syntax = "proto3";
 
 package openengine.v1;
 
-// Request metadata shared by every non-generative task.
+// Request identity and model selection shared by every non-generative task.
 message TaskRequestContext {
   string request_id = 1;
   string model = 2;
   string lora_name = 3;
-  optional int32 priority = 4;
-  map<string, string> metadata = 5;
 }
 
 // Row-major FP32 tensor. The product of shape must equal values.size().

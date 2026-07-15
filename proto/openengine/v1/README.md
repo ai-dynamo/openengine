@@ -12,7 +12,7 @@ share the same package and together define the API.
 | --- | --- |
 | [`openengine.proto`](openengine.proto) | `Inference` and `Control` service declarations |
 | [`input.proto`](input.proto) | Shared text, token, and multimodal inputs |
-| [`server.proto`](server.proto) | Server identity, engine roles, and parallelism |
+| [`server.proto`](server.proto) | Server identity, deployment capacity, engine roles, and parallelism |
 | [`model.proto`](model.proto) | Model metadata and inference capabilities |
 | [`generation.proto`](generation.proto) | Generation requests, parameters, streamed events, and usage |
 | [`tasks.proto`](tasks.proto) | Shared non-generative task request and output vocabulary |
