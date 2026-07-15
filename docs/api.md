@@ -61,9 +61,38 @@ and coordination control plane. Implementations may expose both services on the
 same listener, or isolate them on separate listeners and access policies without
 changing the protocol contract.
 
+### gRPC request metadata
+
+Routing, admission, and tracing context belongs in
+[gRPC request metadata](https://grpc.io/docs/guides/metadata/) rather than
+protobuf request payloads. OpenEngine defines these lowercase ASCII keys:
+
+| Key | Value | Scope |
+| --- | --- | --- |
+| `openengine-routing-key` | Opaque non-empty ASCII routing key | Consistent hashing, tenancy, or other application routing |
+| `openengine-target-dp-rank` | Base-10 `uint32` | Requested data-parallel routing target |
+| `openengine-priority` | Base-10 `int32` | Admission priority; higher values have higher priority |
+| `traceparent` | W3C Trace Context value | Portable distributed-trace parent |
+| `tracestate` | W3C Trace Context value | Vendor-specific trace state associated with `traceparent` |
+
+The `openengine-` prefix is reserved for this protocol. Clients send at most one
+value for each OpenEngine key; malformed numeric values or repeated OpenEngine
+keys return gRPC `INVALID_ARGUMENT`. Application-specific metadata may use other
+gRPC metadata keys without adding fields to inference messages.
+
+`openengine-target-dp-rank` is a routing instruction, not KV state. When a
+request carries a `KvSessionRef`, its `dp_rank` is the authoritative KV-affinity
+value. If both values reach the engine and disagree, the engine returns
+`INVALID_ARGUMENT`. The priority key is used only when the selected model and
+task advertise priority support.
+
+All RPCs accept `traceparent` and `tracestate` and propagate them on downstream
+RPCs according to [W3C Trace Context](https://www.w3.org/TR/trace-context/).
+Routing and admission keys apply only to `Inference` RPCs.
+
 ---
 
-## Server identity and engine roles
+## Server identity, deployment capacity, and engine roles
 
 ```protobuf
 enum EngineRole {
@@ -86,6 +115,15 @@ message ServerInfo {
   uint32 schema_revision = 8;
   uint32 minimum_client_revision = 9;
   string schema_release = 10;
+  DeploymentCapacity capacity = 11;
+}
+
+message DeploymentCapacity {
+  optional uint32 kv_block_size = 1;
+  optional uint64 total_kv_blocks = 2;
+  optional uint64 max_running_requests = 3;
+  optional uint64 max_batched_tokens = 4;
+  optional uint32 max_loras = 5;
 }
 
 message ParallelismInfo {
@@ -126,6 +164,13 @@ and does not, by itself, imply additional workers beyond the reported tensor,
 pipeline, and data-parallel topology. When present, the value must be at least
 one; one means decode-context parallelism is disabled.
 
+`DeploymentCapacity` reports configured capacity for the deployed server, not
+model identity. `kv_block_size` is the number of tokens in a deployed KV block;
+`total_kv_blocks` is the allocatable block count in the server's reporting
+scope; `max_running_requests` and `max_batched_tokens` are configured scheduler
+ceilings; and `max_loras` is the maximum number of simultaneously resident LoRA
+adapters. Dynamic and per-rank utilization remains in `LoadInfo`.
+
 Role semantics:
 
 - `AGGREGATED`: accepts normal generation requests and returns tokens.  
@@ -136,7 +181,7 @@ Role semantics:
 
 ---
 
-## Model and capacity metadata
+## Model identity and capabilities
 
 ```protobuf
 message GetModelInfoRequest {
@@ -144,15 +189,14 @@ message GetModelInfoRequest {
 }
 
 message ModelInfo {
+  reserved 6 to 9;
+  reserved "kv_block_size", "total_kv_blocks", "max_running_requests", "max_batched_tokens";
+
   string model_id = 1;
   string served_model_name = 2;
   repeated string served_model_aliases = 3;
   optional uint32 max_context_length = 4;
   optional uint32 max_output_tokens = 5;
-  optional uint32 kv_block_size = 6;
-  optional uint64 total_kv_blocks = 7;
-  optional uint64 max_running_requests = 8;
-  optional uint64 max_batched_tokens = 9;
   repeated string tokenizer_modes = 10;
 
   optional bool supports_text_input = 20;
@@ -208,11 +252,15 @@ enum GuidedDecodingMode {
 
 `GetModelInfoRequest.model` is required and selects one of
 `ServerInfo.supported_models`; an unknown model returns gRPC `NOT_FOUND`.
+`max_context_length` and `max_output_tokens` are the effective limits for the
+selected model in this deployment. KV layout and scheduler capacity are reported
+once through `ServerInfo.capacity`, not repeated as model identity.
 Capability submessages distinguish unreported support (message absent) from
 reported support or lack of support (`supported = true` or `false`). Candidate
 selection modes and `max_top_n` are reported independently for prompt and
-output logprobs. The remaining generation fields advertise support and limits
-for the corresponding request options.
+output logprobs. `supports_priority` advertises support for the
+`openengine-priority` metadata key. The remaining generation fields advertise
+support and limits for the corresponding request options.
 
 `supports_lora=true` means the engine accepts `GenerateRequest.lora_name` and
 the LoRA lifecycle RPCs on `Control`.
@@ -227,11 +275,12 @@ Support is optional per model and advertised through `ModelInfo.tasks`.
 
 ```protobuf
 message TaskRequestContext {
+  reserved 4, 5;
+  reserved "priority", "metadata";
+
   string request_id = 1;
   string model = 2;
   string lora_name = 3;
-  optional int32 priority = 4;
-  map<string, string> metadata = 5;
 }
 
 message TaskInput {
@@ -306,10 +355,9 @@ enum ScoreNormalization {
 
 `TaskRequestContext.request_id` and `model` are required and non-empty. Request
 IDs share the same namespace and abort semantics as generation request IDs.
-`priority` uses the generation ordering convention: larger values have higher
-priority. A non-empty `lora_name` selects an already loaded adapter. Clients
-must use either option only when the corresponding task capability advertises
-support.
+A non-empty `lora_name` selects an already loaded adapter. Clients use
+`openengine-priority` only when the corresponding task capability advertises
+priority support, and use `lora_name` only when it advertises LoRA support.
 
 Each request batch must be non-empty. `item_id` is required and unique within
 an embed/classify batch, and every query/candidate item ID is unique within one
@@ -615,6 +663,9 @@ Generation is the core runtime completion primitive. Frontends or gateways may l
 
 ```protobuf
 message GenerateRequest {
+  reserved 12, 13;
+  reserved "priority", "metadata";
+
   string request_id = 1;
   string model = 2;
 
@@ -631,8 +682,6 @@ message GenerateRequest {
 
   repeated MediaItem media = 10;
   string lora_name = 11;
-  optional int32 priority = 12;
-  map<string, string> metadata = 13;
 }
 
 message TokenIds {
@@ -678,8 +727,10 @@ message CandidateTokenSelection {
 message AllCandidates {}
 
 message KvOptions {
+  reserved 2;
+  reserved "data_parallel_rank";
+
   KvSessionRef session = 1;
-  optional uint32 data_parallel_rank = 2;
   optional bool bypass_prefix_cache = 3;
   optional string cache_salt = 4;
 }
@@ -738,8 +789,9 @@ data, and KV/cache behavior remain separate option groups. Guided decoding stays
 top-level as a distinct structured-output mode. Optional scalars preserve the
 distinction between an engine default and explicit zero or `false`.
 
-`priority` uses higher values for higher scheduling priority. `num_sequences`
-defaults to one when omitted and must be greater than zero when present.
+`openengine-priority` uses higher values for higher scheduling priority.
+`num_sequences` defaults to one when omitted and must be greater than zero when
+present.
 `CandidateTokenSelection` requests either the top N candidates, explicit token
 IDs, or the full vocabulary at each prompt or output position. Select all
 candidates with `all {}` and JSON-object guidance with `json_object {}`.

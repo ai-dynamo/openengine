@@ -27,6 +27,18 @@ import "openengine/v1/observability.proto";
 import "openengine/v1/scoring.proto";
 import "openengine/v1/server.proto";
 
+// Standard ASCII gRPC request metadata:
+// - openengine-routing-key: opaque application routing key.
+// - openengine-target-dp-rank: base-10 uint32 routing target. This does not
+//   establish KV affinity; KvSessionRef.dp_rank is authoritative for a session.
+// - openengine-priority: base-10 int32 admission priority; higher values have
+//   higher priority.
+// - traceparent and tracestate: W3C Trace Context.
+//
+// The openengine- prefix is reserved for metadata defined by this protocol.
+// Routing and admission keys apply to Inference RPCs. Trace Context applies to
+// every RPC and should be propagated across downstream calls.
+
 service Inference {
   // Core inference path.
   rpc Generate(GenerateRequest) returns (stream GenerateResponse);
