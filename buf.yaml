@@ -2,7 +2,6 @@ version: v2
 
 modules:
   - path: proto
-    name: buf.build/ai-dynamo/openengine
 
 lint:
   use:
@@ -13,9 +12,3 @@ lint:
     # Discovery and event RPCs intentionally return their domain message type
     # directly instead of adding one-field response wrappers.
     - RPC_RESPONSE_STANDARD_NAME
-
-# OpenEngine is distributed as source schemas. Protect generated-code users,
-# including Python and C++, from declarations moving between files.
-breaking:
-  use:
-    - FILE

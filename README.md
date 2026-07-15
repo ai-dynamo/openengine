@@ -32,9 +32,9 @@ SPDX-License-Identifier: Apache-2.0
 </p>
 
 > [!IMPORTANT]
-> OpenEngine is experimental and in early adoption. Its implementation surface
-> is still expanding, but published declarations in `openengine.v1` are kept
-> source compatible.
+> OpenEngine is experimental and pre-adoption. The contract is being refined
+> before its first engine implementations and may make direct breaking changes
+> while it remains at schema revision `1`.
 
 ## Table of contents
 
@@ -137,26 +137,6 @@ buf lint
 Buf lint, Markdown lint, and link checks run in GitHub Actions for relevant
 pull requests.
 
-### Consume as a Buf dependency
-
-OpenEngine is published as the `buf.build/ai-dynamo/openengine` module. Add the
-module to the consuming workspace's `buf.yaml`:
-
-```yaml
-version: v2
-
-deps:
-  - buf.build/ai-dynamo/openengine
-```
-
-Run `buf dep update` to resolve the module to an immutable BSR commit recorded
-in `buf.lock`. For an explicitly versioned release, append its semantic version
-label, for example `buf.build/ai-dynamo/openengine:v1.0.0`.
-
-Consumers generate bindings with their own `buf.gen.yaml` and compiler plugins.
-The complete module is the release unit; generating only `openengine.proto`
-does not generate bindings for messages declared in its imported files.
-
 ### Generate Python bindings
 
 Use a proto3 toolchain with explicit-optional support (`protoc` 3.15 or newer).
@@ -185,10 +165,9 @@ same canonical package.
 
 ## Project status
 
-OpenEngine is an experimental, early-adoption API. The current focus is making
-the contract coherent across inference engines. Experimental status describes
-implementation maturity; published declarations in `openengine.v1` remain
-protected by source-compatible Buf breaking-change checks.
+OpenEngine is an experimental, pre-adoption API draft. The current focus is
+making the contract coherent across inference engines before implementations
+depend on it. Expect direct schema refinement during this phase.
 
 The intended adoption path is incremental:
 
