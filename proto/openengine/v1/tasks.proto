@@ -7,11 +7,19 @@ syntax = "proto3";
 
 package openengine.v1;
 
+import "google/protobuf/struct.proto";
+
 // Request identity and model selection shared by every non-generative task.
 message TaskRequestContext {
   string request_id = 1;
   string model = 2;
   string lora_name = 3;
+
+  // Engine-specific task parameters that have no portable field. NOT part of
+  // the portable contract: an engine MAY ignore keys it does not recognize, and
+  // a request MUST remain valid with this field empty. Clients treat it as
+  // best-effort. Carried as a Struct so JSON types survive the wire.
+  google.protobuf.Struct extra = 4;
 }
 
 // Row-major FP32 tensor. The product of shape must equal values.size().

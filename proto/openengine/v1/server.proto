@@ -7,6 +7,7 @@ syntax = "proto3";
 
 package openengine.v1;
 
+import "google/protobuf/struct.proto";
 import "openengine/v1/kv.proto";
 
 enum EngineRole {
@@ -30,6 +31,12 @@ message ServerInfo {
   uint32 minimum_client_revision = 9; // Oldest compatible client revision.
   string schema_release = 10; // Immutable release or source tag for this schema.
   DeploymentCapacity capacity = 11; // Configured capacity for this deployed server.
+
+  // Engine-specific server metadata with no portable field (e.g. attention
+  // backend, build flags, experimental capabilities). NOT part of the portable
+  // contract: clients read it opportunistically and never depend on it for
+  // correctness. Carried as a Struct so JSON types survive the wire.
+  google.protobuf.Struct extra = 12;
 }
 
 message DeploymentCapacity {
