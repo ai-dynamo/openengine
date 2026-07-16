@@ -721,10 +721,9 @@ message CandidateTokenSelection {
 message AllCandidates {}
 
 message KvOptions {
-  reserved 2; // Retired field; never reuse this tag.
   KvSessionRef session = 1;
-  optional bool bypass_prefix_cache = 3;
-  optional string cache_salt = 4;
+  optional bool bypass_prefix_cache = 2;
+  optional string cache_salt = 3;
 }
 
 message StopCondition {
