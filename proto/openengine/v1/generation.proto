@@ -7,6 +7,7 @@ syntax = "proto3";
 
 package openengine.v1;
 
+import "google/protobuf/struct.proto";
 import "openengine/v1/error.proto";
 import "openengine/v1/input.proto";
 import "openengine/v1/kv.proto";
@@ -36,6 +37,13 @@ message GenerateRequest {
   // ModelInfo.supports_lora advertises whether lifecycle and selection are
   // available through OpenEngine.
   string lora_name = 11;
+
+  // Engine-specific request parameters that have no portable field above (e.g.
+  // an experimental sampler knob). NOT part of the portable contract: an engine
+  // MAY ignore keys it does not recognize, and a request MUST remain valid with
+  // this field empty. Clients treat it as best-effort and never depend on it
+  // for correctness. Carried as a Struct so JSON types survive the wire.
+  google.protobuf.Struct extra = 12;
 }
 
 message SamplingParams {
@@ -78,8 +86,8 @@ message AllCandidates {}
 
 message KvOptions {
   KvSessionRef session = 1;
-  optional bool bypass_prefix_cache = 3;
-  optional string cache_salt = 4;
+  optional bool bypass_prefix_cache = 2;
+  optional string cache_salt = 3;
 }
 
 message StopCondition {

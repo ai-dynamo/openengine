@@ -116,6 +116,7 @@ message ServerInfo {
   uint32 minimum_client_revision = 9;
   string schema_release = 10;
   DeploymentCapacity capacity = 11; // Configured capacity for this deployed server.
+  google.protobuf.Struct extra = 12; // Engine-specific, non-portable; read opportunistically.
 }
 
 message DeploymentCapacity {
@@ -204,6 +205,7 @@ message ModelInfo {
   string reasoning_parser = 25;
   string tool_call_parser = 26;
   TaskCapabilities tasks = 27; // Optional non-generative task support for this model.
+  google.protobuf.Struct extra = 28; // Engine-specific, non-portable; read opportunistically.
 }
 
 message GenerationCapabilities {
@@ -274,6 +276,7 @@ message TaskRequestContext {
   string request_id = 1;
   string model = 2;
   string lora_name = 3;
+  google.protobuf.Struct extra = 4; // Engine-specific, non-portable; may be ignored.
 }
 
 message TaskInput {
@@ -672,6 +675,7 @@ message GenerateRequest {
 
   repeated MediaItem media = 10;
   string lora_name = 11;
+  google.protobuf.Struct extra = 12; // Engine-specific, non-portable; may be ignored.
 }
 
 message TokenIds {
@@ -718,8 +722,8 @@ message AllCandidates {}
 
 message KvOptions {
   KvSessionRef session = 1;
-  optional bool bypass_prefix_cache = 3;
-  optional string cache_salt = 4;
+  optional bool bypass_prefix_cache = 2;
+  optional string cache_salt = 3;
 }
 
 message StopCondition {
@@ -790,6 +794,15 @@ second streaming switch.
 or string remains in emitted output. `bypass_prefix_cache = true` skips prefix
 cache reuse but does not prevent newly computed blocks from being cached.
 `cache_salt` namespaces the prefix-cache key.
+
+`GenerateRequest.extra` and `TaskRequestContext.extra` carry engine-specific
+parameters that have no portable field. They are an intentional escape hatch so
+an engine can expose a native knob without a schema revision, and so a client
+can adopt OpenEngine before every parameter it needs is standardized. They are
+explicitly outside the portable contract: an engine may ignore keys it does not
+recognize, every request must remain valid with `extra` empty, and clients must
+not depend on `extra` for correctness. Parameters that prove broadly useful
+should be promoted to typed fields in a later revision.
 
 ```protobuf
 message GenerateResponse {
