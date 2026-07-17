@@ -9,12 +9,18 @@ package openengine.v1;
 
 import "openengine/v1/input.proto";
 import "openengine/v1/tasks.proto";
-import "openengine/v1/tensor.proto";
 
 enum EmbeddingEncoding {
   EMBEDDING_ENCODING_UNSPECIFIED = 0;
   EMBEDDING_ENCODING_DENSE = 1;
   EMBEDDING_ENCODING_SPARSE = 2;
+}
+
+// Row-major sparse FP32 tensor with flattened, strictly increasing indices.
+message SparseFloatTensor {
+  repeated uint64 shape = 1;
+  repeated uint64 indices = 2;
+  repeated float values = 3;
 }
 
 message EmbedCapabilities {
@@ -55,6 +61,9 @@ message EmbeddingOutput {
   string item_id = 1;
   optional uint32 input_index = 2;
   TaskOutputGranularity granularity = 3;
-  Tensor embedding = 4; // Dense or sparse, any dtype (fp32, int8, bf16, binary).
-  repeated uint32 token_ids = 5;
+  oneof embedding {
+    DenseFloatTensor dense = 4;
+    SparseFloatTensor sparse = 5;
+  }
+  repeated uint32 token_ids = 6;
 }

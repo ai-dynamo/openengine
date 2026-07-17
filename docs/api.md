@@ -304,23 +304,15 @@ message MultimodalTaskInput {
   repeated MediaItem media = 3;
 }
 
-enum DataType {
-  DATA_TYPE_UNSPECIFIED = 0;
-  DATA_TYPE_FP32 = 1;
-  DATA_TYPE_FP16 = 2;
-  DATA_TYPE_BF16 = 3;
-  DATA_TYPE_INT8 = 4;
-  DATA_TYPE_UINT8 = 5;
-  DATA_TYPE_INT32 = 6;
-  DATA_TYPE_INT64 = 7;
-  DATA_TYPE_BOOL = 8;
+message DenseFloatTensor {
+  repeated uint64 shape = 1;
+  repeated float values = 2;
 }
 
-message Tensor {
+message SparseFloatTensor {
   repeated uint64 shape = 1;
-  DataType dtype = 2;
-  bytes raw = 3;
-  repeated uint64 indices = 4; // empty => dense; set => sparse
+  repeated uint64 indices = 2;
+  repeated float values = 3;
 }
 
 message TaskUsage {
@@ -377,14 +369,13 @@ score group. Exactly one `TaskInput.input` variant is set. A multimodal input mu
 contain at least one `MediaItem`; its optional prompt is either text or token
 IDs, never both. Media ordering and validation follow `GenerateRequest.media`.
 
-`Tensor` is the single row-major tensor type for embeddings and scores. `raw` is
-the element buffer packed little-endian in `dtype`. When `indices` is empty the
-tensor is dense and `raw` holds the product of `shape` elements. When `indices`
-is set the tensor is sparse: `indices` are flattened, unique, strictly
-increasing positions smaller than the product of `shape`, and `raw` holds one
-element per index. Every dimension is greater than zero, and a scalar is encoded
-with shape `[1]`, not an empty shape. `cached_input_tokens`, when present, does
-not exceed `input_tokens`.
+`DenseFloatTensor` is row-major FP32 data. Every dimension is greater than zero,
+the product of `shape` equals `values.size()`, and every value is finite.
+`SparseFloatTensor` uses flattened row-major indices; `indices` and `values`
+have equal length, indices are unique and strictly increasing, and every index
+is smaller than the product of `shape`. A scalar is encoded with shape `[1]`,
+not an empty shape. `cached_input_tokens`, when present, does not exceed
+`input_tokens`.
 
 ### Embedding
 
@@ -412,8 +403,11 @@ message EmbeddingOutput {
   string item_id = 1;
   optional uint32 input_index = 2;
   TaskOutputGranularity granularity = 3;
-  Tensor embedding = 4;
-  repeated uint32 token_ids = 5;
+  oneof embedding {
+    DenseFloatTensor dense = 4;
+    SparseFloatTensor sparse = 5;
+  }
+  repeated uint32 token_ids = 6;
 }
 ```
 
@@ -421,9 +415,6 @@ Absent embedding options select model defaults. An explicit granularity,
 normalization, or encoding request must be implemented exactly or rejected.
 `dimensions` must be greater than zero and requests dimensionality reduction;
 it does not permit padding a smaller model output.
-
-The `embedding` field is a `Tensor` of any `dtype` (fp32, int8, bf16, binary),
-dense or sparse; `EmbeddingEncoding` advertises which form to expect.
 
 Sequence embeddings have shape `[dimension]`. Token embeddings have shape
 `[token_count, dimension]`; `token_ids`, when returned, has `token_count`
@@ -457,7 +448,7 @@ message ClassificationOutput {
   optional uint32 input_index = 2;
   TaskOutputGranularity granularity = 3;
   TaskValueSemantics semantics = 4;
-  Tensor scores = 5;
+  DenseFloatTensor scores = 5;
   repeated string labels = 6;
   repeated uint32 token_ids = 7;
 }
@@ -516,7 +507,7 @@ message ScoreGroupOutput {
 message ScoreCandidateOutput {
   string candidate_id = 1;
   optional uint32 candidate_index = 2;
-  Tensor scores = 3;
+  DenseFloatTensor scores = 3;
   repeated uint32 token_ids = 4;
 }
 ```
@@ -949,11 +940,12 @@ message KvEndpoint {
 
 ```
 
-`attributes_struct` requires `import "google/protobuf/struct.proto";` at the top of the
-proto.
+`attributes_struct` requires `import "google/protobuf/struct.proto";` at the
+top of the proto.
 
-`attributes_struct` preserves number, boolean, array, and object types. Struct numbers are
-IEEE-754 doubles, so values above 2^53 should use strings or a dedicated field.
+`attributes_struct` preserves number, boolean, array, and object types. Struct
+numbers are IEEE-754 doubles, so values above 2^53 should use strings or a
+dedicated field.
 
 Prefill flow:
 
