@@ -1,0 +1,52 @@
+name: Buf Push
+
+# Publishes the OpenEngine schema module to the Buf Schema Registry
+# (buf.build/ai-dynamo/openengine).
+#
+# This workflow is intentionally gated so it cannot auto-publish:
+#   * `workflow_dispatch` lets a maintainer trigger it by hand.
+#   * `push: tags: ['v*']` lets a tagged release publish a labeled commit.
+# It does NOT run on every push to `main`.
+#
+# Prerequisites before this can succeed:
+#   1. OSRB approval of BSR distribution for OpenEngine.
+#   2. `buf.build/ai-dynamo` org + `openengine` module exist (public).
+#   3. `BUF_TOKEN` repo secret is configured.
+# Until then, the workflow is dormant.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+# Serialize publishes: overlapping tag pushes (or a manual dispatch racing a
+# tag push) must never run two `buf push` jobs against the single module at
+# once. Never cancel an in-flight publish; queue the next run instead.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    if: github.repository == 'ai-dynamo/openengine'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Push schema to Buf Schema Registry
+        uses: bufbuild/buf-action@v1
+        with:
+          version: "1.71.0"
+          token: ${{ secrets.BUF_TOKEN }}
+          push: true
+          lint: false
+          format: false
+          breaking: false
+          archive: false
+          pr_comment: false
+          push_disable_create: true
