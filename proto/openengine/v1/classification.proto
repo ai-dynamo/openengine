@@ -9,6 +9,7 @@ package openengine.v1;
 
 import "openengine/v1/input.proto";
 import "openengine/v1/tasks.proto";
+import "openengine/v1/tensor.proto";
 
 message ClassifyCapabilities {
   optional bool supported = 1;
@@ -44,7 +45,7 @@ message ClassificationOutput {
   optional uint32 input_index = 2;
   TaskOutputGranularity granularity = 3;
   TaskValueSemantics semantics = 4;
-  DenseFloatTensor scores = 5;
+  Tensor scores = 5;
   repeated string labels = 6;
   repeated uint32 token_ids = 7;
 }

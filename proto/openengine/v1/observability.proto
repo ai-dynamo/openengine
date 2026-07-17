@@ -7,6 +7,7 @@ syntax = "proto3";
 
 package openengine.v1;
 
+import "google/protobuf/struct.proto";
 import "openengine/v1/error.proto";
 
 message GetLoadRequest {
@@ -26,7 +27,7 @@ message LoadInfo {
   optional uint32 prefill_batch_size = 10;
   optional uint32 decode_batch_size = 11;
   repeated RankLoadInfo ranks = 20;
-  map<string, string> attributes = 30;
+  google.protobuf.Struct attributes = 30;
 }
 
 message RankLoadInfo {
@@ -62,5 +63,5 @@ message RuntimeEvent {
   string event_id = 1;
   uint64 timestamp_unix_nanos = 2;
   RuntimeEventType type = 3;
-  map<string, string> attributes = 4;
+  google.protobuf.Struct attributes = 4;
 }

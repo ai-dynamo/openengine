@@ -158,6 +158,14 @@ Discovery response scalars use proto3 `optional` presence. An absent value means
 the engine cannot report the value; an explicitly present zero or `false` is a
 reported value and must not be replaced with a client default.
 
+Enums grow by appending values. A client encountering an unrecognized enum value
+MUST treat it as the enum's UNSPECIFIED/zero case (or ignore the item), never as
+an error.
+
+Durations and timestamps use explicit integer units (fields suffixed `_ms` /
+`_unix_nanos`) rather than `google.protobuf.Duration`/`Timestamp`, for compact,
+language-neutral encoding.
+
 `decode_context_parallel_size` reports the number of ranks across which decode
 context is sharded. It describes a group within the server's execution topology
 and does not, by itself, imply additional workers beyond the reported tensor,
@@ -296,15 +304,23 @@ message MultimodalTaskInput {
   repeated MediaItem media = 3;
 }
 
-message DenseFloatTensor {
-  repeated uint64 shape = 1;
-  repeated float values = 2;
+enum DataType {
+  DATA_TYPE_UNSPECIFIED = 0;
+  DATA_TYPE_FP32 = 1;
+  DATA_TYPE_FP16 = 2;
+  DATA_TYPE_BF16 = 3;
+  DATA_TYPE_INT8 = 4;
+  DATA_TYPE_UINT8 = 5;
+  DATA_TYPE_INT32 = 6;
+  DATA_TYPE_INT64 = 7;
+  DATA_TYPE_BOOL = 8;
 }
 
-message SparseFloatTensor {
+message Tensor {
   repeated uint64 shape = 1;
-  repeated uint64 indices = 2;
-  repeated float values = 3;
+  DataType dtype = 2;
+  bytes raw = 3;
+  repeated uint64 indices = 4; // empty => dense; set => sparse
 }
 
 message TaskUsage {
@@ -361,13 +377,14 @@ score group. Exactly one `TaskInput.input` variant is set. A multimodal input mu
 contain at least one `MediaItem`; its optional prompt is either text or token
 IDs, never both. Media ordering and validation follow `GenerateRequest.media`.
 
-`DenseFloatTensor` is row-major FP32 data. Every dimension is greater than zero,
-the product of `shape` equals `values.size()`, and every value is finite.
-`SparseFloatTensor` uses flattened row-major indices; `indices` and `values`
-have equal length, indices are unique and strictly increasing, and every index
-is smaller than the product of `shape`. A scalar is encoded with shape `[1]`,
-not an empty shape. `cached_input_tokens`, when present, does not exceed
-`input_tokens`.
+`Tensor` is the single row-major tensor type for embeddings and scores. `raw` is
+the element buffer packed little-endian in `dtype`. When `indices` is empty the
+tensor is dense and `raw` holds the product of `shape` elements. When `indices`
+is set the tensor is sparse: `indices` are flattened, unique, strictly
+increasing positions smaller than the product of `shape`, and `raw` holds one
+element per index. Every dimension is greater than zero, and a scalar is encoded
+with shape `[1]`, not an empty shape. `cached_input_tokens`, when present, does
+not exceed `input_tokens`.
 
 ### Embedding
 
@@ -395,11 +412,8 @@ message EmbeddingOutput {
   string item_id = 1;
   optional uint32 input_index = 2;
   TaskOutputGranularity granularity = 3;
-  oneof embedding {
-    DenseFloatTensor dense = 4;
-    SparseFloatTensor sparse = 5;
-  }
-  repeated uint32 token_ids = 6;
+  Tensor embedding = 4;
+  repeated uint32 token_ids = 5;
 }
 ```
 
@@ -407,6 +421,9 @@ Absent embedding options select model defaults. An explicit granularity,
 normalization, or encoding request must be implemented exactly or rejected.
 `dimensions` must be greater than zero and requests dimensionality reduction;
 it does not permit padding a smaller model output.
+
+The `embedding` field is a `Tensor` of any `dtype` (fp32, int8, bf16, binary),
+dense or sparse; `EmbeddingEncoding` advertises which form to expect.
 
 Sequence embeddings have shape `[dimension]`. Token embeddings have shape
 `[token_count, dimension]`; `token_ids`, when returned, has `token_count`
@@ -440,7 +457,7 @@ message ClassificationOutput {
   optional uint32 input_index = 2;
   TaskOutputGranularity granularity = 3;
   TaskValueSemantics semantics = 4;
-  DenseFloatTensor scores = 5;
+  Tensor scores = 5;
   repeated string labels = 6;
   repeated uint32 token_ids = 7;
 }
@@ -499,7 +516,7 @@ message ScoreGroupOutput {
 message ScoreCandidateOutput {
   string candidate_id = 1;
   optional uint32 candidate_index = 2;
-  DenseFloatTensor scores = 3;
+  Tensor scores = 3;
   repeated uint32 token_ids = 4;
 }
 ```
@@ -733,8 +750,7 @@ message StopCondition {
   }
 }
 
-// Multimodal modality discriminator. 0 is treated as image for forward
-// compatibility with senders that omit the field.
+// Multimodal modality discriminator. UNSPECIFIED means the sender left it unset.
 enum Modality {
   MODALITY_UNSPECIFIED = 0;
   MODALITY_IMAGE = 1;
@@ -933,12 +949,11 @@ message KvEndpoint {
 
 ```
 
-`attributes_struct` requires `import "google/protobuf/struct.proto";` at the
-top of the proto.
+`attributes_struct` requires `import "google/protobuf/struct.proto";` at the top of the
+proto.
 
-`attributes_struct` preserves number, boolean, array, and object types. Struct
-numbers are IEEE-754 doubles, so values above 2^53 should use strings or a
-dedicated field.
+`attributes_struct` preserves number, boolean, array, and object types. Struct numbers are
+IEEE-754 doubles, so values above 2^53 should use strings or a dedicated field.
 
 Prefill flow:
 
@@ -1208,7 +1223,7 @@ message LoadInfo {
   optional uint32 prefill_batch_size = 10;
   optional uint32 decode_batch_size = 11;
   repeated RankLoadInfo ranks = 20;
-  map<string, string> attributes = 30;
+  google.protobuf.Struct attributes = 30;
 }
 
 message RankLoadInfo {
@@ -1224,6 +1239,11 @@ message RankLoadInfo {
 
 Every load scalar has explicit presence. Absent means unavailable in that
 engine or snapshot; present zero means the measured load is zero.
+
+`LoadInfo.attributes` and `RuntimeEvent.attributes` carry engine-specific metrics as a
+`google.protobuf.Struct`, so numeric, boolean, and list values keep their JSON
+type on the wire instead of being flattened to strings. `Struct` numbers are
+IEEE-754 doubles (exact only to 2^53); carry larger integers as strings.
 
 Runtime event stream:
 
@@ -1251,7 +1271,7 @@ message RuntimeEvent {
   string event_id = 1;
   uint64 timestamp_unix_nanos = 2;
   RuntimeEventType type = 3;
-  map<string, string> attributes = 4;
+  google.protobuf.Struct attributes = 4;
 }
 ```
 

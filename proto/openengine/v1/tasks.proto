@@ -22,12 +22,6 @@ message TaskRequestContext {
   google.protobuf.Struct extra = 4;
 }
 
-// Row-major FP32 tensor. The product of shape must equal values.size().
-message DenseFloatTensor {
-  repeated uint64 shape = 1;
-  repeated float values = 2;
-}
-
 // Token accounting for one complete unary task request.
 message TaskUsage {
   uint64 input_tokens = 1;

@@ -1,0 +1,33 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+// Portable dtype-tagged dense tensor.
+
+syntax = "proto3";
+
+package openengine.v1;
+
+// Element type of a Tensor. New types are appended; clients treat an
+// unrecognized value as unsupported.
+enum DataType {
+  DATA_TYPE_UNSPECIFIED = 0;
+  DATA_TYPE_FP32 = 1;
+  DATA_TYPE_FP16 = 2;
+  DATA_TYPE_BF16 = 3;
+  DATA_TYPE_INT8 = 4;
+  DATA_TYPE_UINT8 = 5;
+  DATA_TYPE_INT32 = 6;
+  DATA_TYPE_INT64 = 7;
+  DATA_TYPE_BOOL = 8;
+}
+
+// Row-major tensor. `raw` is the element buffer packed little-endian in `dtype`.
+// Dense when `indices` is empty: `raw` holds the product of `shape` elements.
+// Sparse when `indices` is set: `indices` are flattened, strictly increasing
+// positions into `shape`, and `raw` holds one element per index.
+message Tensor {
+  repeated uint64 shape = 1;
+  DataType dtype = 2;
+  bytes raw = 3;
+  repeated uint64 indices = 4; // empty => dense; set => sparse
+}
