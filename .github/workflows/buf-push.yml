@@ -23,6 +23,13 @@ on:
 permissions:
   contents: read
 
+# Serialize publishes: overlapping tag pushes (or a manual dispatch racing a
+# tag push) must never run two `buf push` jobs against the single module at
+# once. Never cancel an in-flight publish; queue the next run instead.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   push:
     runs-on: ubuntu-latest
