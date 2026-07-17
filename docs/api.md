@@ -158,6 +158,14 @@ Discovery response scalars use proto3 `optional` presence. An absent value means
 the engine cannot report the value; an explicitly present zero or `false` is a
 reported value and must not be replaced with a client default.
 
+Enums grow by appending values. A client encountering an unrecognized enum value
+MUST treat it as the enum's UNSPECIFIED/zero case (or ignore the item), never as
+an error.
+
+Durations and timestamps use explicit integer units (fields suffixed `_ms` /
+`_unix_nanos`) rather than `google.protobuf.Duration`/`Timestamp`, for compact,
+language-neutral encoding.
+
 `decode_context_parallel_size` reports the number of ranks across which decode
 context is sharded. It describes a group within the server's execution topology
 and does not, by itself, imply additional workers beyond the reported tensor,
@@ -733,8 +741,7 @@ message StopCondition {
   }
 }
 
-// Multimodal modality discriminator. 0 is treated as image for forward
-// compatibility with senders that omit the field.
+// Multimodal modality discriminator. UNSPECIFIED means the sender left it unset.
 enum Modality {
   MODALITY_UNSPECIFIED = 0;
   MODALITY_IMAGE = 1;
@@ -1208,7 +1215,7 @@ message LoadInfo {
   optional uint32 prefill_batch_size = 10;
   optional uint32 decode_batch_size = 11;
   repeated RankLoadInfo ranks = 20;
-  map<string, string> attributes = 30;
+  google.protobuf.Struct attributes = 30;
 }
 
 message RankLoadInfo {
@@ -1224,6 +1231,11 @@ message RankLoadInfo {
 
 Every load scalar has explicit presence. Absent means unavailable in that
 engine or snapshot; present zero means the measured load is zero.
+
+`LoadInfo.attributes` and `RuntimeEvent.attributes` carry engine-specific metrics as a
+`google.protobuf.Struct`, so numeric, boolean, and list values keep their JSON
+type on the wire instead of being flattened to strings. `Struct` numbers are
+IEEE-754 doubles (exact only to 2^53); carry larger integers as strings.
 
 Runtime event stream:
 
@@ -1251,7 +1263,7 @@ message RuntimeEvent {
   string event_id = 1;
   uint64 timestamp_unix_nanos = 2;
   RuntimeEventType type = 3;
-  map<string, string> attributes = 4;
+  google.protobuf.Struct attributes = 4;
 }
 ```
 
