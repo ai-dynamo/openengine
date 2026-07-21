@@ -31,7 +31,7 @@ jobs:
           lint: true
           format: false
           breaking: true
-          breaking_against: "https://github.com/ai-dynamo/openengine/archive/d0f29fec31f31db5cfd49cf3e0f67da84d10c709.tar.gz#strip_components=1"
+          breaking_against: "https://github.com/ai-dynamo/openengine/archive/6262b4ce712f52d1d7964fade4a87a95b90fda57.tar.gz#strip_components=1"
           push: false
           archive: false
           pr_comment: false

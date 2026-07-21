@@ -11,7 +11,7 @@ distribution, and Rust crate.
 
 ## [Unreleased]
 
-## [0.2.0] - 2026-07-12
+## 0.2.0 - 2026-07-12
 
 ### Added
 
@@ -21,4 +21,3 @@ distribution, and Rust crate.
 - Revision-2 multimodal capability discovery and per-request media options.
 
 [Unreleased]: https://github.com/ai-dynamo/openengine/commits/main
-[0.2.0]: https://github.com/ai-dynamo/openengine/releases/tag/v0.2.0
