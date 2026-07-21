@@ -5,7 +5,6 @@ import warnings
 
 from openengine.v1 import classification_pb2 as openengine_dot_v1_dot_classification__pb2
 from openengine.v1 import embedding_pb2 as openengine_dot_v1_dot_embedding__pb2
-from openengine.v1 import engine_pb2 as openengine_dot_v1_dot_engine__pb2
 from openengine.v1 import generation_pb2 as openengine_dot_v1_dot_generation__pb2
 from openengine.v1 import kv_pb2 as openengine_dot_v1_dot_kv__pb2
 from openengine.v1 import lifecycle_pb2 as openengine_dot_v1_dot_lifecycle__pb2
@@ -13,6 +12,7 @@ from openengine.v1 import lora_pb2 as openengine_dot_v1_dot_lora__pb2
 from openengine.v1 import model_pb2 as openengine_dot_v1_dot_model__pb2
 from openengine.v1 import observability_pb2 as openengine_dot_v1_dot_observability__pb2
 from openengine.v1 import scoring_pb2 as openengine_dot_v1_dot_scoring__pb2
+from openengine.v1 import server_pb2 as openengine_dot_v1_dot_server__pb2
 
 GRPC_GENERATED_VERSION = '1.81.1'
 GRPC_VERSION = grpc.__version__
@@ -34,8 +34,20 @@ if _version_not_supported:
     )
 
 
-class OpenEngineStub:
-    """Missing associated documentation comment in .proto file."""
+class InferenceStub:
+    """Standard ASCII gRPC request metadata:
+    - openengine-routing-key: opaque application routing key.
+    - openengine-target-dp-rank: base-10 uint32 routing target. This does not
+    establish KV affinity; KvSessionRef.dp_rank is authoritative for a session.
+    - openengine-priority: base-10 int32 admission priority; higher values have
+    higher priority.
+    - traceparent and tracestate: W3C Trace Context.
+
+    The openengine- prefix is reserved for metadata defined by this protocol.
+    Routing and admission keys apply to Inference RPCs. Trace Context applies to
+    every RPC and should be propagated across downstream calls.
+
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -44,94 +56,41 @@ class OpenEngineStub:
             channel: A grpc.Channel.
         """
         self.Generate = channel.unary_stream(
-                '/openengine.v1.OpenEngine/Generate',
+                '/openengine.v1.Inference/Generate',
                 request_serializer=openengine_dot_v1_dot_generation__pb2.GenerateRequest.SerializeToString,
                 response_deserializer=openengine_dot_v1_dot_generation__pb2.GenerateResponse.FromString,
                 _registered_method=True)
         self.Embed = channel.unary_unary(
-                '/openengine.v1.OpenEngine/Embed',
+                '/openengine.v1.Inference/Embed',
                 request_serializer=openengine_dot_v1_dot_embedding__pb2.EmbedRequest.SerializeToString,
                 response_deserializer=openengine_dot_v1_dot_embedding__pb2.EmbedResponse.FromString,
                 _registered_method=True)
         self.Classify = channel.unary_unary(
-                '/openengine.v1.OpenEngine/Classify',
+                '/openengine.v1.Inference/Classify',
                 request_serializer=openengine_dot_v1_dot_classification__pb2.ClassifyRequest.SerializeToString,
                 response_deserializer=openengine_dot_v1_dot_classification__pb2.ClassifyResponse.FromString,
                 _registered_method=True)
         self.Score = channel.unary_unary(
-                '/openengine.v1.OpenEngine/Score',
+                '/openengine.v1.Inference/Score',
                 request_serializer=openengine_dot_v1_dot_scoring__pb2.ScoreRequest.SerializeToString,
                 response_deserializer=openengine_dot_v1_dot_scoring__pb2.ScoreResponse.FromString,
                 _registered_method=True)
-        self.GetEngineInfo = channel.unary_unary(
-                '/openengine.v1.OpenEngine/GetEngineInfo',
-                request_serializer=openengine_dot_v1_dot_engine__pb2.GetEngineInfoRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_engine__pb2.EngineInfo.FromString,
-                _registered_method=True)
-        self.GetModelInfo = channel.unary_unary(
-                '/openengine.v1.OpenEngine/GetModelInfo',
-                request_serializer=openengine_dot_v1_dot_model__pb2.GetModelInfoRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_model__pb2.ModelInfo.FromString,
-                _registered_method=True)
-        self.GetLoad = channel.unary_unary(
-                '/openengine.v1.OpenEngine/GetLoad',
-                request_serializer=openengine_dot_v1_dot_observability__pb2.GetLoadRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_observability__pb2.LoadInfo.FromString,
-                _registered_method=True)
-        self.Health = channel.unary_unary(
-                '/openengine.v1.OpenEngine/Health',
-                request_serializer=openengine_dot_v1_dot_lifecycle__pb2.HealthRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_lifecycle__pb2.HealthResponse.FromString,
-                _registered_method=True)
-        self.Abort = channel.unary_unary(
-                '/openengine.v1.OpenEngine/Abort',
-                request_serializer=openengine_dot_v1_dot_lifecycle__pb2.AbortRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_lifecycle__pb2.AbortResponse.FromString,
-                _registered_method=True)
-        self.Drain = channel.unary_stream(
-                '/openengine.v1.OpenEngine/Drain',
-                request_serializer=openengine_dot_v1_dot_lifecycle__pb2.DrainRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_lifecycle__pb2.DrainResponse.FromString,
-                _registered_method=True)
-        self.LoadLora = channel.unary_unary(
-                '/openengine.v1.OpenEngine/LoadLora',
-                request_serializer=openengine_dot_v1_dot_lora__pb2.LoadLoraRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_lora__pb2.LoadLoraResponse.FromString,
-                _registered_method=True)
-        self.UnloadLora = channel.unary_unary(
-                '/openengine.v1.OpenEngine/UnloadLora',
-                request_serializer=openengine_dot_v1_dot_lora__pb2.UnloadLoraRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_lora__pb2.UnloadLoraResponse.FromString,
-                _registered_method=True)
-        self.ListLoras = channel.unary_unary(
-                '/openengine.v1.OpenEngine/ListLoras',
-                request_serializer=openengine_dot_v1_dot_lora__pb2.ListLorasRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_lora__pb2.ListLorasResponse.FromString,
-                _registered_method=True)
-        self.GetKvConnectorInfo = channel.unary_unary(
-                '/openengine.v1.OpenEngine/GetKvConnectorInfo',
-                request_serializer=openengine_dot_v1_dot_kv__pb2.GetKvConnectorInfoRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_kv__pb2.KvConnectorInfo.FromString,
-                _registered_method=True)
-        self.GetKvEventSources = channel.unary_unary(
-                '/openengine.v1.OpenEngine/GetKvEventSources',
-                request_serializer=openengine_dot_v1_dot_kv__pb2.GetKvEventSourcesRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_kv__pb2.GetKvEventSourcesResponse.FromString,
-                _registered_method=True)
-        self.SubscribeKvEvents = channel.unary_stream(
-                '/openengine.v1.OpenEngine/SubscribeKvEvents',
-                request_serializer=openengine_dot_v1_dot_kv__pb2.SubscribeKvEventsRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_kv__pb2.SubscribeKvEventsResponse.FromString,
-                _registered_method=True)
-        self.SubscribeRuntimeEvents = channel.unary_stream(
-                '/openengine.v1.OpenEngine/SubscribeRuntimeEvents',
-                request_serializer=openengine_dot_v1_dot_observability__pb2.SubscribeRuntimeEventsRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_observability__pb2.SubscribeRuntimeEventsResponse.FromString,
-                _registered_method=True)
 
 
-class OpenEngineServicer:
-    """Missing associated documentation comment in .proto file."""
+class InferenceServicer:
+    """Standard ASCII gRPC request metadata:
+    - openengine-routing-key: opaque application routing key.
+    - openengine-target-dp-rank: base-10 uint32 routing target. This does not
+    establish KV affinity; KvSessionRef.dp_rank is authoritative for a session.
+    - openengine-priority: base-10 int32 admission priority; higher values have
+    higher priority.
+    - traceparent and tracestate: W3C Trace Context.
+
+    The openengine- prefix is reserved for metadata defined by this protocol.
+    Routing and admission keys apply to Inference RPCs. Trace Context applies to
+    every RPC and should be propagated across downstream calls.
+
+    """
 
     def Generate(self, request, context):
         """Core inference path.
@@ -159,7 +118,241 @@ class OpenEngineServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def GetEngineInfo(self, request, context):
+
+def add_InferenceServicer_to_server(servicer, server):
+    rpc_method_handlers = {
+            'Generate': grpc.unary_stream_rpc_method_handler(
+                    servicer.Generate,
+                    request_deserializer=openengine_dot_v1_dot_generation__pb2.GenerateRequest.FromString,
+                    response_serializer=openengine_dot_v1_dot_generation__pb2.GenerateResponse.SerializeToString,
+            ),
+            'Embed': grpc.unary_unary_rpc_method_handler(
+                    servicer.Embed,
+                    request_deserializer=openengine_dot_v1_dot_embedding__pb2.EmbedRequest.FromString,
+                    response_serializer=openengine_dot_v1_dot_embedding__pb2.EmbedResponse.SerializeToString,
+            ),
+            'Classify': grpc.unary_unary_rpc_method_handler(
+                    servicer.Classify,
+                    request_deserializer=openengine_dot_v1_dot_classification__pb2.ClassifyRequest.FromString,
+                    response_serializer=openengine_dot_v1_dot_classification__pb2.ClassifyResponse.SerializeToString,
+            ),
+            'Score': grpc.unary_unary_rpc_method_handler(
+                    servicer.Score,
+                    request_deserializer=openengine_dot_v1_dot_scoring__pb2.ScoreRequest.FromString,
+                    response_serializer=openengine_dot_v1_dot_scoring__pb2.ScoreResponse.SerializeToString,
+            ),
+    }
+    generic_handler = grpc.method_handlers_generic_handler(
+            'openengine.v1.Inference', rpc_method_handlers)
+    server.add_generic_rpc_handlers((generic_handler,))
+    server.add_registered_method_handlers('openengine.v1.Inference', rpc_method_handlers)
+
+
+ # This class is part of an EXPERIMENTAL API.
+class Inference:
+    """Standard ASCII gRPC request metadata:
+    - openengine-routing-key: opaque application routing key.
+    - openengine-target-dp-rank: base-10 uint32 routing target. This does not
+    establish KV affinity; KvSessionRef.dp_rank is authoritative for a session.
+    - openengine-priority: base-10 int32 admission priority; higher values have
+    higher priority.
+    - traceparent and tracestate: W3C Trace Context.
+
+    The openengine- prefix is reserved for metadata defined by this protocol.
+    Routing and admission keys apply to Inference RPCs. Trace Context applies to
+    every RPC and should be propagated across downstream calls.
+
+    """
+
+    @staticmethod
+    def Generate(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/openengine.v1.Inference/Generate',
+            openengine_dot_v1_dot_generation__pb2.GenerateRequest.SerializeToString,
+            openengine_dot_v1_dot_generation__pb2.GenerateResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Embed(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/openengine.v1.Inference/Embed',
+            openengine_dot_v1_dot_embedding__pb2.EmbedRequest.SerializeToString,
+            openengine_dot_v1_dot_embedding__pb2.EmbedResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Classify(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/openengine.v1.Inference/Classify',
+            openengine_dot_v1_dot_classification__pb2.ClassifyRequest.SerializeToString,
+            openengine_dot_v1_dot_classification__pb2.ClassifyResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Score(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/openengine.v1.Inference/Score',
+            openengine_dot_v1_dot_scoring__pb2.ScoreRequest.SerializeToString,
+            openengine_dot_v1_dot_scoring__pb2.ScoreResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+
+class ControlStub:
+    """Missing associated documentation comment in .proto file."""
+
+    def __init__(self, channel):
+        """Constructor.
+
+        Args:
+            channel: A grpc.Channel.
+        """
+        self.GetServerInfo = channel.unary_unary(
+                '/openengine.v1.Control/GetServerInfo',
+                request_serializer=openengine_dot_v1_dot_server__pb2.GetServerInfoRequest.SerializeToString,
+                response_deserializer=openengine_dot_v1_dot_server__pb2.ServerInfo.FromString,
+                _registered_method=True)
+        self.GetModelInfo = channel.unary_unary(
+                '/openengine.v1.Control/GetModelInfo',
+                request_serializer=openengine_dot_v1_dot_model__pb2.GetModelInfoRequest.SerializeToString,
+                response_deserializer=openengine_dot_v1_dot_model__pb2.ModelInfo.FromString,
+                _registered_method=True)
+        self.GetLoad = channel.unary_unary(
+                '/openengine.v1.Control/GetLoad',
+                request_serializer=openengine_dot_v1_dot_observability__pb2.GetLoadRequest.SerializeToString,
+                response_deserializer=openengine_dot_v1_dot_observability__pb2.LoadInfo.FromString,
+                _registered_method=True)
+        self.Health = channel.unary_unary(
+                '/openengine.v1.Control/Health',
+                request_serializer=openengine_dot_v1_dot_lifecycle__pb2.HealthRequest.SerializeToString,
+                response_deserializer=openengine_dot_v1_dot_lifecycle__pb2.HealthResponse.FromString,
+                _registered_method=True)
+        self.Abort = channel.unary_unary(
+                '/openengine.v1.Control/Abort',
+                request_serializer=openengine_dot_v1_dot_lifecycle__pb2.AbortRequest.SerializeToString,
+                response_deserializer=openengine_dot_v1_dot_lifecycle__pb2.AbortResponse.FromString,
+                _registered_method=True)
+        self.Drain = channel.unary_stream(
+                '/openengine.v1.Control/Drain',
+                request_serializer=openengine_dot_v1_dot_lifecycle__pb2.DrainRequest.SerializeToString,
+                response_deserializer=openengine_dot_v1_dot_lifecycle__pb2.DrainResponse.FromString,
+                _registered_method=True)
+        self.LoadLora = channel.unary_unary(
+                '/openengine.v1.Control/LoadLora',
+                request_serializer=openengine_dot_v1_dot_lora__pb2.LoadLoraRequest.SerializeToString,
+                response_deserializer=openengine_dot_v1_dot_lora__pb2.LoadLoraResponse.FromString,
+                _registered_method=True)
+        self.UnloadLora = channel.unary_unary(
+                '/openengine.v1.Control/UnloadLora',
+                request_serializer=openengine_dot_v1_dot_lora__pb2.UnloadLoraRequest.SerializeToString,
+                response_deserializer=openengine_dot_v1_dot_lora__pb2.UnloadLoraResponse.FromString,
+                _registered_method=True)
+        self.ListLoras = channel.unary_unary(
+                '/openengine.v1.Control/ListLoras',
+                request_serializer=openengine_dot_v1_dot_lora__pb2.ListLorasRequest.SerializeToString,
+                response_deserializer=openengine_dot_v1_dot_lora__pb2.ListLorasResponse.FromString,
+                _registered_method=True)
+        self.GetKvConnectorInfo = channel.unary_unary(
+                '/openengine.v1.Control/GetKvConnectorInfo',
+                request_serializer=openengine_dot_v1_dot_kv__pb2.GetKvConnectorInfoRequest.SerializeToString,
+                response_deserializer=openengine_dot_v1_dot_kv__pb2.KvConnectorInfo.FromString,
+                _registered_method=True)
+        self.GetKvEventSources = channel.unary_unary(
+                '/openengine.v1.Control/GetKvEventSources',
+                request_serializer=openengine_dot_v1_dot_kv__pb2.GetKvEventSourcesRequest.SerializeToString,
+                response_deserializer=openengine_dot_v1_dot_kv__pb2.GetKvEventSourcesResponse.FromString,
+                _registered_method=True)
+        self.SubscribeKvEvents = channel.unary_stream(
+                '/openengine.v1.Control/SubscribeKvEvents',
+                request_serializer=openengine_dot_v1_dot_kv__pb2.SubscribeKvEventsRequest.SerializeToString,
+                response_deserializer=openengine_dot_v1_dot_kv__pb2.SubscribeKvEventsResponse.FromString,
+                _registered_method=True)
+        self.SubscribeRuntimeEvents = channel.unary_stream(
+                '/openengine.v1.Control/SubscribeRuntimeEvents',
+                request_serializer=openengine_dot_v1_dot_observability__pb2.SubscribeRuntimeEventsRequest.SerializeToString,
+                response_deserializer=openengine_dot_v1_dot_observability__pb2.SubscribeRuntimeEventsResponse.FromString,
+                _registered_method=True)
+
+
+class ControlServicer:
+    """Missing associated documentation comment in .proto file."""
+
+    def GetServerInfo(self, request, context):
         """Runtime metadata and scheduling state.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -243,32 +436,12 @@ class OpenEngineServicer:
         raise NotImplementedError('Method not implemented!')
 
 
-def add_OpenEngineServicer_to_server(servicer, server):
+def add_ControlServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Generate': grpc.unary_stream_rpc_method_handler(
-                    servicer.Generate,
-                    request_deserializer=openengine_dot_v1_dot_generation__pb2.GenerateRequest.FromString,
-                    response_serializer=openengine_dot_v1_dot_generation__pb2.GenerateResponse.SerializeToString,
-            ),
-            'Embed': grpc.unary_unary_rpc_method_handler(
-                    servicer.Embed,
-                    request_deserializer=openengine_dot_v1_dot_embedding__pb2.EmbedRequest.FromString,
-                    response_serializer=openengine_dot_v1_dot_embedding__pb2.EmbedResponse.SerializeToString,
-            ),
-            'Classify': grpc.unary_unary_rpc_method_handler(
-                    servicer.Classify,
-                    request_deserializer=openengine_dot_v1_dot_classification__pb2.ClassifyRequest.FromString,
-                    response_serializer=openengine_dot_v1_dot_classification__pb2.ClassifyResponse.SerializeToString,
-            ),
-            'Score': grpc.unary_unary_rpc_method_handler(
-                    servicer.Score,
-                    request_deserializer=openengine_dot_v1_dot_scoring__pb2.ScoreRequest.FromString,
-                    response_serializer=openengine_dot_v1_dot_scoring__pb2.ScoreResponse.SerializeToString,
-            ),
-            'GetEngineInfo': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetEngineInfo,
-                    request_deserializer=openengine_dot_v1_dot_engine__pb2.GetEngineInfoRequest.FromString,
-                    response_serializer=openengine_dot_v1_dot_engine__pb2.EngineInfo.SerializeToString,
+            'GetServerInfo': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetServerInfo,
+                    request_deserializer=openengine_dot_v1_dot_server__pb2.GetServerInfoRequest.FromString,
+                    response_serializer=openengine_dot_v1_dot_server__pb2.ServerInfo.SerializeToString,
             ),
             'GetModelInfo': grpc.unary_unary_rpc_method_handler(
                     servicer.GetModelInfo,
@@ -332,44 +505,17 @@ def add_OpenEngineServicer_to_server(servicer, server):
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'openengine.v1.OpenEngine', rpc_method_handlers)
+            'openengine.v1.Control', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('openengine.v1.OpenEngine', rpc_method_handlers)
+    server.add_registered_method_handlers('openengine.v1.Control', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.
-class OpenEngine:
+class Control:
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def Generate(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_stream(
-            request,
-            target,
-            '/openengine.v1.OpenEngine/Generate',
-            openengine_dot_v1_dot_generation__pb2.GenerateRequest.SerializeToString,
-            openengine_dot_v1_dot_generation__pb2.GenerateResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def Embed(request,
+    def GetServerInfo(request,
             target,
             options=(),
             channel_credentials=None,
@@ -382,90 +528,9 @@ class OpenEngine:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/openengine.v1.OpenEngine/Embed',
-            openengine_dot_v1_dot_embedding__pb2.EmbedRequest.SerializeToString,
-            openengine_dot_v1_dot_embedding__pb2.EmbedResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def Classify(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/openengine.v1.OpenEngine/Classify',
-            openengine_dot_v1_dot_classification__pb2.ClassifyRequest.SerializeToString,
-            openengine_dot_v1_dot_classification__pb2.ClassifyResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def Score(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/openengine.v1.OpenEngine/Score',
-            openengine_dot_v1_dot_scoring__pb2.ScoreRequest.SerializeToString,
-            openengine_dot_v1_dot_scoring__pb2.ScoreResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def GetEngineInfo(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/openengine.v1.OpenEngine/GetEngineInfo',
-            openengine_dot_v1_dot_engine__pb2.GetEngineInfoRequest.SerializeToString,
-            openengine_dot_v1_dot_engine__pb2.EngineInfo.FromString,
+            '/openengine.v1.Control/GetServerInfo',
+            openengine_dot_v1_dot_server__pb2.GetServerInfoRequest.SerializeToString,
+            openengine_dot_v1_dot_server__pb2.ServerInfo.FromString,
             options,
             channel_credentials,
             insecure,
@@ -490,7 +555,7 @@ class OpenEngine:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/openengine.v1.OpenEngine/GetModelInfo',
+            '/openengine.v1.Control/GetModelInfo',
             openengine_dot_v1_dot_model__pb2.GetModelInfoRequest.SerializeToString,
             openengine_dot_v1_dot_model__pb2.ModelInfo.FromString,
             options,
@@ -517,7 +582,7 @@ class OpenEngine:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/openengine.v1.OpenEngine/GetLoad',
+            '/openengine.v1.Control/GetLoad',
             openengine_dot_v1_dot_observability__pb2.GetLoadRequest.SerializeToString,
             openengine_dot_v1_dot_observability__pb2.LoadInfo.FromString,
             options,
@@ -544,7 +609,7 @@ class OpenEngine:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/openengine.v1.OpenEngine/Health',
+            '/openengine.v1.Control/Health',
             openengine_dot_v1_dot_lifecycle__pb2.HealthRequest.SerializeToString,
             openengine_dot_v1_dot_lifecycle__pb2.HealthResponse.FromString,
             options,
@@ -571,7 +636,7 @@ class OpenEngine:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/openengine.v1.OpenEngine/Abort',
+            '/openengine.v1.Control/Abort',
             openengine_dot_v1_dot_lifecycle__pb2.AbortRequest.SerializeToString,
             openengine_dot_v1_dot_lifecycle__pb2.AbortResponse.FromString,
             options,
@@ -598,7 +663,7 @@ class OpenEngine:
         return grpc.experimental.unary_stream(
             request,
             target,
-            '/openengine.v1.OpenEngine/Drain',
+            '/openengine.v1.Control/Drain',
             openengine_dot_v1_dot_lifecycle__pb2.DrainRequest.SerializeToString,
             openengine_dot_v1_dot_lifecycle__pb2.DrainResponse.FromString,
             options,
@@ -625,7 +690,7 @@ class OpenEngine:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/openengine.v1.OpenEngine/LoadLora',
+            '/openengine.v1.Control/LoadLora',
             openengine_dot_v1_dot_lora__pb2.LoadLoraRequest.SerializeToString,
             openengine_dot_v1_dot_lora__pb2.LoadLoraResponse.FromString,
             options,
@@ -652,7 +717,7 @@ class OpenEngine:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/openengine.v1.OpenEngine/UnloadLora',
+            '/openengine.v1.Control/UnloadLora',
             openengine_dot_v1_dot_lora__pb2.UnloadLoraRequest.SerializeToString,
             openengine_dot_v1_dot_lora__pb2.UnloadLoraResponse.FromString,
             options,
@@ -679,7 +744,7 @@ class OpenEngine:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/openengine.v1.OpenEngine/ListLoras',
+            '/openengine.v1.Control/ListLoras',
             openengine_dot_v1_dot_lora__pb2.ListLorasRequest.SerializeToString,
             openengine_dot_v1_dot_lora__pb2.ListLorasResponse.FromString,
             options,
@@ -706,7 +771,7 @@ class OpenEngine:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/openengine.v1.OpenEngine/GetKvConnectorInfo',
+            '/openengine.v1.Control/GetKvConnectorInfo',
             openengine_dot_v1_dot_kv__pb2.GetKvConnectorInfoRequest.SerializeToString,
             openengine_dot_v1_dot_kv__pb2.KvConnectorInfo.FromString,
             options,
@@ -733,7 +798,7 @@ class OpenEngine:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/openengine.v1.OpenEngine/GetKvEventSources',
+            '/openengine.v1.Control/GetKvEventSources',
             openengine_dot_v1_dot_kv__pb2.GetKvEventSourcesRequest.SerializeToString,
             openengine_dot_v1_dot_kv__pb2.GetKvEventSourcesResponse.FromString,
             options,
@@ -760,7 +825,7 @@ class OpenEngine:
         return grpc.experimental.unary_stream(
             request,
             target,
-            '/openengine.v1.OpenEngine/SubscribeKvEvents',
+            '/openengine.v1.Control/SubscribeKvEvents',
             openengine_dot_v1_dot_kv__pb2.SubscribeKvEventsRequest.SerializeToString,
             openengine_dot_v1_dot_kv__pb2.SubscribeKvEventsResponse.FromString,
             options,
@@ -787,7 +852,7 @@ class OpenEngine:
         return grpc.experimental.unary_stream(
             request,
             target,
-            '/openengine.v1.OpenEngine/SubscribeRuntimeEvents',
+            '/openengine.v1.Control/SubscribeRuntimeEvents',
             openengine_dot_v1_dot_observability__pb2.SubscribeRuntimeEventsRequest.SerializeToString,
             openengine_dot_v1_dot_observability__pb2.SubscribeRuntimeEventsResponse.FromString,
             options,

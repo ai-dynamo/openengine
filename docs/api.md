@@ -20,7 +20,7 @@ package openengine.v1;
 
 import "google/protobuf/struct.proto";
 
-service OpenEngine {
+service Inference {
   // Core inference path.
   rpc Generate(GenerateRequest) returns (stream GenerateResponse);
 
@@ -28,9 +28,11 @@ service OpenEngine {
   rpc Embed(EmbedRequest) returns (EmbedResponse);
   rpc Classify(ClassifyRequest) returns (ClassifyResponse);
   rpc Score(ScoreRequest) returns (ScoreResponse);
+}
 
+service Control {
   // Runtime metadata and scheduling state.
-  rpc GetEngineInfo(GetEngineInfoRequest) returns (EngineInfo);
+  rpc GetServerInfo(GetServerInfoRequest) returns (ServerInfo);
   rpc GetModelInfo(GetModelInfoRequest) returns (ModelInfo);
   rpc GetLoad(GetLoadRequest) returns (LoadInfo);
 
@@ -54,9 +56,43 @@ service OpenEngine {
 }
 ```
 
+`Inference` is the inference data plane. `Control` is the discovery, lifecycle,
+and coordination control plane. Implementations may expose both services on the
+same listener, or isolate them on separate listeners and access policies without
+changing the protocol contract.
+
+### gRPC request metadata
+
+Routing, admission, and tracing context belongs in
+[gRPC request metadata](https://grpc.io/docs/guides/metadata/) rather than
+protobuf request payloads. OpenEngine defines these lowercase ASCII keys:
+
+| Key | Value | Scope |
+| --- | --- | --- |
+| `openengine-routing-key` | Opaque non-empty ASCII routing key | Consistent hashing, tenancy, or other application routing |
+| `openengine-target-dp-rank` | Base-10 `uint32` | Requested data-parallel routing target |
+| `openengine-priority` | Base-10 `int32` | Admission priority; higher values have higher priority |
+| `traceparent` | W3C Trace Context value | Portable distributed-trace parent |
+| `tracestate` | W3C Trace Context value | Vendor-specific trace state associated with `traceparent` |
+
+The `openengine-` prefix is reserved for this protocol. Clients send at most one
+value for each OpenEngine key; malformed numeric values or repeated OpenEngine
+keys return gRPC `INVALID_ARGUMENT`. Application-specific metadata may use other
+gRPC metadata keys without adding fields to inference messages.
+
+`openengine-target-dp-rank` is a routing instruction, not KV state. When a
+request carries a `KvSessionRef`, its `dp_rank` is the authoritative KV-affinity
+value. If both values reach the engine and disagree, the engine returns
+`INVALID_ARGUMENT`. The priority key is used only when the selected model and
+task advertise priority support.
+
+All RPCs accept `traceparent` and `tracestate` and propagate them on downstream
+RPCs according to [W3C Trace Context](https://www.w3.org/TR/trace-context/).
+Routing and admission keys apply only to `Inference` RPCs.
+
 ---
 
-## Core identity and roles
+## Server identity, deployment capacity, and engine roles
 
 ```protobuf
 enum EngineRole {
@@ -66,12 +102,12 @@ enum EngineRole {
   ENGINE_ROLE_DECODE = 3;
 }
 
-message GetEngineInfoRequest {}
+message GetServerInfoRequest {}
 
-message EngineInfo {
+message ServerInfo {
   string engine_name = 1;          // sglang, vllm, tensorrt_llm, etc.
   string engine_version = 2;
-  EngineRole role = 3;
+  EngineRole engine_role = 3;
   string instance_id = 4;
   repeated string supported_models = 5;
   ParallelismInfo parallelism = 6;
@@ -79,6 +115,16 @@ message EngineInfo {
   uint32 schema_revision = 8;
   uint32 minimum_client_revision = 9;
   string schema_release = 10;
+  DeploymentCapacity capacity = 11; // Configured capacity for this deployed server.
+  google.protobuf.Struct extra = 12; // Engine-specific, non-portable; read opportunistically.
+}
+
+message DeploymentCapacity {
+  optional uint32 kv_block_size = 1; // Tokens per deployed KV-cache block.
+  optional uint64 total_kv_blocks = 2; // Allocatable KV blocks in the reporting scope.
+  optional uint64 max_running_requests = 3; // Concurrent running-request ceiling.
+  optional uint64 max_batched_tokens = 4; // Scheduler token ceiling per batch.
+  optional uint32 max_loras = 5; // Maximum simultaneously resident LoRA adapters.
 }
 
 message ParallelismInfo {
@@ -87,6 +133,7 @@ message ParallelismInfo {
   optional uint32 data_parallel_size = 3;
   optional uint32 data_parallel_rank = 4;
   optional uint32 data_parallel_start_rank = 5;
+  optional uint32 decode_context_parallel_size = 6; // Ranks per decode-context group; at least 1.
 }
 ```
 
@@ -112,6 +159,27 @@ Discovery response scalars use proto3 `optional` presence. An absent value means
 the engine cannot report the value; an explicitly present zero or `false` is a
 reported value and must not be replaced with a client default.
 
+Enums grow by appending values. A client encountering an unrecognized enum value
+MUST treat it as the enum's UNSPECIFIED/zero case (or ignore the item), never as
+an error.
+
+Durations and timestamps use explicit integer units (fields suffixed `_ms` /
+`_unix_nanos`) rather than `google.protobuf.Duration`/`Timestamp`, for compact,
+language-neutral encoding.
+
+`decode_context_parallel_size` reports the number of ranks across which decode
+context is sharded. It describes a group within the server's execution topology
+and does not, by itself, imply additional workers beyond the reported tensor,
+pipeline, and data-parallel topology. When present, the value must be at least
+one; one means decode-context parallelism is disabled.
+
+`DeploymentCapacity` reports configured capacity for the deployed server, not
+model identity. `kv_block_size` is the number of tokens in a deployed KV block;
+`total_kv_blocks` is the allocatable block count in the server's reporting
+scope; `max_running_requests` and `max_batched_tokens` are configured scheduler
+ceilings; and `max_loras` is the maximum number of simultaneously resident LoRA
+adapters. Dynamic and per-rank utilization remains in `LoadInfo`.
+
 Role semantics:
 
 - `AGGREGATED`: accepts normal generation requests and returns tokens.  
@@ -122,7 +190,7 @@ Role semantics:
 
 ---
 
-## Model and capacity metadata
+## Model identity and capabilities
 
 ```protobuf
 message GetModelInfoRequest {
@@ -133,12 +201,8 @@ message ModelInfo {
   string model_id = 1;
   string served_model_name = 2;
   repeated string served_model_aliases = 3;
-  optional uint32 max_context_length = 4;
-  optional uint32 max_output_tokens = 5;
-  optional uint32 kv_block_size = 6;
-  optional uint64 total_kv_blocks = 7;
-  optional uint64 max_running_requests = 8;
-  optional uint64 max_batched_tokens = 9;
+  optional uint32 max_context_length = 4; // Effective context-window limit in this deployment.
+  optional uint32 max_output_tokens = 5; // Effective generated-token limit in this deployment.
   repeated string tokenizer_modes = 10;
 
   optional bool supports_text_input = 20;
@@ -149,8 +213,9 @@ message ModelInfo {
 
   string reasoning_parser = 25;
   string tool_call_parser = 26;
-  TaskCapabilities tasks = 27;
-  MultimodalCapabilities multimodal_capabilities = 28;
+  TaskCapabilities tasks = 27; // Optional non-generative task support for this model.
+  google.protobuf.Struct extra = 28; // Engine-specific, non-portable; read opportunistically.
+  MultimodalCapabilities multimodal_capabilities = 29;
 }
 
 message MultimodalCapabilities {
@@ -201,15 +266,19 @@ enum GuidedDecodingMode {
 ```
 
 `GetModelInfoRequest.model` is required and selects one of
-`EngineInfo.supported_models`; an unknown model returns gRPC `NOT_FOUND`.
+`ServerInfo.supported_models`; an unknown model returns gRPC `NOT_FOUND`.
+`max_context_length` and `max_output_tokens` are the effective limits for the
+selected model in this deployment. KV layout and scheduler capacity are reported
+once through `ServerInfo.capacity`, not repeated as model identity.
 Capability submessages distinguish unreported support (message absent) from
 reported support or lack of support (`supported = true` or `false`). Candidate
 selection modes and `max_top_n` are reported independently for prompt and
-output logprobs. The remaining generation fields advertise support and limits
-for the corresponding request options.
+output logprobs. `supports_priority` advertises support for the
+`openengine-priority` metadata key. The remaining generation fields advertise
+support and limits for the corresponding request options.
 
 `supports_lora=true` means the engine accepts `GenerateRequest.lora_name` and
-the LoRA lifecycle RPCs on `OpenEngine`.
+the LoRA lifecycle RPCs on `Control`.
 
 `supports_multimodal` remains the revision-1 compatibility signal. Revision-2
 clients use `multimodal_capabilities` to validate a request before scheduling.
@@ -234,8 +303,7 @@ message TaskRequestContext {
   string request_id = 1;
   string model = 2;
   string lora_name = 3;
-  optional int32 priority = 4;
-  map<string, string> metadata = 5;
+  google.protobuf.Struct extra = 4; // Engine-specific, non-portable; may be ignored.
 }
 
 message TaskInput {
@@ -310,10 +378,9 @@ enum ScoreNormalization {
 
 `TaskRequestContext.request_id` and `model` are required and non-empty. Request
 IDs share the same namespace and abort semantics as generation request IDs.
-`priority` uses the generation ordering convention: larger values have higher
-priority. A non-empty `lora_name` selects an already loaded adapter. Clients
-must use either option only when the corresponding task capability advertises
-support.
+A non-empty `lora_name` selects an already loaded adapter. Clients use
+`openengine-priority` only when the corresponding task capability advertises
+priority support, and use `lora_name` only when it advertises LoRA support.
 
 Each request batch must be non-empty. `item_id` is required and unique within
 an embed/classify batch, and every query/candidate item ID is unique within one
@@ -635,8 +702,7 @@ message GenerateRequest {
 
   repeated MediaItem media = 10;
   string lora_name = 11;
-  optional int32 priority = 12;
-  map<string, string> metadata = 13;
+  google.protobuf.Struct extra = 12; // Engine-specific, non-portable; may be ignored.
   google.protobuf.Struct media_options = 14;
 }
 
@@ -684,9 +750,8 @@ message AllCandidates {}
 
 message KvOptions {
   KvSessionRef session = 1;
-  optional uint32 data_parallel_rank = 2;
-  optional bool bypass_prefix_cache = 3;
-  optional string cache_salt = 4;
+  optional bool bypass_prefix_cache = 2;
+  optional string cache_salt = 3;
 }
 
 message StopCondition {
@@ -696,8 +761,7 @@ message StopCondition {
   }
 }
 
-// Multimodal modality discriminator. 0 is treated as image for forward
-// compatibility with senders that omit the field.
+// Multimodal modality discriminator. UNSPECIFIED means the sender left it unset.
 enum Modality {
   MODALITY_UNSPECIFIED = 0;
   MODALITY_IMAGE = 1;
@@ -750,8 +814,9 @@ data, and KV/cache behavior remain separate option groups. Guided decoding stays
 top-level as a distinct structured-output mode. Optional scalars preserve the
 distinction between an engine default and explicit zero or `false`.
 
-`priority` uses higher values for higher scheduling priority. `num_sequences`
-defaults to one when omitted and must be greater than zero when present.
+`openengine-priority` uses higher values for higher scheduling priority.
+`num_sequences` defaults to one when omitted and must be greater than zero when
+present.
 `CandidateTokenSelection` requests either the top N candidates, explicit token
 IDs, or the full vocabulary at each prompt or output position. Select all
 candidates with `all {}` and JSON-object guidance with `json_object {}`.
@@ -772,6 +837,15 @@ per-request options rather than silently ignoring them.
 or string remains in emitted output. `bypass_prefix_cache = true` skips prefix
 cache reuse but does not prevent newly computed blocks from being cached.
 `cache_salt` namespaces the prefix-cache key.
+
+`GenerateRequest.extra` and `TaskRequestContext.extra` carry engine-specific
+parameters that have no portable field. They are an intentional escape hatch so
+an engine can expose a native knob without a schema revision, and so a client
+can adopt OpenEngine before every parameter it needs is standardized. They are
+explicitly outside the portable contract: an engine may ignore keys it does not
+recognize, every request must remain valid with `extra` empty, and clients must
+not depend on `extra` for correctness. Parameters that prove broadly useful
+should be promoted to typed fields in a later revision.
 
 ```protobuf
 message GenerateResponse {
@@ -1177,7 +1251,7 @@ message LoadInfo {
   optional uint32 prefill_batch_size = 10;
   optional uint32 decode_batch_size = 11;
   repeated RankLoadInfo ranks = 20;
-  map<string, string> attributes = 30;
+  google.protobuf.Struct attributes = 30;
 }
 
 message RankLoadInfo {
@@ -1193,6 +1267,11 @@ message RankLoadInfo {
 
 Every load scalar has explicit presence. Absent means unavailable in that
 engine or snapshot; present zero means the measured load is zero.
+
+`LoadInfo.attributes` and `RuntimeEvent.attributes` carry engine-specific metrics as a
+`google.protobuf.Struct`, so numeric, boolean, and list values keep their JSON
+type on the wire instead of being flattened to strings. `Struct` numbers are
+IEEE-754 doubles (exact only to 2^53); carry larger integers as strings.
 
 Runtime event stream:
 
@@ -1220,7 +1299,7 @@ message RuntimeEvent {
   string event_id = 1;
   uint64 timestamp_unix_nanos = 2;
   RuntimeEventType type = 3;
-  map<string, string> attributes = 4;
+  google.protobuf.Struct attributes = 4;
 }
 ```
 

@@ -57,7 +57,6 @@ fn fixture() -> GenerateRequest {
         request_id: "cross-language".into(),
         model: "test-model".into(),
         input: Some(generate_request::Input::Prompt("Hello".into())),
-        priority: Some(0),
         media: vec![
             MediaItem {
                 modality: Modality::Image as i32,

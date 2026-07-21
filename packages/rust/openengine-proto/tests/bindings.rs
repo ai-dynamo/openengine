@@ -1,4 +1,4 @@
-use openengine_proto::openengine::v1::{generate_request, GenerateRequest};
+use openengine_proto::openengine::v1::{generate_request, GenerateRequest, SamplingParams};
 use openengine_proto::{
     FILE_DESCRIPTOR_SET, MINIMUM_CLIENT_REVISION, SCHEMA_RELEASE, SCHEMA_REVISION,
 };
@@ -11,14 +11,17 @@ fn request_round_trip_preserves_optional_zero() {
         request_id: "rust-smoke".into(),
         model: "test-model".into(),
         input: Some(generate_request::Input::Prompt("Hello".into())),
-        priority: Some(0),
+        sampling: Some(SamplingParams {
+            temperature: Some(0.0),
+            ..Default::default()
+        }),
         ..Default::default()
     };
 
     let decoded = GenerateRequest::decode(request.encode_to_vec().as_slice()).unwrap();
 
     assert_eq!(decoded.request_id, "rust-smoke");
-    assert_eq!(decoded.priority, Some(0));
+    assert_eq!(decoded.sampling.unwrap().temperature, Some(0.0));
     assert!(matches!(
         decoded.input,
         Some(generate_request::Input::Prompt(prompt)) if prompt == "Hello"
@@ -26,7 +29,7 @@ fn request_round_trip_preserves_optional_zero() {
 }
 
 #[test]
-fn descriptor_set_contains_openengine_service() {
+fn descriptor_set_contains_inference_and_control_services() {
     let descriptors = FileDescriptorSet::decode(FILE_DESCRIPTOR_SET).unwrap();
     let service_file = descriptors
         .file
@@ -37,17 +40,26 @@ fn descriptor_set_contains_openengine_service() {
     assert!(service_file
         .service
         .iter()
-        .any(|service| service.name.as_deref() == Some("OpenEngine")));
+        .any(|service| service.name.as_deref() == Some("Inference")));
 
-    let service = service_file
+    let inference = service_file
         .service
         .iter()
-        .find(|service| service.name.as_deref() == Some("OpenEngine"))
+        .find(|service| service.name.as_deref() == Some("Inference"))
         .unwrap();
-    assert!(service
+    assert!(inference
         .method
         .iter()
         .any(|method| method.name.as_deref() == Some("Embed")));
+    let control = service_file
+        .service
+        .iter()
+        .find(|service| service.name.as_deref() == Some("Control"))
+        .unwrap();
+    assert!(control
+        .method
+        .iter()
+        .any(|method| method.name.as_deref() == Some("GetServerInfo")));
 }
 
 #[test]
@@ -80,7 +92,7 @@ fn descriptor_set_contains_revision_2_multimodal_fields() {
         .iter()
         .find(|field| field.name.as_deref() == Some("multimodal_capabilities"))
         .unwrap();
-    assert_eq!(capabilities.number, Some(28));
+    assert_eq!(capabilities.number, Some(29));
     assert_eq!(
         capabilities.type_name.as_deref(),
         Some(".openengine.v1.MultimodalCapabilities")

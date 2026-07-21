@@ -11,8 +11,7 @@ message TokenIds {
   repeated uint32 ids = 1;
 }
 
-// Multimodal modality discriminator. 0 is treated as image for forward
-// compatibility with senders that omit the field.
+// Multimodal modality discriminator. UNSPECIFIED means the sender left it unset.
 enum Modality {
   MODALITY_UNSPECIFIED = 0;
   MODALITY_IMAGE = 1;

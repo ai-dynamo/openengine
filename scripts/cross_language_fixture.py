@@ -15,7 +15,6 @@ def fixture() -> GenerateRequest:
         request_id="cross-language",
         model="test-model",
         prompt="Hello",
-        priority=0,
         media=[
             MediaItem(
                 modality=MODALITY_IMAGE,

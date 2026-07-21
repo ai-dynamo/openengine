@@ -17,10 +17,10 @@ pip install ./packages/python
 import grpc
 
 from openengine.v1.generation_pb2 import GenerateRequest
-from openengine.v1.openengine_pb2_grpc import OpenEngineStub
+from openengine.v1.openengine_pb2_grpc import InferenceStub
 
 channel = grpc.aio.insecure_channel("localhost:50051")
-engine = OpenEngineStub(channel)
+engine = InferenceStub(channel)
 request = GenerateRequest(request_id="example", model="model", prompt="Hello")
 ```
 

@@ -23,14 +23,7 @@ FINISH_REASON_LENGTH: FinishReason
 FINISH_REASON_CANCELLED: FinishReason
 
 class GenerateRequest(_message.Message):
-    __slots__ = ("request_id", "model", "prompt", "token_ids", "sampling", "stopping", "response", "kv", "guided", "media", "lora_name", "priority", "metadata", "media_options")
-    class MetadataEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: str
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    __slots__ = ("request_id", "model", "prompt", "token_ids", "sampling", "stopping", "response", "kv", "guided", "media", "lora_name", "extra", "media_options")
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     MODEL_FIELD_NUMBER: _ClassVar[int]
     PROMPT_FIELD_NUMBER: _ClassVar[int]
@@ -42,8 +35,7 @@ class GenerateRequest(_message.Message):
     GUIDED_FIELD_NUMBER: _ClassVar[int]
     MEDIA_FIELD_NUMBER: _ClassVar[int]
     LORA_NAME_FIELD_NUMBER: _ClassVar[int]
-    PRIORITY_FIELD_NUMBER: _ClassVar[int]
-    METADATA_FIELD_NUMBER: _ClassVar[int]
+    EXTRA_FIELD_NUMBER: _ClassVar[int]
     MEDIA_OPTIONS_FIELD_NUMBER: _ClassVar[int]
     request_id: str
     model: str
@@ -56,10 +48,9 @@ class GenerateRequest(_message.Message):
     guided: GuidedDecoding
     media: _containers.RepeatedCompositeFieldContainer[_input_pb2.MediaItem]
     lora_name: str
-    priority: int
-    metadata: _containers.ScalarMap[str, str]
+    extra: _struct_pb2.Struct
     media_options: _struct_pb2.Struct
-    def __init__(self, request_id: _Optional[str] = ..., model: _Optional[str] = ..., prompt: _Optional[str] = ..., token_ids: _Optional[_Union[_input_pb2.TokenIds, _Mapping]] = ..., sampling: _Optional[_Union[SamplingParams, _Mapping]] = ..., stopping: _Optional[_Union[StoppingOptions, _Mapping]] = ..., response: _Optional[_Union[ResponseOptions, _Mapping]] = ..., kv: _Optional[_Union[KvOptions, _Mapping]] = ..., guided: _Optional[_Union[GuidedDecoding, _Mapping]] = ..., media: _Optional[_Iterable[_Union[_input_pb2.MediaItem, _Mapping]]] = ..., lora_name: _Optional[str] = ..., priority: _Optional[int] = ..., metadata: _Optional[_Mapping[str, str]] = ..., media_options: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+    def __init__(self, request_id: _Optional[str] = ..., model: _Optional[str] = ..., prompt: _Optional[str] = ..., token_ids: _Optional[_Union[_input_pb2.TokenIds, _Mapping]] = ..., sampling: _Optional[_Union[SamplingParams, _Mapping]] = ..., stopping: _Optional[_Union[StoppingOptions, _Mapping]] = ..., response: _Optional[_Union[ResponseOptions, _Mapping]] = ..., kv: _Optional[_Union[KvOptions, _Mapping]] = ..., guided: _Optional[_Union[GuidedDecoding, _Mapping]] = ..., media: _Optional[_Iterable[_Union[_input_pb2.MediaItem, _Mapping]]] = ..., lora_name: _Optional[str] = ..., extra: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., media_options: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class SamplingParams(_message.Message):
     __slots__ = ("temperature", "top_p", "top_k", "min_p", "frequency_penalty", "presence_penalty", "repetition_penalty", "seed", "num_sequences")
@@ -126,16 +117,14 @@ class AllCandidates(_message.Message):
     def __init__(self) -> None: ...
 
 class KvOptions(_message.Message):
-    __slots__ = ("session", "data_parallel_rank", "bypass_prefix_cache", "cache_salt")
+    __slots__ = ("session", "bypass_prefix_cache", "cache_salt")
     SESSION_FIELD_NUMBER: _ClassVar[int]
-    DATA_PARALLEL_RANK_FIELD_NUMBER: _ClassVar[int]
     BYPASS_PREFIX_CACHE_FIELD_NUMBER: _ClassVar[int]
     CACHE_SALT_FIELD_NUMBER: _ClassVar[int]
     session: _kv_pb2.KvSessionRef
-    data_parallel_rank: int
     bypass_prefix_cache: bool
     cache_salt: str
-    def __init__(self, session: _Optional[_Union[_kv_pb2.KvSessionRef, _Mapping]] = ..., data_parallel_rank: _Optional[int] = ..., bypass_prefix_cache: _Optional[bool] = ..., cache_salt: _Optional[str] = ...) -> None: ...
+    def __init__(self, session: _Optional[_Union[_kv_pb2.KvSessionRef, _Mapping]] = ..., bypass_prefix_cache: _Optional[bool] = ..., cache_salt: _Optional[str] = ...) -> None: ...
 
 class StopCondition(_message.Message):
     __slots__ = ("stop_text", "stop_token_id")

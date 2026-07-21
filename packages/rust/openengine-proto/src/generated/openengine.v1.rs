@@ -73,8 +73,7 @@ pub mod task_input {
         Multimodal(super::MultimodalTaskInput),
     }
 }
-/// Multimodal modality discriminator. 0 is treated as image for forward
-/// compatibility with senders that omit the field.
+/// Multimodal modality discriminator. UNSPECIFIED means the sender left it unset.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum Modality {
@@ -173,7 +172,7 @@ impl TaskInputType {
         }
     }
 }
-/// Request metadata shared by every non-generative task.
+/// Request identity and model selection shared by every non-generative task.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TaskRequestContext {
     #[prost(string, tag = "1")]
@@ -182,13 +181,12 @@ pub struct TaskRequestContext {
     pub model: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub lora_name: ::prost::alloc::string::String,
-    #[prost(int32, optional, tag = "4")]
-    pub priority: ::core::option::Option<i32>,
-    #[prost(map = "string, string", tag = "5")]
-    pub metadata: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    /// Engine-specific task parameters that have no portable field. NOT part of
+    /// the portable contract: an engine MAY ignore keys it does not recognize, and
+    /// a request MUST remain valid with this field empty. Clients treat it as
+    /// best-effort. Carried as a Struct so JSON types survive the wire.
+    #[prost(message, optional, tag = "4")]
+    pub extra: ::core::option::Option<::prost_types::Struct>,
 }
 /// Row-major FP32 tensor. The product of shape must equal values.size().
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -767,80 +765,6 @@ impl StorageMedium {
         }
     }
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct GetEngineInfoRequest {}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct EngineInfo {
-    /// sglang, vllm, tensorrt_llm, etc.
-    #[prost(string, tag = "1")]
-    pub engine_name: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub engine_version: ::prost::alloc::string::String,
-    #[prost(enumeration = "EngineRole", tag = "3")]
-    pub role: i32,
-    #[prost(string, tag = "4")]
-    pub instance_id: ::prost::alloc::string::String,
-    #[prost(string, repeated, tag = "5")]
-    pub supported_models: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    #[prost(message, optional, tag = "6")]
-    pub parallelism: ::core::option::Option<ParallelismInfo>,
-    #[prost(message, optional, tag = "7")]
-    pub kv_connector: ::core::option::Option<KvConnectorInfo>,
-    /// Monotonic wire contract revision; zero is invalid.
-    #[prost(uint32, tag = "8")]
-    pub schema_revision: u32,
-    /// Oldest compatible client revision.
-    #[prost(uint32, tag = "9")]
-    pub minimum_client_revision: u32,
-    /// Immutable release or source tag for this schema.
-    #[prost(string, tag = "10")]
-    pub schema_release: ::prost::alloc::string::String,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct ParallelismInfo {
-    #[prost(uint32, optional, tag = "1")]
-    pub tensor_parallel_size: ::core::option::Option<u32>,
-    #[prost(uint32, optional, tag = "2")]
-    pub pipeline_parallel_size: ::core::option::Option<u32>,
-    #[prost(uint32, optional, tag = "3")]
-    pub data_parallel_size: ::core::option::Option<u32>,
-    #[prost(uint32, optional, tag = "4")]
-    pub data_parallel_rank: ::core::option::Option<u32>,
-    #[prost(uint32, optional, tag = "5")]
-    pub data_parallel_start_rank: ::core::option::Option<u32>,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
-pub enum EngineRole {
-    Unspecified = 0,
-    Aggregated = 1,
-    Prefill = 2,
-    Decode = 3,
-}
-impl EngineRole {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-    pub fn as_str_name(&self) -> &'static str {
-        match self {
-            Self::Unspecified => "ENGINE_ROLE_UNSPECIFIED",
-            Self::Aggregated => "ENGINE_ROLE_AGGREGATED",
-            Self::Prefill => "ENGINE_ROLE_PREFILL",
-            Self::Decode => "ENGINE_ROLE_DECODE",
-        }
-    }
-    /// Creates an enum from field names used in the ProtoBuf definition.
-    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-        match value {
-            "ENGINE_ROLE_UNSPECIFIED" => Some(Self::Unspecified),
-            "ENGINE_ROLE_AGGREGATED" => Some(Self::Aggregated),
-            "ENGINE_ROLE_PREFILL" => Some(Self::Prefill),
-            "ENGINE_ROLE_DECODE" => Some(Self::Decode),
-            _ => None,
-        }
-    }
-}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GenerateRequest {
     #[prost(string, tag = "1")]
@@ -868,15 +792,13 @@ pub struct GenerateRequest {
     /// available through OpenEngine.
     #[prost(string, tag = "11")]
     pub lora_name: ::prost::alloc::string::String,
-    /// Higher values receive higher scheduling priority.
-    #[prost(int32, optional, tag = "12")]
-    pub priority: ::core::option::Option<i32>,
-    /// Optional request metadata for tracing/admission/routing.
-    #[prost(map = "string, string", tag = "13")]
-    pub metadata: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    /// Engine-specific request parameters that have no portable field above (e.g.
+    /// an experimental sampler knob). NOT part of the portable contract: an engine
+    /// MAY ignore keys it does not recognize, and a request MUST remain valid with
+    /// this field empty. Clients treat it as best-effort and never depend on it
+    /// for correctness. Carried as a Struct so JSON types survive the wire.
+    #[prost(message, optional, tag = "12")]
+    pub extra: ::core::option::Option<::prost_types::Struct>,
     /// Per-request media processor options keyed by modality name: `image`,
     /// `video`, and `audio`. Engines apply their server defaults first, then
     /// shallow-merge request keys over the matching modality defaults. Existing
@@ -966,11 +888,9 @@ pub struct AllCandidates {}
 pub struct KvOptions {
     #[prost(message, optional, tag = "1")]
     pub session: ::core::option::Option<KvSessionRef>,
-    #[prost(uint32, optional, tag = "2")]
-    pub data_parallel_rank: ::core::option::Option<u32>,
-    #[prost(bool, optional, tag = "3")]
+    #[prost(bool, optional, tag = "2")]
     pub bypass_prefix_cache: ::core::option::Option<bool>,
-    #[prost(string, optional, tag = "4")]
+    #[prost(string, optional, tag = "3")]
     pub cache_salt: ::core::option::Option<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -1175,6 +1095,110 @@ impl FinishReason {
             "FINISH_REASON_STOP" => Some(Self::Stop),
             "FINISH_REASON_LENGTH" => Some(Self::Length),
             "FINISH_REASON_CANCELLED" => Some(Self::Cancelled),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GetServerInfoRequest {}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ServerInfo {
+    /// sglang, vllm, tensorrt_llm, etc.
+    #[prost(string, tag = "1")]
+    pub engine_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub engine_version: ::prost::alloc::string::String,
+    #[prost(enumeration = "EngineRole", tag = "3")]
+    pub engine_role: i32,
+    #[prost(string, tag = "4")]
+    pub instance_id: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "5")]
+    pub supported_models: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(message, optional, tag = "6")]
+    pub parallelism: ::core::option::Option<ParallelismInfo>,
+    #[prost(message, optional, tag = "7")]
+    pub kv_connector: ::core::option::Option<KvConnectorInfo>,
+    /// Monotonic wire contract revision; zero is invalid.
+    #[prost(uint32, tag = "8")]
+    pub schema_revision: u32,
+    /// Oldest compatible client revision.
+    #[prost(uint32, tag = "9")]
+    pub minimum_client_revision: u32,
+    /// Immutable release or source tag for this schema.
+    #[prost(string, tag = "10")]
+    pub schema_release: ::prost::alloc::string::String,
+    /// Configured capacity for this deployed server.
+    #[prost(message, optional, tag = "11")]
+    pub capacity: ::core::option::Option<DeploymentCapacity>,
+    /// Engine-specific server metadata with no portable field (e.g. attention
+    /// backend, build flags, experimental capabilities). NOT part of the portable
+    /// contract: clients read it opportunistically and never depend on it for
+    /// correctness. Carried as a Struct so JSON types survive the wire.
+    #[prost(message, optional, tag = "12")]
+    pub extra: ::core::option::Option<::prost_types::Struct>,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct DeploymentCapacity {
+    /// Tokens per deployed KV-cache block.
+    #[prost(uint32, optional, tag = "1")]
+    pub kv_block_size: ::core::option::Option<u32>,
+    /// Allocatable KV blocks in the reporting scope.
+    #[prost(uint64, optional, tag = "2")]
+    pub total_kv_blocks: ::core::option::Option<u64>,
+    /// Concurrent running-request ceiling.
+    #[prost(uint64, optional, tag = "3")]
+    pub max_running_requests: ::core::option::Option<u64>,
+    /// Scheduler token ceiling per batch.
+    #[prost(uint64, optional, tag = "4")]
+    pub max_batched_tokens: ::core::option::Option<u64>,
+    /// Maximum simultaneously resident LoRA adapters.
+    #[prost(uint32, optional, tag = "5")]
+    pub max_loras: ::core::option::Option<u32>,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ParallelismInfo {
+    #[prost(uint32, optional, tag = "1")]
+    pub tensor_parallel_size: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "2")]
+    pub pipeline_parallel_size: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "3")]
+    pub data_parallel_size: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "4")]
+    pub data_parallel_rank: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "5")]
+    pub data_parallel_start_rank: ::core::option::Option<u32>,
+    /// Ranks per decode-context group; at least 1.
+    #[prost(uint32, optional, tag = "6")]
+    pub decode_context_parallel_size: ::core::option::Option<u32>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum EngineRole {
+    Unspecified = 0,
+    Aggregated = 1,
+    Prefill = 2,
+    Decode = 3,
+}
+impl EngineRole {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "ENGINE_ROLE_UNSPECIFIED",
+            Self::Aggregated => "ENGINE_ROLE_AGGREGATED",
+            Self::Prefill => "ENGINE_ROLE_PREFILL",
+            Self::Decode => "ENGINE_ROLE_DECODE",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "ENGINE_ROLE_UNSPECIFIED" => Some(Self::Unspecified),
+            "ENGINE_ROLE_AGGREGATED" => Some(Self::Aggregated),
+            "ENGINE_ROLE_PREFILL" => Some(Self::Prefill),
+            "ENGINE_ROLE_DECODE" => Some(Self::Decode),
             _ => None,
         }
     }
@@ -1544,7 +1568,7 @@ pub struct GetModelInfoRequest {
     #[prost(string, tag = "1")]
     pub model: ::prost::alloc::string::String,
 }
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ModelInfo {
     #[prost(string, tag = "1")]
     pub model_id: ::prost::alloc::string::String,
@@ -1552,18 +1576,12 @@ pub struct ModelInfo {
     pub served_model_name: ::prost::alloc::string::String,
     #[prost(string, repeated, tag = "3")]
     pub served_model_aliases: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// Effective context-window limit in this deployment.
     #[prost(uint32, optional, tag = "4")]
     pub max_context_length: ::core::option::Option<u32>,
+    /// Effective generated-token limit in this deployment.
     #[prost(uint32, optional, tag = "5")]
     pub max_output_tokens: ::core::option::Option<u32>,
-    #[prost(uint32, optional, tag = "6")]
-    pub kv_block_size: ::core::option::Option<u32>,
-    #[prost(uint64, optional, tag = "7")]
-    pub total_kv_blocks: ::core::option::Option<u64>,
-    #[prost(uint64, optional, tag = "8")]
-    pub max_running_requests: ::core::option::Option<u64>,
-    #[prost(uint64, optional, tag = "9")]
-    pub max_batched_tokens: ::core::option::Option<u64>,
     #[prost(string, repeated, tag = "10")]
     pub tokenizer_modes: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(bool, optional, tag = "20")]
@@ -1586,9 +1604,15 @@ pub struct ModelInfo {
     /// Optional non-generative task support for this model.
     #[prost(message, optional, tag = "27")]
     pub tasks: ::core::option::Option<TaskCapabilities>,
+    /// Engine-specific model metadata with no portable field (e.g. kv-cache dtype,
+    /// quantization, capabilities not yet standardized). NOT part of the portable
+    /// contract: clients read it opportunistically and never depend on it for
+    /// correctness. Carried as a Struct so JSON types survive the wire.
+    #[prost(message, optional, tag = "28")]
+    pub extra: ::core::option::Option<::prost_types::Struct>,
     /// Detailed multimodal support. The legacy supports_multimodal field remains
     /// the coarse compatibility signal for revision-1 clients.
-    #[prost(message, optional, tag = "28")]
+    #[prost(message, optional, tag = "29")]
     pub multimodal_capabilities: ::core::option::Option<MultimodalCapabilities>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -1754,11 +1778,8 @@ pub struct LoadInfo {
     pub decode_batch_size: ::core::option::Option<u32>,
     #[prost(message, repeated, tag = "20")]
     pub ranks: ::prost::alloc::vec::Vec<RankLoadInfo>,
-    #[prost(map = "string, string", tag = "30")]
-    pub attributes: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    #[prost(message, optional, tag = "30")]
+    pub attributes: ::core::option::Option<::prost_types::Struct>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct RankLoadInfo {
@@ -1806,11 +1827,8 @@ pub struct RuntimeEvent {
     pub timestamp_unix_nanos: u64,
     #[prost(enumeration = "RuntimeEventType", tag = "3")]
     pub r#type: i32,
-    #[prost(map = "string, string", tag = "4")]
-    pub attributes: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    #[prost(message, optional, tag = "4")]
+    pub attributes: ::core::option::Option<::prost_types::Struct>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -1848,7 +1866,7 @@ impl RuntimeEventType {
     }
 }
 /// Generated client implementations.
-pub mod open_engine_client {
+pub mod inference_client {
     #![allow(
         unused_variables,
         dead_code,
@@ -1859,10 +1877,10 @@ pub mod open_engine_client {
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
     #[derive(Debug, Clone)]
-    pub struct OpenEngineClient<T> {
+    pub struct InferenceClient<T> {
         inner: tonic::client::Grpc<T>,
     }
-    impl OpenEngineClient<tonic::transport::Channel> {
+    impl InferenceClient<tonic::transport::Channel> {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
@@ -1873,7 +1891,7 @@ pub mod open_engine_client {
             Ok(Self::new(conn))
         }
     }
-    impl<T> OpenEngineClient<T>
+    impl<T> InferenceClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::Body>,
         T::Error: Into<StdError>,
@@ -1891,7 +1909,7 @@ pub mod open_engine_client {
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
-        ) -> OpenEngineClient<InterceptedService<T, F>>
+        ) -> InferenceClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -1905,7 +1923,7 @@ pub mod open_engine_client {
                 http::Request<tonic::body::Body>,
             >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
         {
-            OpenEngineClient::new(InterceptedService::new(inner, interceptor))
+            InferenceClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
@@ -1956,11 +1974,11 @@ pub mod open_engine_client {
                 })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/Generate",
+                "/openengine.v1.Inference/Generate",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("openengine.v1.OpenEngine", "Generate"));
+                .insert(GrpcMethod::new("openengine.v1.Inference", "Generate"));
             self.inner.server_streaming(req, path, codec).await
         }
         /// Non-generative inference paths.
@@ -1978,11 +1996,11 @@ pub mod open_engine_client {
                 })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/Embed",
+                "/openengine.v1.Inference/Embed",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("openengine.v1.OpenEngine", "Embed"));
+                .insert(GrpcMethod::new("openengine.v1.Inference", "Embed"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn classify(
@@ -2002,11 +2020,11 @@ pub mod open_engine_client {
                 })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/Classify",
+                "/openengine.v1.Inference/Classify",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("openengine.v1.OpenEngine", "Classify"));
+                .insert(GrpcMethod::new("openengine.v1.Inference", "Classify"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn score(
@@ -2023,329 +2041,17 @@ pub mod open_engine_client {
                 })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/Score",
+                "/openengine.v1.Inference/Score",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("openengine.v1.OpenEngine", "Score"));
+                .insert(GrpcMethod::new("openengine.v1.Inference", "Score"));
             self.inner.unary(req, path, codec).await
-        }
-        /// Runtime metadata and scheduling state.
-        pub async fn get_engine_info(
-            &mut self,
-            request: impl tonic::IntoRequest<super::GetEngineInfoRequest>,
-        ) -> std::result::Result<tonic::Response<super::EngineInfo>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/GetEngineInfo",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("openengine.v1.OpenEngine", "GetEngineInfo"));
-            self.inner.unary(req, path, codec).await
-        }
-        pub async fn get_model_info(
-            &mut self,
-            request: impl tonic::IntoRequest<super::GetModelInfoRequest>,
-        ) -> std::result::Result<tonic::Response<super::ModelInfo>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/GetModelInfo",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("openengine.v1.OpenEngine", "GetModelInfo"));
-            self.inner.unary(req, path, codec).await
-        }
-        pub async fn get_load(
-            &mut self,
-            request: impl tonic::IntoRequest<super::GetLoadRequest>,
-        ) -> std::result::Result<tonic::Response<super::LoadInfo>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/GetLoad",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("openengine.v1.OpenEngine", "GetLoad"));
-            self.inner.unary(req, path, codec).await
-        }
-        /// Health and lifecycle.
-        pub async fn health(
-            &mut self,
-            request: impl tonic::IntoRequest<super::HealthRequest>,
-        ) -> std::result::Result<tonic::Response<super::HealthResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/Health",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("openengine.v1.OpenEngine", "Health"));
-            self.inner.unary(req, path, codec).await
-        }
-        pub async fn abort(
-            &mut self,
-            request: impl tonic::IntoRequest<super::AbortRequest>,
-        ) -> std::result::Result<tonic::Response<super::AbortResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/Abort",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("openengine.v1.OpenEngine", "Abort"));
-            self.inner.unary(req, path, codec).await
-        }
-        pub async fn drain(
-            &mut self,
-            request: impl tonic::IntoRequest<super::DrainRequest>,
-        ) -> std::result::Result<
-            tonic::Response<tonic::codec::Streaming<super::DrainResponse>>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/Drain",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("openengine.v1.OpenEngine", "Drain"));
-            self.inner.server_streaming(req, path, codec).await
-        }
-        /// LoRA lifecycle.
-        pub async fn load_lora(
-            &mut self,
-            request: impl tonic::IntoRequest<super::LoadLoraRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::LoadLoraResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/LoadLora",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("openengine.v1.OpenEngine", "LoadLora"));
-            self.inner.unary(req, path, codec).await
-        }
-        pub async fn unload_lora(
-            &mut self,
-            request: impl tonic::IntoRequest<super::UnloadLoraRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::UnloadLoraResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/UnloadLora",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("openengine.v1.OpenEngine", "UnloadLora"));
-            self.inner.unary(req, path, codec).await
-        }
-        pub async fn list_loras(
-            &mut self,
-            request: impl tonic::IntoRequest<super::ListLorasRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListLorasResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/ListLoras",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("openengine.v1.OpenEngine", "ListLoras"));
-            self.inner.unary(req, path, codec).await
-        }
-        /// Disaggregated serving / KV transfer.
-        pub async fn get_kv_connector_info(
-            &mut self,
-            request: impl tonic::IntoRequest<super::GetKvConnectorInfoRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::KvConnectorInfo>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/GetKvConnectorInfo",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new("openengine.v1.OpenEngine", "GetKvConnectorInfo"),
-                );
-            self.inner.unary(req, path, codec).await
-        }
-        pub async fn get_kv_event_sources(
-            &mut self,
-            request: impl tonic::IntoRequest<super::GetKvEventSourcesRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetKvEventSourcesResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/GetKvEventSources",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new("openengine.v1.OpenEngine", "GetKvEventSources"),
-                );
-            self.inner.unary(req, path, codec).await
-        }
-        pub async fn subscribe_kv_events(
-            &mut self,
-            request: impl tonic::IntoRequest<super::SubscribeKvEventsRequest>,
-        ) -> std::result::Result<
-            tonic::Response<tonic::codec::Streaming<super::SubscribeKvEventsResponse>>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/SubscribeKvEvents",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new("openengine.v1.OpenEngine", "SubscribeKvEvents"),
-                );
-            self.inner.server_streaming(req, path, codec).await
-        }
-        /// Structured runtime events for planners/controllers.
-        pub async fn subscribe_runtime_events(
-            &mut self,
-            request: impl tonic::IntoRequest<super::SubscribeRuntimeEventsRequest>,
-        ) -> std::result::Result<
-            tonic::Response<
-                tonic::codec::Streaming<super::SubscribeRuntimeEventsResponse>,
-            >,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic_prost::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openengine.v1.OpenEngine/SubscribeRuntimeEvents",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new("openengine.v1.OpenEngine", "SubscribeRuntimeEvents"),
-                );
-            self.inner.server_streaming(req, path, codec).await
         }
     }
 }
 /// Generated server implementations.
-pub mod open_engine_server {
+pub mod inference_server {
     #![allow(
         unused_variables,
         dead_code,
@@ -2354,9 +2060,9 @@ pub mod open_engine_server {
         clippy::let_unit_value,
     )]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for use with OpenEngineServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with InferenceServer.
     #[async_trait]
-    pub trait OpenEngine: std::marker::Send + std::marker::Sync + 'static {
+    pub trait Inference: std::marker::Send + std::marker::Sync + 'static {
         /// Server streaming response type for the Generate method.
         type GenerateStream: tonic::codegen::tokio_stream::Stream<
                 Item = std::result::Result<super::GenerateResponse, tonic::Status>,
@@ -2384,11 +2090,717 @@ pub mod open_engine_server {
             &self,
             request: tonic::Request<super::ScoreRequest>,
         ) -> std::result::Result<tonic::Response<super::ScoreResponse>, tonic::Status>;
+    }
+    #[derive(Debug)]
+    pub struct InferenceServer<T> {
+        inner: Arc<T>,
+        accept_compression_encodings: EnabledCompressionEncodings,
+        send_compression_encodings: EnabledCompressionEncodings,
+        max_decoding_message_size: Option<usize>,
+        max_encoding_message_size: Option<usize>,
+    }
+    impl<T> InferenceServer<T> {
+        pub fn new(inner: T) -> Self {
+            Self::from_arc(Arc::new(inner))
+        }
+        pub fn from_arc(inner: Arc<T>) -> Self {
+            Self {
+                inner,
+                accept_compression_encodings: Default::default(),
+                send_compression_encodings: Default::default(),
+                max_decoding_message_size: None,
+                max_encoding_message_size: None,
+            }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
+        where
+            F: tonic::service::Interceptor,
+        {
+            InterceptedService::new(Self::new(inner), interceptor)
+        }
+        /// Enable decompressing requests with the given encoding.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.accept_compression_encodings.enable(encoding);
+            self
+        }
+        /// Compress responses with the given encoding, if the client supports it.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.send_compression_encodings.enable(encoding);
+            self
+        }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.max_decoding_message_size = Some(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.max_encoding_message_size = Some(limit);
+            self
+        }
+    }
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for InferenceServer<T>
+    where
+        T: Inference,
+        B: Body + std::marker::Send + 'static,
+        B::Error: Into<StdError> + std::marker::Send + 'static,
+    {
+        type Response = http::Response<tonic::body::Body>;
+        type Error = std::convert::Infallible;
+        type Future = BoxFuture<Self::Response, Self::Error>;
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<std::result::Result<(), Self::Error>> {
+            Poll::Ready(Ok(()))
+        }
+        fn call(&mut self, req: http::Request<B>) -> Self::Future {
+            match req.uri().path() {
+                "/openengine.v1.Inference/Generate" => {
+                    #[allow(non_camel_case_types)]
+                    struct GenerateSvc<T: Inference>(pub Arc<T>);
+                    impl<
+                        T: Inference,
+                    > tonic::server::ServerStreamingService<super::GenerateRequest>
+                    for GenerateSvc<T> {
+                        type Response = super::GenerateResponse;
+                        type ResponseStream = T::GenerateStream;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::ResponseStream>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GenerateRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as Inference>::generate(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = GenerateSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.server_streaming(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/openengine.v1.Inference/Embed" => {
+                    #[allow(non_camel_case_types)]
+                    struct EmbedSvc<T: Inference>(pub Arc<T>);
+                    impl<T: Inference> tonic::server::UnaryService<super::EmbedRequest>
+                    for EmbedSvc<T> {
+                        type Response = super::EmbedResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::EmbedRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as Inference>::embed(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = EmbedSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/openengine.v1.Inference/Classify" => {
+                    #[allow(non_camel_case_types)]
+                    struct ClassifySvc<T: Inference>(pub Arc<T>);
+                    impl<
+                        T: Inference,
+                    > tonic::server::UnaryService<super::ClassifyRequest>
+                    for ClassifySvc<T> {
+                        type Response = super::ClassifyResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ClassifyRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as Inference>::classify(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ClassifySvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/openengine.v1.Inference/Score" => {
+                    #[allow(non_camel_case_types)]
+                    struct ScoreSvc<T: Inference>(pub Arc<T>);
+                    impl<T: Inference> tonic::server::UnaryService<super::ScoreRequest>
+                    for ScoreSvc<T> {
+                        type Response = super::ScoreResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ScoreRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as Inference>::score(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ScoreSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                _ => {
+                    Box::pin(async move {
+                        let mut response = http::Response::new(
+                            tonic::body::Body::default(),
+                        );
+                        let headers = response.headers_mut();
+                        headers
+                            .insert(
+                                tonic::Status::GRPC_STATUS,
+                                (tonic::Code::Unimplemented as i32).into(),
+                            );
+                        headers
+                            .insert(
+                                http::header::CONTENT_TYPE,
+                                tonic::metadata::GRPC_CONTENT_TYPE,
+                            );
+                        Ok(response)
+                    })
+                }
+            }
+        }
+    }
+    impl<T> Clone for InferenceServer<T> {
+        fn clone(&self) -> Self {
+            let inner = self.inner.clone();
+            Self {
+                inner,
+                accept_compression_encodings: self.accept_compression_encodings,
+                send_compression_encodings: self.send_compression_encodings,
+                max_decoding_message_size: self.max_decoding_message_size,
+                max_encoding_message_size: self.max_encoding_message_size,
+            }
+        }
+    }
+    /// Generated gRPC service name
+    pub const SERVICE_NAME: &str = "openengine.v1.Inference";
+    impl<T> tonic::server::NamedService for InferenceServer<T> {
+        const NAME: &'static str = SERVICE_NAME;
+    }
+}
+/// Generated client implementations.
+pub mod control_client {
+    #![allow(
+        unused_variables,
+        dead_code,
+        missing_docs,
+        clippy::wildcard_imports,
+        clippy::let_unit_value,
+    )]
+    use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
+    #[derive(Debug, Clone)]
+    pub struct ControlClient<T> {
+        inner: tonic::client::Grpc<T>,
+    }
+    impl ControlClient<tonic::transport::Channel> {
+        /// Attempt to create a new client by connecting to a given endpoint.
+        pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
+        where
+            D: TryInto<tonic::transport::Endpoint>,
+            D::Error: Into<StdError>,
+        {
+            let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
+            Ok(Self::new(conn))
+        }
+    }
+    impl<T> ControlClient<T>
+    where
+        T: tonic::client::GrpcService<tonic::body::Body>,
+        T::Error: Into<StdError>,
+        T::ResponseBody: Body<Data = Bytes> + std::marker::Send + 'static,
+        <T::ResponseBody as Body>::Error: Into<StdError> + std::marker::Send,
+    {
+        pub fn new(inner: T) -> Self {
+            let inner = tonic::client::Grpc::new(inner);
+            Self { inner }
+        }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> ControlClient<InterceptedService<T, F>>
+        where
+            F: tonic::service::Interceptor,
+            T::ResponseBody: Default,
+            T: tonic::codegen::Service<
+                http::Request<tonic::body::Body>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                >,
+            >,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::Body>,
+            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+        {
+            ControlClient::new(InterceptedService::new(inner, interceptor))
+        }
+        /// Compress requests with the given encoding.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
+            self
+        }
+        /// Enable decompressing responses.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
+            self
+        }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_decoding_message_size(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_encoding_message_size(limit);
+            self
+        }
         /// Runtime metadata and scheduling state.
-        async fn get_engine_info(
+        pub async fn get_server_info(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetServerInfoRequest>,
+        ) -> std::result::Result<tonic::Response<super::ServerInfo>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/openengine.v1.Control/GetServerInfo",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("openengine.v1.Control", "GetServerInfo"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn get_model_info(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetModelInfoRequest>,
+        ) -> std::result::Result<tonic::Response<super::ModelInfo>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/openengine.v1.Control/GetModelInfo",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("openengine.v1.Control", "GetModelInfo"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn get_load(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetLoadRequest>,
+        ) -> std::result::Result<tonic::Response<super::LoadInfo>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/openengine.v1.Control/GetLoad",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("openengine.v1.Control", "GetLoad"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Health and lifecycle.
+        pub async fn health(
+            &mut self,
+            request: impl tonic::IntoRequest<super::HealthRequest>,
+        ) -> std::result::Result<tonic::Response<super::HealthResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/openengine.v1.Control/Health",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("openengine.v1.Control", "Health"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn abort(
+            &mut self,
+            request: impl tonic::IntoRequest<super::AbortRequest>,
+        ) -> std::result::Result<tonic::Response<super::AbortResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/openengine.v1.Control/Abort",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("openengine.v1.Control", "Abort"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn drain(
+            &mut self,
+            request: impl tonic::IntoRequest<super::DrainRequest>,
+        ) -> std::result::Result<
+            tonic::Response<tonic::codec::Streaming<super::DrainResponse>>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/openengine.v1.Control/Drain",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("openengine.v1.Control", "Drain"));
+            self.inner.server_streaming(req, path, codec).await
+        }
+        /// LoRA lifecycle.
+        pub async fn load_lora(
+            &mut self,
+            request: impl tonic::IntoRequest<super::LoadLoraRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::LoadLoraResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/openengine.v1.Control/LoadLora",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("openengine.v1.Control", "LoadLora"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn unload_lora(
+            &mut self,
+            request: impl tonic::IntoRequest<super::UnloadLoraRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::UnloadLoraResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/openengine.v1.Control/UnloadLora",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("openengine.v1.Control", "UnloadLora"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn list_loras(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ListLorasRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListLorasResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/openengine.v1.Control/ListLoras",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("openengine.v1.Control", "ListLoras"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Disaggregated serving / KV transfer.
+        pub async fn get_kv_connector_info(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetKvConnectorInfoRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::KvConnectorInfo>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/openengine.v1.Control/GetKvConnectorInfo",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("openengine.v1.Control", "GetKvConnectorInfo"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn get_kv_event_sources(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetKvEventSourcesRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetKvEventSourcesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/openengine.v1.Control/GetKvEventSources",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("openengine.v1.Control", "GetKvEventSources"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn subscribe_kv_events(
+            &mut self,
+            request: impl tonic::IntoRequest<super::SubscribeKvEventsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<tonic::codec::Streaming<super::SubscribeKvEventsResponse>>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/openengine.v1.Control/SubscribeKvEvents",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("openengine.v1.Control", "SubscribeKvEvents"));
+            self.inner.server_streaming(req, path, codec).await
+        }
+        /// Structured runtime events for planners/controllers.
+        pub async fn subscribe_runtime_events(
+            &mut self,
+            request: impl tonic::IntoRequest<super::SubscribeRuntimeEventsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<
+                tonic::codec::Streaming<super::SubscribeRuntimeEventsResponse>,
+            >,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/openengine.v1.Control/SubscribeRuntimeEvents",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("openengine.v1.Control", "SubscribeRuntimeEvents"),
+                );
+            self.inner.server_streaming(req, path, codec).await
+        }
+    }
+}
+/// Generated server implementations.
+pub mod control_server {
+    #![allow(
+        unused_variables,
+        dead_code,
+        missing_docs,
+        clippy::wildcard_imports,
+        clippy::let_unit_value,
+    )]
+    use tonic::codegen::*;
+    /// Generated trait containing gRPC methods that should be implemented for use with ControlServer.
+    #[async_trait]
+    pub trait Control: std::marker::Send + std::marker::Sync + 'static {
+        /// Runtime metadata and scheduling state.
+        async fn get_server_info(
             &self,
-            request: tonic::Request<super::GetEngineInfoRequest>,
-        ) -> std::result::Result<tonic::Response<super::EngineInfo>, tonic::Status>;
+            request: tonic::Request<super::GetServerInfoRequest>,
+        ) -> std::result::Result<tonic::Response<super::ServerInfo>, tonic::Status>;
         async fn get_model_info(
             &self,
             request: tonic::Request<super::GetModelInfoRequest>,
@@ -2485,14 +2897,14 @@ pub mod open_engine_server {
         >;
     }
     #[derive(Debug)]
-    pub struct OpenEngineServer<T> {
+    pub struct ControlServer<T> {
         inner: Arc<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
         max_decoding_message_size: Option<usize>,
         max_encoding_message_size: Option<usize>,
     }
-    impl<T> OpenEngineServer<T> {
+    impl<T> ControlServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -2543,9 +2955,9 @@ pub mod open_engine_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>> for OpenEngineServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for ControlServer<T>
     where
-        T: OpenEngine,
+        T: Control,
         B: Body + std::marker::Send + 'static,
         B::Error: Into<StdError> + std::marker::Send + 'static,
     {
@@ -2560,69 +2972,25 @@ pub mod open_engine_server {
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             match req.uri().path() {
-                "/openengine.v1.OpenEngine/Generate" => {
+                "/openengine.v1.Control/GetServerInfo" => {
                     #[allow(non_camel_case_types)]
-                    struct GenerateSvc<T: OpenEngine>(pub Arc<T>);
+                    struct GetServerInfoSvc<T: Control>(pub Arc<T>);
                     impl<
-                        T: OpenEngine,
-                    > tonic::server::ServerStreamingService<super::GenerateRequest>
-                    for GenerateSvc<T> {
-                        type Response = super::GenerateResponse;
-                        type ResponseStream = T::GenerateStream;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::ResponseStream>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::GenerateRequest>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as OpenEngine>::generate(&inner, request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let method = GenerateSvc(inner);
-                        let codec = tonic_prost::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.server_streaming(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/openengine.v1.OpenEngine/Embed" => {
-                    #[allow(non_camel_case_types)]
-                    struct EmbedSvc<T: OpenEngine>(pub Arc<T>);
-                    impl<T: OpenEngine> tonic::server::UnaryService<super::EmbedRequest>
-                    for EmbedSvc<T> {
-                        type Response = super::EmbedResponse;
+                        T: Control,
+                    > tonic::server::UnaryService<super::GetServerInfoRequest>
+                    for GetServerInfoSvc<T> {
+                        type Response = super::ServerInfo;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::EmbedRequest>,
+                            request: tonic::Request<super::GetServerInfoRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as OpenEngine>::embed(&inner, request).await
+                                <T as Control>::get_server_info(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2633,7 +3001,7 @@ pub mod open_engine_server {
                     let max_encoding_message_size = self.max_encoding_message_size;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = EmbedSvc(inner);
+                        let method = GetServerInfoSvc(inner);
                         let codec = tonic_prost::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -2649,144 +3017,11 @@ pub mod open_engine_server {
                     };
                     Box::pin(fut)
                 }
-                "/openengine.v1.OpenEngine/Classify" => {
+                "/openengine.v1.Control/GetModelInfo" => {
                     #[allow(non_camel_case_types)]
-                    struct ClassifySvc<T: OpenEngine>(pub Arc<T>);
+                    struct GetModelInfoSvc<T: Control>(pub Arc<T>);
                     impl<
-                        T: OpenEngine,
-                    > tonic::server::UnaryService<super::ClassifyRequest>
-                    for ClassifySvc<T> {
-                        type Response = super::ClassifyResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::ClassifyRequest>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as OpenEngine>::classify(&inner, request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let method = ClassifySvc(inner);
-                        let codec = tonic_prost::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/openengine.v1.OpenEngine/Score" => {
-                    #[allow(non_camel_case_types)]
-                    struct ScoreSvc<T: OpenEngine>(pub Arc<T>);
-                    impl<T: OpenEngine> tonic::server::UnaryService<super::ScoreRequest>
-                    for ScoreSvc<T> {
-                        type Response = super::ScoreResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::ScoreRequest>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as OpenEngine>::score(&inner, request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let method = ScoreSvc(inner);
-                        let codec = tonic_prost::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/openengine.v1.OpenEngine/GetEngineInfo" => {
-                    #[allow(non_camel_case_types)]
-                    struct GetEngineInfoSvc<T: OpenEngine>(pub Arc<T>);
-                    impl<
-                        T: OpenEngine,
-                    > tonic::server::UnaryService<super::GetEngineInfoRequest>
-                    for GetEngineInfoSvc<T> {
-                        type Response = super::EngineInfo;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::GetEngineInfoRequest>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as OpenEngine>::get_engine_info(&inner, request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let method = GetEngineInfoSvc(inner);
-                        let codec = tonic_prost::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/openengine.v1.OpenEngine/GetModelInfo" => {
-                    #[allow(non_camel_case_types)]
-                    struct GetModelInfoSvc<T: OpenEngine>(pub Arc<T>);
-                    impl<
-                        T: OpenEngine,
+                        T: Control,
                     > tonic::server::UnaryService<super::GetModelInfoRequest>
                     for GetModelInfoSvc<T> {
                         type Response = super::ModelInfo;
@@ -2800,7 +3035,7 @@ pub mod open_engine_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as OpenEngine>::get_model_info(&inner, request).await
+                                <T as Control>::get_model_info(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2827,12 +3062,10 @@ pub mod open_engine_server {
                     };
                     Box::pin(fut)
                 }
-                "/openengine.v1.OpenEngine/GetLoad" => {
+                "/openengine.v1.Control/GetLoad" => {
                     #[allow(non_camel_case_types)]
-                    struct GetLoadSvc<T: OpenEngine>(pub Arc<T>);
-                    impl<
-                        T: OpenEngine,
-                    > tonic::server::UnaryService<super::GetLoadRequest>
+                    struct GetLoadSvc<T: Control>(pub Arc<T>);
+                    impl<T: Control> tonic::server::UnaryService<super::GetLoadRequest>
                     for GetLoadSvc<T> {
                         type Response = super::LoadInfo;
                         type Future = BoxFuture<
@@ -2845,7 +3078,7 @@ pub mod open_engine_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as OpenEngine>::get_load(&inner, request).await
+                                <T as Control>::get_load(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2872,10 +3105,10 @@ pub mod open_engine_server {
                     };
                     Box::pin(fut)
                 }
-                "/openengine.v1.OpenEngine/Health" => {
+                "/openengine.v1.Control/Health" => {
                     #[allow(non_camel_case_types)]
-                    struct HealthSvc<T: OpenEngine>(pub Arc<T>);
-                    impl<T: OpenEngine> tonic::server::UnaryService<super::HealthRequest>
+                    struct HealthSvc<T: Control>(pub Arc<T>);
+                    impl<T: Control> tonic::server::UnaryService<super::HealthRequest>
                     for HealthSvc<T> {
                         type Response = super::HealthResponse;
                         type Future = BoxFuture<
@@ -2888,7 +3121,7 @@ pub mod open_engine_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as OpenEngine>::health(&inner, request).await
+                                <T as Control>::health(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2915,10 +3148,10 @@ pub mod open_engine_server {
                     };
                     Box::pin(fut)
                 }
-                "/openengine.v1.OpenEngine/Abort" => {
+                "/openengine.v1.Control/Abort" => {
                     #[allow(non_camel_case_types)]
-                    struct AbortSvc<T: OpenEngine>(pub Arc<T>);
-                    impl<T: OpenEngine> tonic::server::UnaryService<super::AbortRequest>
+                    struct AbortSvc<T: Control>(pub Arc<T>);
+                    impl<T: Control> tonic::server::UnaryService<super::AbortRequest>
                     for AbortSvc<T> {
                         type Response = super::AbortResponse;
                         type Future = BoxFuture<
@@ -2931,7 +3164,7 @@ pub mod open_engine_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as OpenEngine>::abort(&inner, request).await
+                                <T as Control>::abort(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -2958,11 +3191,11 @@ pub mod open_engine_server {
                     };
                     Box::pin(fut)
                 }
-                "/openengine.v1.OpenEngine/Drain" => {
+                "/openengine.v1.Control/Drain" => {
                     #[allow(non_camel_case_types)]
-                    struct DrainSvc<T: OpenEngine>(pub Arc<T>);
+                    struct DrainSvc<T: Control>(pub Arc<T>);
                     impl<
-                        T: OpenEngine,
+                        T: Control,
                     > tonic::server::ServerStreamingService<super::DrainRequest>
                     for DrainSvc<T> {
                         type Response = super::DrainResponse;
@@ -2977,7 +3210,7 @@ pub mod open_engine_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as OpenEngine>::drain(&inner, request).await
+                                <T as Control>::drain(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -3004,12 +3237,10 @@ pub mod open_engine_server {
                     };
                     Box::pin(fut)
                 }
-                "/openengine.v1.OpenEngine/LoadLora" => {
+                "/openengine.v1.Control/LoadLora" => {
                     #[allow(non_camel_case_types)]
-                    struct LoadLoraSvc<T: OpenEngine>(pub Arc<T>);
-                    impl<
-                        T: OpenEngine,
-                    > tonic::server::UnaryService<super::LoadLoraRequest>
+                    struct LoadLoraSvc<T: Control>(pub Arc<T>);
+                    impl<T: Control> tonic::server::UnaryService<super::LoadLoraRequest>
                     for LoadLoraSvc<T> {
                         type Response = super::LoadLoraResponse;
                         type Future = BoxFuture<
@@ -3022,7 +3253,7 @@ pub mod open_engine_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as OpenEngine>::load_lora(&inner, request).await
+                                <T as Control>::load_lora(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -3049,11 +3280,11 @@ pub mod open_engine_server {
                     };
                     Box::pin(fut)
                 }
-                "/openengine.v1.OpenEngine/UnloadLora" => {
+                "/openengine.v1.Control/UnloadLora" => {
                     #[allow(non_camel_case_types)]
-                    struct UnloadLoraSvc<T: OpenEngine>(pub Arc<T>);
+                    struct UnloadLoraSvc<T: Control>(pub Arc<T>);
                     impl<
-                        T: OpenEngine,
+                        T: Control,
                     > tonic::server::UnaryService<super::UnloadLoraRequest>
                     for UnloadLoraSvc<T> {
                         type Response = super::UnloadLoraResponse;
@@ -3067,7 +3298,7 @@ pub mod open_engine_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as OpenEngine>::unload_lora(&inner, request).await
+                                <T as Control>::unload_lora(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -3094,12 +3325,10 @@ pub mod open_engine_server {
                     };
                     Box::pin(fut)
                 }
-                "/openengine.v1.OpenEngine/ListLoras" => {
+                "/openengine.v1.Control/ListLoras" => {
                     #[allow(non_camel_case_types)]
-                    struct ListLorasSvc<T: OpenEngine>(pub Arc<T>);
-                    impl<
-                        T: OpenEngine,
-                    > tonic::server::UnaryService<super::ListLorasRequest>
+                    struct ListLorasSvc<T: Control>(pub Arc<T>);
+                    impl<T: Control> tonic::server::UnaryService<super::ListLorasRequest>
                     for ListLorasSvc<T> {
                         type Response = super::ListLorasResponse;
                         type Future = BoxFuture<
@@ -3112,7 +3341,7 @@ pub mod open_engine_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as OpenEngine>::list_loras(&inner, request).await
+                                <T as Control>::list_loras(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -3139,11 +3368,11 @@ pub mod open_engine_server {
                     };
                     Box::pin(fut)
                 }
-                "/openengine.v1.OpenEngine/GetKvConnectorInfo" => {
+                "/openengine.v1.Control/GetKvConnectorInfo" => {
                     #[allow(non_camel_case_types)]
-                    struct GetKvConnectorInfoSvc<T: OpenEngine>(pub Arc<T>);
+                    struct GetKvConnectorInfoSvc<T: Control>(pub Arc<T>);
                     impl<
-                        T: OpenEngine,
+                        T: Control,
                     > tonic::server::UnaryService<super::GetKvConnectorInfoRequest>
                     for GetKvConnectorInfoSvc<T> {
                         type Response = super::KvConnectorInfo;
@@ -3157,8 +3386,7 @@ pub mod open_engine_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as OpenEngine>::get_kv_connector_info(&inner, request)
-                                    .await
+                                <T as Control>::get_kv_connector_info(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -3185,11 +3413,11 @@ pub mod open_engine_server {
                     };
                     Box::pin(fut)
                 }
-                "/openengine.v1.OpenEngine/GetKvEventSources" => {
+                "/openengine.v1.Control/GetKvEventSources" => {
                     #[allow(non_camel_case_types)]
-                    struct GetKvEventSourcesSvc<T: OpenEngine>(pub Arc<T>);
+                    struct GetKvEventSourcesSvc<T: Control>(pub Arc<T>);
                     impl<
-                        T: OpenEngine,
+                        T: Control,
                     > tonic::server::UnaryService<super::GetKvEventSourcesRequest>
                     for GetKvEventSourcesSvc<T> {
                         type Response = super::GetKvEventSourcesResponse;
@@ -3203,8 +3431,7 @@ pub mod open_engine_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as OpenEngine>::get_kv_event_sources(&inner, request)
-                                    .await
+                                <T as Control>::get_kv_event_sources(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -3231,11 +3458,11 @@ pub mod open_engine_server {
                     };
                     Box::pin(fut)
                 }
-                "/openengine.v1.OpenEngine/SubscribeKvEvents" => {
+                "/openengine.v1.Control/SubscribeKvEvents" => {
                     #[allow(non_camel_case_types)]
-                    struct SubscribeKvEventsSvc<T: OpenEngine>(pub Arc<T>);
+                    struct SubscribeKvEventsSvc<T: Control>(pub Arc<T>);
                     impl<
-                        T: OpenEngine,
+                        T: Control,
                     > tonic::server::ServerStreamingService<
                         super::SubscribeKvEventsRequest,
                     > for SubscribeKvEventsSvc<T> {
@@ -3251,8 +3478,7 @@ pub mod open_engine_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as OpenEngine>::subscribe_kv_events(&inner, request)
-                                    .await
+                                <T as Control>::subscribe_kv_events(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -3279,11 +3505,11 @@ pub mod open_engine_server {
                     };
                     Box::pin(fut)
                 }
-                "/openengine.v1.OpenEngine/SubscribeRuntimeEvents" => {
+                "/openengine.v1.Control/SubscribeRuntimeEvents" => {
                     #[allow(non_camel_case_types)]
-                    struct SubscribeRuntimeEventsSvc<T: OpenEngine>(pub Arc<T>);
+                    struct SubscribeRuntimeEventsSvc<T: Control>(pub Arc<T>);
                     impl<
-                        T: OpenEngine,
+                        T: Control,
                     > tonic::server::ServerStreamingService<
                         super::SubscribeRuntimeEventsRequest,
                     > for SubscribeRuntimeEventsSvc<T> {
@@ -3299,7 +3525,7 @@ pub mod open_engine_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as OpenEngine>::subscribe_runtime_events(&inner, request)
+                                <T as Control>::subscribe_runtime_events(&inner, request)
                                     .await
                             };
                             Box::pin(fut)
@@ -3349,7 +3575,7 @@ pub mod open_engine_server {
             }
         }
     }
-    impl<T> Clone for OpenEngineServer<T> {
+    impl<T> Clone for ControlServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -3362,8 +3588,8 @@ pub mod open_engine_server {
         }
     }
     /// Generated gRPC service name
-    pub const SERVICE_NAME: &str = "openengine.v1.OpenEngine";
-    impl<T> tonic::server::NamedService for OpenEngineServer<T> {
+    pub const SERVICE_NAME: &str = "openengine.v1.Control";
+    impl<T> tonic::server::NamedService for ControlServer<T> {
         const NAME: &'static str = SERVICE_NAME;
     }
 }

@@ -15,7 +15,7 @@ openengine-proto = { path = "../openengine/packages/rust/openengine-proto" }
 
 ```rust
 use openengine_proto::openengine::v1::{
-    open_engine_client::OpenEngineClient,
+    inference_client::InferenceClient,
     GenerateRequest,
 };
 ```

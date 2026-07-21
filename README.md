@@ -54,8 +54,9 @@ SPDX-License-Identifier: Apache-2.0
 ## Overview
 
 OpenEngine defines a runtime boundary around an inference engine. An engine
-exposes the `openengine.v1.OpenEngine` gRPC service, which applications can call
-directly or distributed frameworks can use to coordinate engine workers.
+exposes the `openengine.v1.Inference` and `openengine.v1.Control` services.
+Applications can call the inference service directly, while distributed
+frameworks use both services to coordinate engine workers.
 
 Both paths use generated clients and the same typed contract without sharing a
 process, Python environment, dependency tree, or private control API.
@@ -69,7 +70,7 @@ scheduler implementation details.
 
 | Without a shared contract                           | With OpenEngine                                     |
 | --------------------------------------------------- | --------------------------------------------------- |
-| Engine-specific clients and framework integrations  | One generated service contract                      |
+| Engine-specific clients and framework integrations  | One generated protocol contract                     |
 | Configuration duplicated into sidecars              | Engine capabilities discovered over RPC             |
 | Engine upgrades coupled to framework code           | Engine-native execution behind a common endpoint    |
 | Ad hoc cancellation and failure behavior            | Explicit lifecycle and terminal error semantics     |
@@ -106,13 +107,13 @@ The canonical schema is organized by domain under
 
 | Area                  | What the contract provides                                                                                        |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Portable generation   | Text or token input, sampling, stopping, priorities, multiple sequences, and deterministic seeds                  |
+| Portable generation   | Text or token input, sampling, stopping, transport priorities, multiple sequences, and deterministic seeds        |
 | Non-generative tasks  | Typed embedding, classification, and grouped query/candidate scoring with stable correlation                      |
 | Structured output     | JSON Schema, JSON object, regex, EBNF grammar, structural tags, and fixed choices                                 |
 | Token information     | Prompt and output logprobs, ranks, candidate-token selection, per-token records, and streamed text deltas         |
-| Discovery             | Engine identity, schema revision, role, model limits, topology, parser configuration, and generation capabilities |
+| Discovery             | Server identity, deployment capacity, model limits, topology, parsers, and inference capabilities                 |
 | Lifecycle             | Health checks, targeted or global abort, graceful drain, progress, and terminal failures                          |
-| Disaggregated serving | Prefill/decode roles, KV session handoff, connector discovery, rank affinity, and cache controls                  |
+| Disaggregated serving | Prefill/decode roles, decode-context parallel topology, KV handoff, connector discovery, and cache controls       |
 | KV-aware routing      | Typed KV event streams plus discovery of engine-native event sources                                              |
 | Model extensions      | Multimodal inputs and LoRA adapter lifecycle                                                                      |
 | Observability         | Point-in-time load snapshots and structured runtime event streams                                                 |
@@ -170,10 +171,10 @@ pip install ./packages/python
 import grpc
 
 from openengine.v1.generation_pb2 import GenerateRequest
-from openengine.v1.openengine_pb2_grpc import OpenEngineStub
+from openengine.v1.openengine_pb2_grpc import InferenceStub
 
 channel = grpc.aio.insecure_channel("localhost:50051")
-engine = OpenEngineStub(channel)
+engine = InferenceStub(channel)
 request = GenerateRequest(request_id="example", model="model", prompt="Hello")
 ```
 
@@ -185,7 +186,7 @@ openengine-proto = { path = "../openengine/packages/rust/openengine-proto" }
 
 ```rust
 use openengine_proto::openengine::v1::{
-    open_engine_client::OpenEngineClient,
+    inference_client::InferenceClient,
     GenerateRequest,
 };
 ```
@@ -194,7 +195,7 @@ The coordinated package version identifies the generated schema contents, but
 not the exact source of a path or Git dependency. Both packages expose schema
 revision `2`, minimum client revision `1`, and an `unreleased` identity sentinel.
 Engine servers must inject their immutable OpenEngine commit SHA (or signed
-release tag), and clients should inspect `EngineInfo` before accepting traffic.
+release tag), and clients should inspect `ServerInfo` before accepting traffic.
 
 | Package release | Protobuf package | Schema revision |
 | --------------- | ---------------- | --------------- |

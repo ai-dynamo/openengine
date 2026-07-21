@@ -17,7 +17,7 @@ from openengine.v1.input_pb2 import (
     MODALITY_VIDEO,
 )
 from openengine.v1.model_pb2 import ModelInfo, MultimodalCapabilities
-from openengine.v1.openengine_pb2_grpc import OpenEngineStub
+from openengine.v1.openengine_pb2_grpc import ControlStub, InferenceStub
 
 
 class BindingsTest(unittest.TestCase):
@@ -26,15 +26,15 @@ class BindingsTest(unittest.TestCase):
             request_id="python-smoke",
             model="test-model",
             prompt="Hello",
-            priority=0,
+            sampling={"temperature": 0.0},
         )
 
         decoded = GenerateRequest.FromString(request.SerializeToString())
 
         self.assertEqual(decoded.request_id, "python-smoke")
         self.assertEqual(decoded.WhichOneof("input"), "prompt")
-        self.assertTrue(decoded.HasField("priority"))
-        self.assertEqual(decoded.priority, 0)
+        self.assertTrue(decoded.sampling.HasField("temperature"))
+        self.assertEqual(decoded.sampling.temperature, 0.0)
 
     def test_multimodal_contract_round_trip(self) -> None:
         request = GenerateRequest(
@@ -95,17 +95,18 @@ class BindingsTest(unittest.TestCase):
         )
         self.assertEqual(
             ModelInfo.DESCRIPTOR.fields_by_name["multimodal_capabilities"].number,
-            28,
+            29,
         )
 
     def test_client_stub_can_be_constructed(self) -> None:
         channel = grpc.insecure_channel("localhost:1")
         self.addCleanup(channel.close)
 
-        stub = OpenEngineStub(channel)
+        inference = InferenceStub(channel)
+        control = ControlStub(channel)
 
-        self.assertTrue(callable(stub.Generate))
-        self.assertTrue(callable(stub.GetEngineInfo))
+        self.assertTrue(callable(inference.Generate))
+        self.assertTrue(callable(control.GetServerInfo))
 
     def test_package_metadata_matches_schema(self) -> None:
         self.assertEqual(SCHEMA_REVISION, 2)

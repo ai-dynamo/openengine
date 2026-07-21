@@ -10,13 +10,13 @@ share the same package and together define the API.
 
 The current contract is schema revision 2 and remains compatible with clients
 at revision 1. Servers built from source advertise the immutable OpenEngine
-commit SHA in `EngineInfo.schema_release`.
+commit SHA in `ServerInfo.schema_release`.
 
 | File | Area |
 | --- | --- |
-| [`openengine.proto`](openengine.proto) | `OpenEngine` service and RPC declarations |
+| [`openengine.proto`](openengine.proto) | `Inference` and `Control` service declarations |
 | [`input.proto`](input.proto) | Shared text, token, and multimodal inputs |
-| [`engine.proto`](engine.proto) | Engine identity, roles, and parallelism |
+| [`server.proto`](server.proto) | Server identity, deployment capacity, engine roles, and parallelism |
 | [`model.proto`](model.proto) | Model metadata and inference capabilities |
 | [`generation.proto`](generation.proto) | Generation requests, parameters, streamed events, and usage |
 | [`tasks.proto`](tasks.proto) | Shared non-generative task request and output vocabulary |

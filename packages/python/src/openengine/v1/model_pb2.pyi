@@ -1,3 +1,4 @@
+from google.protobuf import struct_pb2 as _struct_pb2
 from openengine.v1 import classification_pb2 as _classification_pb2
 from openengine.v1 import embedding_pb2 as _embedding_pb2
 from openengine.v1 import input_pb2 as _input_pb2
@@ -46,16 +47,12 @@ class GetModelInfoRequest(_message.Message):
     def __init__(self, model: _Optional[str] = ...) -> None: ...
 
 class ModelInfo(_message.Message):
-    __slots__ = ("model_id", "served_model_name", "served_model_aliases", "max_context_length", "max_output_tokens", "kv_block_size", "total_kv_blocks", "max_running_requests", "max_batched_tokens", "tokenizer_modes", "supports_text_input", "supports_token_ids_input", "generation", "supports_lora", "supports_multimodal", "reasoning_parser", "tool_call_parser", "tasks", "multimodal_capabilities")
+    __slots__ = ("model_id", "served_model_name", "served_model_aliases", "max_context_length", "max_output_tokens", "tokenizer_modes", "supports_text_input", "supports_token_ids_input", "generation", "supports_lora", "supports_multimodal", "reasoning_parser", "tool_call_parser", "tasks", "extra", "multimodal_capabilities")
     MODEL_ID_FIELD_NUMBER: _ClassVar[int]
     SERVED_MODEL_NAME_FIELD_NUMBER: _ClassVar[int]
     SERVED_MODEL_ALIASES_FIELD_NUMBER: _ClassVar[int]
     MAX_CONTEXT_LENGTH_FIELD_NUMBER: _ClassVar[int]
     MAX_OUTPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
-    KV_BLOCK_SIZE_FIELD_NUMBER: _ClassVar[int]
-    TOTAL_KV_BLOCKS_FIELD_NUMBER: _ClassVar[int]
-    MAX_RUNNING_REQUESTS_FIELD_NUMBER: _ClassVar[int]
-    MAX_BATCHED_TOKENS_FIELD_NUMBER: _ClassVar[int]
     TOKENIZER_MODES_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_TEXT_INPUT_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_TOKEN_IDS_INPUT_FIELD_NUMBER: _ClassVar[int]
@@ -65,16 +62,13 @@ class ModelInfo(_message.Message):
     REASONING_PARSER_FIELD_NUMBER: _ClassVar[int]
     TOOL_CALL_PARSER_FIELD_NUMBER: _ClassVar[int]
     TASKS_FIELD_NUMBER: _ClassVar[int]
+    EXTRA_FIELD_NUMBER: _ClassVar[int]
     MULTIMODAL_CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
     model_id: str
     served_model_name: str
     served_model_aliases: _containers.RepeatedScalarFieldContainer[str]
     max_context_length: int
     max_output_tokens: int
-    kv_block_size: int
-    total_kv_blocks: int
-    max_running_requests: int
-    max_batched_tokens: int
     tokenizer_modes: _containers.RepeatedScalarFieldContainer[str]
     supports_text_input: bool
     supports_token_ids_input: bool
@@ -84,8 +78,9 @@ class ModelInfo(_message.Message):
     reasoning_parser: str
     tool_call_parser: str
     tasks: TaskCapabilities
+    extra: _struct_pb2.Struct
     multimodal_capabilities: MultimodalCapabilities
-    def __init__(self, model_id: _Optional[str] = ..., served_model_name: _Optional[str] = ..., served_model_aliases: _Optional[_Iterable[str]] = ..., max_context_length: _Optional[int] = ..., max_output_tokens: _Optional[int] = ..., kv_block_size: _Optional[int] = ..., total_kv_blocks: _Optional[int] = ..., max_running_requests: _Optional[int] = ..., max_batched_tokens: _Optional[int] = ..., tokenizer_modes: _Optional[_Iterable[str]] = ..., supports_text_input: _Optional[bool] = ..., supports_token_ids_input: _Optional[bool] = ..., generation: _Optional[_Union[GenerationCapabilities, _Mapping]] = ..., supports_lora: _Optional[bool] = ..., supports_multimodal: _Optional[bool] = ..., reasoning_parser: _Optional[str] = ..., tool_call_parser: _Optional[str] = ..., tasks: _Optional[_Union[TaskCapabilities, _Mapping]] = ..., multimodal_capabilities: _Optional[_Union[MultimodalCapabilities, _Mapping]] = ...) -> None: ...
+    def __init__(self, model_id: _Optional[str] = ..., served_model_name: _Optional[str] = ..., served_model_aliases: _Optional[_Iterable[str]] = ..., max_context_length: _Optional[int] = ..., max_output_tokens: _Optional[int] = ..., tokenizer_modes: _Optional[_Iterable[str]] = ..., supports_text_input: _Optional[bool] = ..., supports_token_ids_input: _Optional[bool] = ..., generation: _Optional[_Union[GenerationCapabilities, _Mapping]] = ..., supports_lora: _Optional[bool] = ..., supports_multimodal: _Optional[bool] = ..., reasoning_parser: _Optional[str] = ..., tool_call_parser: _Optional[str] = ..., tasks: _Optional[_Union[TaskCapabilities, _Mapping]] = ..., extra: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., multimodal_capabilities: _Optional[_Union[MultimodalCapabilities, _Mapping]] = ...) -> None: ...
 
 class MultimodalCapabilities(_message.Message):
     __slots__ = ("aggregate_modalities", "prefill_decode_modalities", "source_types", "supports_per_request_media_options")

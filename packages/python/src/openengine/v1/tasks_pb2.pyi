@@ -1,9 +1,10 @@
+from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
-from typing import ClassVar as _ClassVar, Optional as _Optional
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -36,25 +37,16 @@ TASK_VALUE_SEMANTICS_REWARD: TaskValueSemantics
 TASK_VALUE_SEMANTICS_MODEL_DEFINED: TaskValueSemantics
 
 class TaskRequestContext(_message.Message):
-    __slots__ = ("request_id", "model", "lora_name", "priority", "metadata")
-    class MetadataEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: str
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    __slots__ = ("request_id", "model", "lora_name", "extra")
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     MODEL_FIELD_NUMBER: _ClassVar[int]
     LORA_NAME_FIELD_NUMBER: _ClassVar[int]
-    PRIORITY_FIELD_NUMBER: _ClassVar[int]
-    METADATA_FIELD_NUMBER: _ClassVar[int]
+    EXTRA_FIELD_NUMBER: _ClassVar[int]
     request_id: str
     model: str
     lora_name: str
-    priority: int
-    metadata: _containers.ScalarMap[str, str]
-    def __init__(self, request_id: _Optional[str] = ..., model: _Optional[str] = ..., lora_name: _Optional[str] = ..., priority: _Optional[int] = ..., metadata: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    extra: _struct_pb2.Struct
+    def __init__(self, request_id: _Optional[str] = ..., model: _Optional[str] = ..., lora_name: _Optional[str] = ..., extra: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class DenseFloatTensor(_message.Message):
     __slots__ = ("shape", "values")

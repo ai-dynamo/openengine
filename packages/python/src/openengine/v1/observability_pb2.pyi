@@ -1,3 +1,4 @@
+from google.protobuf import struct_pb2 as _struct_pb2
 from openengine.v1 import error_pb2 as _error_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -29,13 +30,6 @@ class GetLoadRequest(_message.Message):
 
 class LoadInfo(_message.Message):
     __slots__ = ("instance_id", "timestamp_unix_nanos", "running_requests", "queued_requests", "active_kv_sessions", "used_kv_blocks", "total_kv_blocks", "running_tokens", "waiting_tokens", "prefill_batch_size", "decode_batch_size", "ranks", "attributes")
-    class AttributesEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: str
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     INSTANCE_ID_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_UNIX_NANOS_FIELD_NUMBER: _ClassVar[int]
     RUNNING_REQUESTS_FIELD_NUMBER: _ClassVar[int]
@@ -61,8 +55,8 @@ class LoadInfo(_message.Message):
     prefill_batch_size: int
     decode_batch_size: int
     ranks: _containers.RepeatedCompositeFieldContainer[RankLoadInfo]
-    attributes: _containers.ScalarMap[str, str]
-    def __init__(self, instance_id: _Optional[str] = ..., timestamp_unix_nanos: _Optional[int] = ..., running_requests: _Optional[int] = ..., queued_requests: _Optional[int] = ..., active_kv_sessions: _Optional[int] = ..., used_kv_blocks: _Optional[int] = ..., total_kv_blocks: _Optional[int] = ..., running_tokens: _Optional[int] = ..., waiting_tokens: _Optional[int] = ..., prefill_batch_size: _Optional[int] = ..., decode_batch_size: _Optional[int] = ..., ranks: _Optional[_Iterable[_Union[RankLoadInfo, _Mapping]]] = ..., attributes: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    attributes: _struct_pb2.Struct
+    def __init__(self, instance_id: _Optional[str] = ..., timestamp_unix_nanos: _Optional[int] = ..., running_requests: _Optional[int] = ..., queued_requests: _Optional[int] = ..., active_kv_sessions: _Optional[int] = ..., used_kv_blocks: _Optional[int] = ..., total_kv_blocks: _Optional[int] = ..., running_tokens: _Optional[int] = ..., waiting_tokens: _Optional[int] = ..., prefill_batch_size: _Optional[int] = ..., decode_batch_size: _Optional[int] = ..., ranks: _Optional[_Iterable[_Union[RankLoadInfo, _Mapping]]] = ..., attributes: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class RankLoadInfo(_message.Message):
     __slots__ = ("data_parallel_rank", "running_requests", "queued_requests", "used_kv_blocks", "total_kv_blocks", "prefill_batch_size", "decode_batch_size")
@@ -98,13 +92,6 @@ class SubscribeRuntimeEventsResponse(_message.Message):
 
 class RuntimeEvent(_message.Message):
     __slots__ = ("event_id", "timestamp_unix_nanos", "type", "attributes")
-    class AttributesEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: str
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     EVENT_ID_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_UNIX_NANOS_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -112,5 +99,5 @@ class RuntimeEvent(_message.Message):
     event_id: str
     timestamp_unix_nanos: int
     type: RuntimeEventType
-    attributes: _containers.ScalarMap[str, str]
-    def __init__(self, event_id: _Optional[str] = ..., timestamp_unix_nanos: _Optional[int] = ..., type: _Optional[_Union[RuntimeEventType, str]] = ..., attributes: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    attributes: _struct_pb2.Struct
+    def __init__(self, event_id: _Optional[str] = ..., timestamp_unix_nanos: _Optional[int] = ..., type: _Optional[_Union[RuntimeEventType, str]] = ..., attributes: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...

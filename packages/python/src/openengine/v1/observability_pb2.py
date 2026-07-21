@@ -22,36 +22,29 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
 from openengine.v1 import error_pb2 as openengine_dot_v1_dot_error__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n!openengine/v1/observability.proto\x12\ropenengine.v1\x1a\x19openengine/v1/error.proto\"*\n\x0eGetLoadRequest\x12\x18\n\x10include_per_rank\x18\x01 \x01(\x08\"\xc5\x05\n\x08LoadInfo\x12\x13\n\x0binstance_id\x18\x01 \x01(\t\x12!\n\x14timestamp_unix_nanos\x18\x02 \x01(\x04H\x00\x88\x01\x01\x12\x1d\n\x10running_requests\x18\x03 \x01(\rH\x01\x88\x01\x01\x12\x1c\n\x0fqueued_requests\x18\x04 \x01(\rH\x02\x88\x01\x01\x12\x1f\n\x12\x61\x63tive_kv_sessions\x18\x05 \x01(\rH\x03\x88\x01\x01\x12\x1b\n\x0eused_kv_blocks\x18\x06 \x01(\x04H\x04\x88\x01\x01\x12\x1c\n\x0ftotal_kv_blocks\x18\x07 \x01(\x04H\x05\x88\x01\x01\x12\x1b\n\x0erunning_tokens\x18\x08 \x01(\x04H\x06\x88\x01\x01\x12\x1b\n\x0ewaiting_tokens\x18\t \x01(\x04H\x07\x88\x01\x01\x12\x1f\n\x12prefill_batch_size\x18\n \x01(\rH\x08\x88\x01\x01\x12\x1e\n\x11\x64\x65\x63ode_batch_size\x18\x0b \x01(\rH\t\x88\x01\x01\x12*\n\x05ranks\x18\x14 \x03(\x0b\x32\x1b.openengine.v1.RankLoadInfo\x12;\n\nattributes\x18\x1e \x03(\x0b\x32\'.openengine.v1.LoadInfo.AttributesEntry\x1a\x31\n\x0f\x41ttributesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x42\x17\n\x15_timestamp_unix_nanosB\x13\n\x11_running_requestsB\x12\n\x10_queued_requestsB\x15\n\x13_active_kv_sessionsB\x11\n\x0f_used_kv_blocksB\x12\n\x10_total_kv_blocksB\x11\n\x0f_running_tokensB\x11\n\x0f_waiting_tokensB\x15\n\x13_prefill_batch_sizeB\x14\n\x12_decode_batch_size\"\xfc\x02\n\x0cRankLoadInfo\x12\x1f\n\x12\x64\x61ta_parallel_rank\x18\x01 \x01(\rH\x00\x88\x01\x01\x12\x1d\n\x10running_requests\x18\x02 \x01(\rH\x01\x88\x01\x01\x12\x1c\n\x0fqueued_requests\x18\x03 \x01(\rH\x02\x88\x01\x01\x12\x1b\n\x0eused_kv_blocks\x18\x04 \x01(\x04H\x03\x88\x01\x01\x12\x1c\n\x0ftotal_kv_blocks\x18\x05 \x01(\x04H\x04\x88\x01\x01\x12\x1f\n\x12prefill_batch_size\x18\x06 \x01(\rH\x05\x88\x01\x01\x12\x1e\n\x11\x64\x65\x63ode_batch_size\x18\x07 \x01(\rH\x06\x88\x01\x01\x42\x15\n\x13_data_parallel_rankB\x13\n\x11_running_requestsB\x12\n\x10_queued_requestsB\x11\n\x0f_used_kv_blocksB\x12\n\x10_total_kv_blocksB\x15\n\x13_prefill_batch_sizeB\x14\n\x12_decode_batch_size\"O\n\x1dSubscribeRuntimeEventsRequest\x12.\n\x05types\x18\x01 \x03(\x0e\x32\x1f.openengine.v1.RuntimeEventType\"\x8c\x01\n\x1eSubscribeRuntimeEventsResponse\x12\x34\n\rruntime_event\x18\x01 \x01(\x0b\x32\x1b.openengine.v1.RuntimeEventH\x00\x12+\n\x05\x65rror\x18\x02 \x01(\x0b\x32\x1a.openengine.v1.EngineErrorH\x00\x42\x07\n\x05\x65vent\"\xe1\x01\n\x0cRuntimeEvent\x12\x10\n\x08\x65vent_id\x18\x01 \x01(\t\x12\x1c\n\x14timestamp_unix_nanos\x18\x02 \x01(\x04\x12-\n\x04type\x18\x03 \x01(\x0e\x32\x1f.openengine.v1.RuntimeEventType\x12?\n\nattributes\x18\x04 \x03(\x0b\x32+.openengine.v1.RuntimeEvent.AttributesEntry\x1a\x31\n\x0f\x41ttributesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01*\xb8\x01\n\x10RuntimeEventType\x12\"\n\x1eRUNTIME_EVENT_TYPE_UNSPECIFIED\x10\x00\x12#\n\x1fRUNTIME_EVENT_TYPE_FORWARD_PASS\x10\x01\x12\x1c\n\x18RUNTIME_EVENT_TYPE_BATCH\x10\x02\x12\x1c\n\x18RUNTIME_EVENT_TYPE_QUEUE\x10\x03\x12\x1f\n\x1bRUNTIME_EVENT_TYPE_TRANSFER\x10\x04\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n!openengine/v1/observability.proto\x12\ropenengine.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19openengine/v1/error.proto\"*\n\x0eGetLoadRequest\x12\x18\n\x10include_per_rank\x18\x01 \x01(\x08\"\x82\x05\n\x08LoadInfo\x12\x13\n\x0binstance_id\x18\x01 \x01(\t\x12!\n\x14timestamp_unix_nanos\x18\x02 \x01(\x04H\x00\x88\x01\x01\x12\x1d\n\x10running_requests\x18\x03 \x01(\rH\x01\x88\x01\x01\x12\x1c\n\x0fqueued_requests\x18\x04 \x01(\rH\x02\x88\x01\x01\x12\x1f\n\x12\x61\x63tive_kv_sessions\x18\x05 \x01(\rH\x03\x88\x01\x01\x12\x1b\n\x0eused_kv_blocks\x18\x06 \x01(\x04H\x04\x88\x01\x01\x12\x1c\n\x0ftotal_kv_blocks\x18\x07 \x01(\x04H\x05\x88\x01\x01\x12\x1b\n\x0erunning_tokens\x18\x08 \x01(\x04H\x06\x88\x01\x01\x12\x1b\n\x0ewaiting_tokens\x18\t \x01(\x04H\x07\x88\x01\x01\x12\x1f\n\x12prefill_batch_size\x18\n \x01(\rH\x08\x88\x01\x01\x12\x1e\n\x11\x64\x65\x63ode_batch_size\x18\x0b \x01(\rH\t\x88\x01\x01\x12*\n\x05ranks\x18\x14 \x03(\x0b\x32\x1b.openengine.v1.RankLoadInfo\x12+\n\nattributes\x18\x1e \x01(\x0b\x32\x17.google.protobuf.StructB\x17\n\x15_timestamp_unix_nanosB\x13\n\x11_running_requestsB\x12\n\x10_queued_requestsB\x15\n\x13_active_kv_sessionsB\x11\n\x0f_used_kv_blocksB\x12\n\x10_total_kv_blocksB\x11\n\x0f_running_tokensB\x11\n\x0f_waiting_tokensB\x15\n\x13_prefill_batch_sizeB\x14\n\x12_decode_batch_size\"\xfc\x02\n\x0cRankLoadInfo\x12\x1f\n\x12\x64\x61ta_parallel_rank\x18\x01 \x01(\rH\x00\x88\x01\x01\x12\x1d\n\x10running_requests\x18\x02 \x01(\rH\x01\x88\x01\x01\x12\x1c\n\x0fqueued_requests\x18\x03 \x01(\rH\x02\x88\x01\x01\x12\x1b\n\x0eused_kv_blocks\x18\x04 \x01(\x04H\x03\x88\x01\x01\x12\x1c\n\x0ftotal_kv_blocks\x18\x05 \x01(\x04H\x04\x88\x01\x01\x12\x1f\n\x12prefill_batch_size\x18\x06 \x01(\rH\x05\x88\x01\x01\x12\x1e\n\x11\x64\x65\x63ode_batch_size\x18\x07 \x01(\rH\x06\x88\x01\x01\x42\x15\n\x13_data_parallel_rankB\x13\n\x11_running_requestsB\x12\n\x10_queued_requestsB\x11\n\x0f_used_kv_blocksB\x12\n\x10_total_kv_blocksB\x15\n\x13_prefill_batch_sizeB\x14\n\x12_decode_batch_size\"O\n\x1dSubscribeRuntimeEventsRequest\x12.\n\x05types\x18\x01 \x03(\x0e\x32\x1f.openengine.v1.RuntimeEventType\"\x8c\x01\n\x1eSubscribeRuntimeEventsResponse\x12\x34\n\rruntime_event\x18\x01 \x01(\x0b\x32\x1b.openengine.v1.RuntimeEventH\x00\x12+\n\x05\x65rror\x18\x02 \x01(\x0b\x32\x1a.openengine.v1.EngineErrorH\x00\x42\x07\n\x05\x65vent\"\x9a\x01\n\x0cRuntimeEvent\x12\x10\n\x08\x65vent_id\x18\x01 \x01(\t\x12\x1c\n\x14timestamp_unix_nanos\x18\x02 \x01(\x04\x12-\n\x04type\x18\x03 \x01(\x0e\x32\x1f.openengine.v1.RuntimeEventType\x12+\n\nattributes\x18\x04 \x01(\x0b\x32\x17.google.protobuf.Struct*\xb8\x01\n\x10RuntimeEventType\x12\"\n\x1eRUNTIME_EVENT_TYPE_UNSPECIFIED\x10\x00\x12#\n\x1fRUNTIME_EVENT_TYPE_FORWARD_PASS\x10\x01\x12\x1c\n\x18RUNTIME_EVENT_TYPE_BATCH\x10\x02\x12\x1c\n\x18RUNTIME_EVENT_TYPE_QUEUE\x10\x03\x12\x1f\n\x1bRUNTIME_EVENT_TYPE_TRANSFER\x10\x04\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'openengine.v1.observability_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_LOADINFO_ATTRIBUTESENTRY']._loaded_options = None
-  _globals['_LOADINFO_ATTRIBUTESENTRY']._serialized_options = b'8\001'
-  _globals['_RUNTIMEEVENT_ATTRIBUTESENTRY']._loaded_options = None
-  _globals['_RUNTIMEEVENT_ATTRIBUTESENTRY']._serialized_options = b'8\001'
-  _globals['_RUNTIMEEVENTTYPE']._serialized_start=1671
-  _globals['_RUNTIMEEVENTTYPE']._serialized_end=1855
-  _globals['_GETLOADREQUEST']._serialized_start=79
-  _globals['_GETLOADREQUEST']._serialized_end=121
-  _globals['_LOADINFO']._serialized_start=124
-  _globals['_LOADINFO']._serialized_end=833
-  _globals['_LOADINFO_ATTRIBUTESENTRY']._serialized_start=573
-  _globals['_LOADINFO_ATTRIBUTESENTRY']._serialized_end=622
-  _globals['_RANKLOADINFO']._serialized_start=836
-  _globals['_RANKLOADINFO']._serialized_end=1216
-  _globals['_SUBSCRIBERUNTIMEEVENTSREQUEST']._serialized_start=1218
-  _globals['_SUBSCRIBERUNTIMEEVENTSREQUEST']._serialized_end=1297
-  _globals['_SUBSCRIBERUNTIMEEVENTSRESPONSE']._serialized_start=1300
-  _globals['_SUBSCRIBERUNTIMEEVENTSRESPONSE']._serialized_end=1440
-  _globals['_RUNTIMEEVENT']._serialized_start=1443
-  _globals['_RUNTIMEEVENT']._serialized_end=1668
-  _globals['_RUNTIMEEVENT_ATTRIBUTESENTRY']._serialized_start=573
-  _globals['_RUNTIMEEVENT_ATTRIBUTESENTRY']._serialized_end=622
+  _globals['_RUNTIMEEVENTTYPE']._serialized_start=1563
+  _globals['_RUNTIMEEVENTTYPE']._serialized_end=1747
+  _globals['_GETLOADREQUEST']._serialized_start=109
+  _globals['_GETLOADREQUEST']._serialized_end=151
+  _globals['_LOADINFO']._serialized_start=154
+  _globals['_LOADINFO']._serialized_end=796
+  _globals['_RANKLOADINFO']._serialized_start=799
+  _globals['_RANKLOADINFO']._serialized_end=1179
+  _globals['_SUBSCRIBERUNTIMEEVENTSREQUEST']._serialized_start=1181
+  _globals['_SUBSCRIBERUNTIMEEVENTSREQUEST']._serialized_end=1260
+  _globals['_SUBSCRIBERUNTIMEEVENTSRESPONSE']._serialized_start=1263
+  _globals['_SUBSCRIBERUNTIMEEVENTSRESPONSE']._serialized_end=1403
+  _globals['_RUNTIMEEVENT']._serialized_start=1406
+  _globals['_RUNTIMEEVENT']._serialized_end=1560
 # @@protoc_insertion_point(module_scope)

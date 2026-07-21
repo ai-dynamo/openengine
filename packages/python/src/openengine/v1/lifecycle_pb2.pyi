@@ -1,6 +1,6 @@
-from openengine.v1 import engine_pb2 as _engine_pb2
 from openengine.v1 import error_pb2 as _error_pb2
 from openengine.v1 import kv_pb2 as _kv_pb2
+from openengine.v1 import server_pb2 as _server_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -52,8 +52,8 @@ class HealthRequest(_message.Message):
     ROLE_FIELD_NUMBER: _ClassVar[int]
     include_inference_probe: bool
     model: str
-    role: _engine_pb2.EngineRole
-    def __init__(self, include_inference_probe: _Optional[bool] = ..., model: _Optional[str] = ..., role: _Optional[_Union[_engine_pb2.EngineRole, str]] = ...) -> None: ...
+    role: _server_pb2.EngineRole
+    def __init__(self, include_inference_probe: _Optional[bool] = ..., model: _Optional[str] = ..., role: _Optional[_Union[_server_pb2.EngineRole, str]] = ...) -> None: ...
 
 class HealthResponse(_message.Message):
     __slots__ = ("state", "checks")
