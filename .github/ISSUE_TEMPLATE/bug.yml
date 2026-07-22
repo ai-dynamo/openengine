@@ -32,7 +32,7 @@ body:
     attributes:
       label: Schema revision or commit
       description: Identify the schema revision, release tag, or commit where the problem occurs.
-      placeholder: "Schema revision 2 or commit SHA"
+      placeholder: "Schema revision 3 or commit SHA"
 
   - type: textarea
     id: current-behavior

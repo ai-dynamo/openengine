@@ -8,7 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 This directory is the canonical `openengine.v1` wire contract. All proto files
 share the same package and together define the API.
 
-The current contract is schema revision 2 and remains compatible with clients
+The current contract is schema revision 3 and remains compatible with clients
 at revision 1. Servers built from source advertise the immutable OpenEngine
 commit SHA in `ServerInfo.schema_release`.
 

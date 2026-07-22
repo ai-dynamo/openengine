@@ -130,7 +130,7 @@ message ParallelismInfo {
 }
 ```
 
-Revision `2` is the schema in this repository. Every server must populate:
+Revision `3` is the schema in this repository. Every server must populate:
 
 - `schema_revision` with the exact monotonically increasing contract revision it
   implements. Zero is invalid.
@@ -140,7 +140,7 @@ Revision `2` is the schema in this repository. Every server must populate:
   revision. Release builds may use an immutable signed release tag instead;
   moving branch names such as `main` are not valid.
 
-Servers implementing this contract advertise `schema_revision = 2` and
+Servers implementing this contract advertise `schema_revision = 3` and
 `minimum_client_revision = 1`.
 
 Clients should also define the oldest server revision they support and fail
@@ -197,6 +197,7 @@ message ModelInfo {
   optional uint32 max_context_length = 4; // Effective context-window limit in this deployment.
   optional uint32 max_output_tokens = 5; // Effective generated-token limit in this deployment.
   repeated string tokenizer_modes = 10;
+  TokenizerInfo tokenizer = 11;
 
   optional bool supports_text_input = 20;
   optional bool supports_token_ids_input = 21;
@@ -216,6 +217,12 @@ message MultimodalCapabilities {
   repeated Modality prefill_decode_modalities = 2;
   repeated MediaSourceType source_types = 3;
   optional bool supports_per_request_media_options = 4;
+  optional uint32 routing_image_token_id = 5;
+}
+
+message TokenizerInfo {
+  string source = 1;
+  string mode = 2;
 }
 
 message GenerationCapabilities {
@@ -260,6 +267,12 @@ enum GuidedDecodingMode {
 
 `GetModelInfoRequest.model` is required and selects one of
 `ServerInfo.supported_models`; an unknown model returns gRPC `NOT_FOUND`.
+`model_id` is the canonical model source used by the deployment,
+`served_model_name` is the primary name accepted by generation APIs, and
+`served_model_aliases` contains every additional accepted name. The selected
+`tokenizer.source` is its canonical source and may differ from `model_id`;
+`tokenizer.mode` is the active loading mode. `tokenizer_modes` remains the list
+of modes the deployment can accept or expose.
 `max_context_length` and `max_output_tokens` are the effective limits for the
 selected model in this deployment. KV layout and scheduler capacity are reported
 once through `ServerInfo.capacity`, not repeated as model identity.
@@ -282,6 +295,9 @@ for a model that only supports audio in aggregated mode. `source_types` lists
 the URL, data-URI, and raw-byte encodings the engine can consume. An absent
 `supports_per_request_media_options` is unreported, while an explicitly false
 value rejects non-empty `GenerateRequest.media_options`.
+`routing_image_token_id`, when present, is the stable placeholder token a
+framework uses when constructing media-aware KV-routing keys. Clients omit
+media-aware routing when the engine cannot advertise this value.
 
 ---
 
@@ -959,6 +975,8 @@ message KvSessionRef {
   repeated KvEndpoint endpoints = 3;
   uint32 dp_rank = 4;
   google.protobuf.Struct attributes_struct = 5; // type-preserving KV-transfer params
+  string handoff_profile = 6;
+  KvBootstrap bootstrap = 7;
 }
 
 message KvEndpoint {
@@ -967,14 +985,32 @@ message KvEndpoint {
   string protocol = 3; // grpc, nixl, ucx, tcp, shm, etc.
 }
 
+message KvBootstrap {
+  KvEndpoint endpoint = 1;
+  uint64 room_id = 2;
+}
+
 ```
 
 `attributes_struct` requires `import "google/protobuf/struct.proto";` at the
 top of the proto.
 
+`handoff_profile` identifies the engine-owned contract in `attributes_struct`.
+Revision 3 defines the profile names
+`tensorrt_llm.disaggregated_params.v1`, `vllm.kv_transfer_params.v1`, and
+`sglang.bootstrap.v1`. Engine-neutral clients forward a recognized profile and
+its attributes unchanged rather than interpreting or rewriting them.
+
 `attributes_struct` preserves number, boolean, array, and object types. Struct
-numbers are IEEE-754 doubles, so values above 2^53 should use strings or a
-dedicated field.
+numbers are IEEE-754 doubles, so 64-bit identifiers above 2^53 must use decimal
+strings. Opaque binary values must use base64 strings. `KvBootstrap.room_id` is
+a typed protobuf `uint64` and therefore does not require JSON string encoding.
+
+`bootstrap` carries a client-created rendezvous endpoint and room when
+`KvConnectorInfo.supports_client_bootstrap` is true. The client supplies the
+same bootstrap to the coordinated prefill and decode requests before either
+side begins handoff. Engines reject a missing or inconsistent bootstrap rather
+than falling back to an aggregate request.
 
 Prefill flow:
 
@@ -1014,6 +1050,8 @@ message KvConnectorInfo {
   optional bool supports_abort_cleanup = 7;
   optional bool supports_drain = 8;
   optional uint32 schema_version = 9;
+  string handoff_profile = 10;
+  optional bool supports_client_bootstrap = 11;
 }
 
 message GetKvEventSourcesRequest {

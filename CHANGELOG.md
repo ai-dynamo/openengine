@@ -11,6 +11,13 @@ distribution, and Rust crate.
 
 ## [Unreleased]
 
+## 0.3.0 - 2026-07-21
+
+### Added
+
+- Active tokenizer discovery and multimodal routing-token metadata.
+- Named KV handoff profiles and typed client bootstrap rendezvous metadata.
+
 ### Removed
 
 - Unimplemented embedding, classification, scoring, and runtime-event subscription RPCs.

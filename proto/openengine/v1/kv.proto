@@ -21,12 +21,22 @@ message KvSessionRef {
   // their JSON type intact. Struct numbers are IEEE-754 doubles (exact only to
   // 2^53); carry larger integer values as strings or use a dedicated field.
   google.protobuf.Struct attributes_struct = 5;
+  // Stable identifier for the engine-specific attributes_struct contract.
+  string handoff_profile = 6;
+  // Optional client-created rendezvous information for connectors that
+  // advertise supports_client_bootstrap.
+  KvBootstrap bootstrap = 7;
 }
 
 message KvEndpoint {
   string host = 1;
   uint32 port = 2;
   string protocol = 3; // grpc, nixl, ucx, tcp, shm, etc.
+}
+
+message KvBootstrap {
+  KvEndpoint endpoint = 1;
+  uint64 room_id = 2;
 }
 
 message GetKvConnectorInfoRequest {}
@@ -41,6 +51,11 @@ message KvConnectorInfo {
   optional bool supports_abort_cleanup = 7;
   optional bool supports_drain = 8;
   optional uint32 schema_version = 9;
+  // Stable identifier for the KvSessionRef.attributes_struct contract.
+  string handoff_profile = 10;
+  // Whether the client must provide KvSessionRef.bootstrap before prefill and
+  // decode begin their coordinated handoff.
+  optional bool supports_client_bootstrap = 11;
 }
 
 message GetKvEventSourcesRequest {

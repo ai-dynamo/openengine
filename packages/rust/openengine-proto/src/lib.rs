@@ -1,7 +1,7 @@
 //! Generated Prost messages and Tonic services for OpenEngine.
 
 /// Monotonically increasing revision of the packaged wire contract.
-pub const SCHEMA_REVISION: u32 = 2;
+pub const SCHEMA_REVISION: u32 = 3;
 
 /// Oldest client schema revision compatible with this contract.
 pub const MINIMUM_CLIENT_REVISION: u32 = 1;

@@ -3,7 +3,8 @@ use std::fs;
 use std::path::Path;
 
 use openengine_proto::openengine::v1::{
-    generate_request, media_item, GenerateRequest, MediaItem, Modality,
+    generate_request, media_item, GenerateRequest, KvBootstrap, KvEndpoint, KvOptions,
+    KvSessionRef, MediaItem, Modality,
 };
 use prost::Message;
 use prost_types::{value, Struct, Value};
@@ -17,6 +18,12 @@ fn number(value: f64) -> Value {
 fn boolean(value: bool) -> Value {
     Value {
         kind: Some(value::Kind::BoolValue(value)),
+    }
+}
+
+fn string(value: impl Into<String>) -> Value {
+    Value {
+        kind: Some(value::Kind::StringValue(value.into())),
     }
 }
 
@@ -52,7 +59,44 @@ fn media_options() -> Struct {
     ])
 }
 
-fn fixture() -> GenerateRequest {
+fn kv_session(profile: &str) -> KvSessionRef {
+    let endpoint = KvEndpoint {
+        host: "decode.internal".into(),
+        port: 24000,
+        protocol: "tcp".into(),
+    };
+    let attributes_struct = match profile {
+        "tensorrt_llm.disaggregated_params.v1" => structure([(
+            "tensorrt_llm.disaggregated_params.v1",
+            string(r#"{"ctx_request_id":"18446744073709551614","opaque_state":"AP8="}"#),
+        )]),
+        "vllm.kv_transfer_params.v1" => structure([
+            ("request_id", string("18446744073709551614")),
+            ("opaque_state", string("AP8=")),
+        ]),
+        "sglang.bootstrap.v1" => structure([
+            ("bootstrap_owner", string("client")),
+            ("opaque_state", string("AP8=")),
+        ]),
+        _ => panic!("unknown handoff profile: {profile}"),
+    };
+    let bootstrap = (profile == "sglang.bootstrap.v1").then(|| KvBootstrap {
+        endpoint: Some(endpoint.clone()),
+        room_id: 18_446_744_073_709_551_614,
+    });
+
+    KvSessionRef {
+        session_id: "cross-language-session".into(),
+        transfer_backend: "fixture".into(),
+        endpoints: vec![endpoint],
+        dp_rank: 7,
+        attributes_struct: Some(attributes_struct),
+        handoff_profile: profile.into(),
+        bootstrap,
+    }
+}
+
+fn fixture(profile: &str) -> GenerateRequest {
     GenerateRequest {
         request_id: "cross-language".into(),
         model: "test-model".into(),
@@ -74,29 +118,35 @@ fn fixture() -> GenerateRequest {
             },
         ],
         media_options: Some(media_options()),
+        kv: Some(KvOptions {
+            session: Some(kv_session(profile)),
+            ..Default::default()
+        }),
         ..Default::default()
     }
 }
 
-fn encode(path: &Path) {
-    fs::write(path, fixture().encode_to_vec()).unwrap();
+fn encode(profile: &str, path: &Path) {
+    fs::write(path, fixture(profile).encode_to_vec()).unwrap();
 }
 
-fn decode(path: &Path) {
+fn decode(profile: &str, path: &Path) {
     let bytes = fs::read(path).unwrap();
     let request = GenerateRequest::decode(bytes.as_slice()).unwrap();
-    assert_eq!(request, fixture());
+    assert_eq!(request, fixture(profile));
 }
 
 fn main() {
     let mut args = env::args_os().skip(1);
     let operation = args.next().expect("expected encode or decode");
+    let profile = args.next().expect("expected handoff profile");
     let path = args.next().expect("expected fixture path");
     assert!(args.next().is_none(), "unexpected additional arguments");
+    let profile = profile.to_str().expect("handoff profile must be UTF-8");
 
     match operation.to_str() {
-        Some("encode") => encode(Path::new(&path)),
-        Some("decode") => decode(Path::new(&path)),
+        Some("encode") => encode(profile, Path::new(&path)),
+        Some("decode") => decode(profile, Path::new(&path)),
         _ => panic!("expected encode or decode"),
     }
 }

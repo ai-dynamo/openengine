@@ -46,9 +46,9 @@ Release tooling requires Python 3.11 or newer.
 Create and push a signed tag from the release commit:
 
 ```bash
-python scripts/check_release_version.py v0.2.0
-git tag --sign v0.2.0 -m "OpenEngine v0.2.0"
-git push origin v0.2.0
+python scripts/check_release_version.py v0.3.0
+git tag --sign v0.3.0 -m "OpenEngine v0.3.0"
+git push origin v0.3.0
 ```
 
 The `Release` workflow validates the schema, regenerates and tests both

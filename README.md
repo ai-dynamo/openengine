@@ -35,7 +35,7 @@ SPDX-License-Identifier: Apache-2.0
 > [!IMPORTANT]
 > OpenEngine is experimental and pre-adoption. The contract is being refined
 > before its first engine implementations and may make direct breaking changes
-> while it remains at schema revision `2`.
+> while it remains at schema revision `3`.
 
 ## Table of contents
 
@@ -193,13 +193,14 @@ use openengine_proto::openengine::v1::{
 
 The coordinated package version identifies the generated schema contents, but
 not the exact source of a path or Git dependency. Both packages expose schema
-revision `2`, minimum client revision `1`, and an `unreleased` identity sentinel.
+revision `3`, minimum client revision `1`, and an `unreleased` identity sentinel.
 Engine servers must inject their immutable OpenEngine commit SHA (or signed
 release tag), and clients should inspect `ServerInfo` before accepting traffic.
 
 | Package release | Protobuf package | Schema revision |
 | --------------- | ---------------- | --------------- |
 | `0.2.x`         | `openengine.v1`  | `2`             |
+| `0.3.x`         | `openengine.v1`  | `3`             |
 
 See [`RELEASING.md`](RELEASING.md) for the coordinated release process and
 [`CHANGELOG.md`](CHANGELOG.md) for schema and package changes.

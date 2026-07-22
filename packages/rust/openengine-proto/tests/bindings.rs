@@ -108,8 +108,63 @@ fn descriptor_set_contains_revision_2_multimodal_fields() {
 }
 
 #[test]
+fn descriptor_set_contains_revision_3_discovery_and_handoff_fields() {
+    fn field<'a>(
+        message: &'a prost_types::DescriptorProto,
+        name: &str,
+    ) -> &'a prost_types::FieldDescriptorProto {
+        message
+            .field
+            .iter()
+            .find(|field| field.name.as_deref() == Some(name))
+            .unwrap()
+    }
+
+    let descriptors = FileDescriptorSet::decode(FILE_DESCRIPTOR_SET).unwrap();
+    let find_message = |name: &str| {
+        descriptors
+            .file
+            .iter()
+            .flat_map(|file| file.message_type.iter())
+            .find(|message| message.name.as_deref() == Some(name))
+            .unwrap()
+    };
+    let model_info = find_message("ModelInfo");
+    let tokenizer = field(model_info, "tokenizer");
+    assert_eq!(tokenizer.number, Some(11));
+    assert_eq!(
+        tokenizer.type_name.as_deref(),
+        Some(".openengine.v1.TokenizerInfo")
+    );
+
+    let multimodal = find_message("MultimodalCapabilities");
+    let routing_token = field(multimodal, "routing_image_token_id");
+    assert_eq!(routing_token.number, Some(5));
+    assert_eq!(routing_token.proto3_optional, Some(true));
+
+    let session = find_message("KvSessionRef");
+    assert_eq!(field(session, "handoff_profile").number, Some(6));
+    let bootstrap = field(session, "bootstrap");
+    assert_eq!(bootstrap.number, Some(7));
+    assert_eq!(
+        bootstrap.type_name.as_deref(),
+        Some(".openengine.v1.KvBootstrap")
+    );
+
+    let bootstrap = find_message("KvBootstrap");
+    assert_eq!(field(bootstrap, "endpoint").number, Some(1));
+    assert_eq!(field(bootstrap, "room_id").number, Some(2));
+
+    let connector = find_message("KvConnectorInfo");
+    assert_eq!(field(connector, "handoff_profile").number, Some(10));
+    let client_bootstrap = field(connector, "supports_client_bootstrap");
+    assert_eq!(client_bootstrap.number, Some(11));
+    assert_eq!(client_bootstrap.proto3_optional, Some(true));
+}
+
+#[test]
 fn package_metadata_matches_schema() {
-    assert_eq!(SCHEMA_REVISION, 2);
+    assert_eq!(SCHEMA_REVISION, 3);
     assert_eq!(MINIMUM_CLIENT_REVISION, 1);
     assert_eq!(SCHEMA_RELEASE, "unreleased");
 }

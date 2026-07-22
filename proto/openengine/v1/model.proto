@@ -24,6 +24,7 @@ message ModelInfo {
   optional uint32 max_context_length = 4; // Effective context-window limit in this deployment.
   optional uint32 max_output_tokens = 5; // Effective generated-token limit in this deployment.
   repeated string tokenizer_modes = 10;
+  TokenizerInfo tokenizer = 11;
 
   optional bool supports_text_input = 20;
   optional bool supports_token_ids_input = 21;
@@ -63,6 +64,19 @@ message MultimodalCapabilities {
 
   // Whether GenerateRequest.media_options can override server media defaults.
   optional bool supports_per_request_media_options = 4;
+
+  // Token ID used in the framework's media-aware routing key. Absent means the
+  // engine cannot provide a stable image placeholder token for routing.
+  optional uint32 routing_image_token_id = 5;
+}
+
+message TokenizerInfo {
+  // Canonical tokenizer source, such as a Hugging Face repository ID or a
+  // deployment-local source shared with the client.
+  string source = 1;
+
+  // Active tokenizer loading mode, such as auto, slow, or mistral.
+  string mode = 2;
 }
 
 message TaskCapabilities {

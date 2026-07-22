@@ -552,6 +552,13 @@ pub struct KvSessionRef {
     /// 2^53); carry larger integer values as strings or use a dedicated field.
     #[prost(message, optional, tag = "5")]
     pub attributes_struct: ::core::option::Option<::prost_types::Struct>,
+    /// Stable identifier for the engine-specific attributes_struct contract.
+    #[prost(string, tag = "6")]
+    pub handoff_profile: ::prost::alloc::string::String,
+    /// Optional client-created rendezvous information for connectors that
+    /// advertise supports_client_bootstrap.
+    #[prost(message, optional, tag = "7")]
+    pub bootstrap: ::core::option::Option<KvBootstrap>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct KvEndpoint {
@@ -562,6 +569,13 @@ pub struct KvEndpoint {
     /// grpc, nixl, ucx, tcp, shm, etc.
     #[prost(string, tag = "3")]
     pub protocol: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct KvBootstrap {
+    #[prost(message, optional, tag = "1")]
+    pub endpoint: ::core::option::Option<KvEndpoint>,
+    #[prost(uint64, tag = "2")]
+    pub room_id: u64,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct GetKvConnectorInfoRequest {}
@@ -585,6 +599,13 @@ pub struct KvConnectorInfo {
     pub supports_drain: ::core::option::Option<bool>,
     #[prost(uint32, optional, tag = "9")]
     pub schema_version: ::core::option::Option<u32>,
+    /// Stable identifier for the KvSessionRef.attributes_struct contract.
+    #[prost(string, tag = "10")]
+    pub handoff_profile: ::prost::alloc::string::String,
+    /// Whether the client must provide KvSessionRef.bootstrap before prefill and
+    /// decode begin their coordinated handoff.
+    #[prost(bool, optional, tag = "11")]
+    pub supports_client_bootstrap: ::core::option::Option<bool>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct GetKvEventSourcesRequest {
@@ -1584,6 +1605,8 @@ pub struct ModelInfo {
     pub max_output_tokens: ::core::option::Option<u32>,
     #[prost(string, repeated, tag = "10")]
     pub tokenizer_modes: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(message, optional, tag = "11")]
+    pub tokenizer: ::core::option::Option<TokenizerInfo>,
     #[prost(bool, optional, tag = "20")]
     pub supports_text_input: ::core::option::Option<bool>,
     #[prost(bool, optional, tag = "21")]
@@ -1629,6 +1652,20 @@ pub struct MultimodalCapabilities {
     /// Whether GenerateRequest.media_options can override server media defaults.
     #[prost(bool, optional, tag = "4")]
     pub supports_per_request_media_options: ::core::option::Option<bool>,
+    /// Token ID used in the framework's media-aware routing key. Absent means the
+    /// engine cannot provide a stable image placeholder token for routing.
+    #[prost(uint32, optional, tag = "5")]
+    pub routing_image_token_id: ::core::option::Option<u32>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct TokenizerInfo {
+    /// Canonical tokenizer source, such as a Hugging Face repository ID or a
+    /// deployment-local source shared with the client.
+    #[prost(string, tag = "1")]
+    pub source: ::prost::alloc::string::String,
+    /// Active tokenizer loading mode, such as auto, slow, or mistral.
+    #[prost(string, tag = "2")]
+    pub mode: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct TaskCapabilities {

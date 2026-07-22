@@ -16,6 +16,7 @@ from openengine.v1.input_pb2 import (
     MODALITY_IMAGE,
     MODALITY_VIDEO,
 )
+from openengine.v1.kv_pb2 import KvBootstrap, KvConnectorInfo, KvSessionRef
 from openengine.v1.model_pb2 import ModelInfo, MultimodalCapabilities
 from openengine.v1.openengine_pb2_grpc import ControlStub, InferenceStub
 
@@ -98,6 +99,37 @@ class BindingsTest(unittest.TestCase):
             29,
         )
 
+    def test_revision_3_field_numbers_are_stable(self) -> None:
+        self.assertEqual(ModelInfo.DESCRIPTOR.fields_by_name["tokenizer"].number, 11)
+        self.assertEqual(
+            MultimodalCapabilities.DESCRIPTOR.fields_by_name[
+                "routing_image_token_id"
+            ].number,
+            5,
+        )
+        self.assertEqual(
+            KvSessionRef.DESCRIPTOR.fields_by_name["handoff_profile"].number, 6
+        )
+        self.assertEqual(
+            KvSessionRef.DESCRIPTOR.fields_by_name["bootstrap"].number, 7
+        )
+        self.assertEqual(
+            KvBootstrap.DESCRIPTOR.fields_by_name["endpoint"].number, 1
+        )
+        self.assertEqual(
+            KvBootstrap.DESCRIPTOR.fields_by_name["room_id"].number, 2
+        )
+        self.assertEqual(
+            KvConnectorInfo.DESCRIPTOR.fields_by_name["handoff_profile"].number,
+            10,
+        )
+        self.assertEqual(
+            KvConnectorInfo.DESCRIPTOR.fields_by_name[
+                "supports_client_bootstrap"
+            ].number,
+            11,
+        )
+
     def test_client_stub_can_be_constructed(self) -> None:
         channel = grpc.insecure_channel("localhost:1")
         self.addCleanup(channel.close)
@@ -109,7 +141,7 @@ class BindingsTest(unittest.TestCase):
         self.assertTrue(callable(control.GetServerInfo))
 
     def test_package_metadata_matches_schema(self) -> None:
-        self.assertEqual(SCHEMA_REVISION, 2)
+        self.assertEqual(SCHEMA_REVISION, 3)
         self.assertEqual(MINIMUM_CLIENT_REVISION, 1)
         self.assertEqual(SCHEMA_RELEASE, "unreleased")
 

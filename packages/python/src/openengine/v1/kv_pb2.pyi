@@ -23,18 +23,22 @@ STORAGE_MEDIUM_DISK: StorageMedium
 STORAGE_MEDIUM_EXTERNAL: StorageMedium
 
 class KvSessionRef(_message.Message):
-    __slots__ = ("session_id", "transfer_backend", "endpoints", "dp_rank", "attributes_struct")
+    __slots__ = ("session_id", "transfer_backend", "endpoints", "dp_rank", "attributes_struct", "handoff_profile", "bootstrap")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     TRANSFER_BACKEND_FIELD_NUMBER: _ClassVar[int]
     ENDPOINTS_FIELD_NUMBER: _ClassVar[int]
     DP_RANK_FIELD_NUMBER: _ClassVar[int]
     ATTRIBUTES_STRUCT_FIELD_NUMBER: _ClassVar[int]
+    HANDOFF_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    BOOTSTRAP_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     transfer_backend: str
     endpoints: _containers.RepeatedCompositeFieldContainer[KvEndpoint]
     dp_rank: int
     attributes_struct: _struct_pb2.Struct
-    def __init__(self, session_id: _Optional[str] = ..., transfer_backend: _Optional[str] = ..., endpoints: _Optional[_Iterable[_Union[KvEndpoint, _Mapping]]] = ..., dp_rank: _Optional[int] = ..., attributes_struct: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+    handoff_profile: str
+    bootstrap: KvBootstrap
+    def __init__(self, session_id: _Optional[str] = ..., transfer_backend: _Optional[str] = ..., endpoints: _Optional[_Iterable[_Union[KvEndpoint, _Mapping]]] = ..., dp_rank: _Optional[int] = ..., attributes_struct: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., handoff_profile: _Optional[str] = ..., bootstrap: _Optional[_Union[KvBootstrap, _Mapping]] = ...) -> None: ...
 
 class KvEndpoint(_message.Message):
     __slots__ = ("host", "port", "protocol")
@@ -46,12 +50,20 @@ class KvEndpoint(_message.Message):
     protocol: str
     def __init__(self, host: _Optional[str] = ..., port: _Optional[int] = ..., protocol: _Optional[str] = ...) -> None: ...
 
+class KvBootstrap(_message.Message):
+    __slots__ = ("endpoint", "room_id")
+    ENDPOINT_FIELD_NUMBER: _ClassVar[int]
+    ROOM_ID_FIELD_NUMBER: _ClassVar[int]
+    endpoint: KvEndpoint
+    room_id: int
+    def __init__(self, endpoint: _Optional[_Union[KvEndpoint, _Mapping]] = ..., room_id: _Optional[int] = ...) -> None: ...
+
 class GetKvConnectorInfoRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
 class KvConnectorInfo(_message.Message):
-    __slots__ = ("enabled", "transfer_backend", "local_endpoints", "supported_protocols", "supports_remote_prefill", "supports_decode_pull", "supports_abort_cleanup", "supports_drain", "schema_version")
+    __slots__ = ("enabled", "transfer_backend", "local_endpoints", "supported_protocols", "supports_remote_prefill", "supports_decode_pull", "supports_abort_cleanup", "supports_drain", "schema_version", "handoff_profile", "supports_client_bootstrap")
     ENABLED_FIELD_NUMBER: _ClassVar[int]
     TRANSFER_BACKEND_FIELD_NUMBER: _ClassVar[int]
     LOCAL_ENDPOINTS_FIELD_NUMBER: _ClassVar[int]
@@ -61,6 +73,8 @@ class KvConnectorInfo(_message.Message):
     SUPPORTS_ABORT_CLEANUP_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_DRAIN_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    HANDOFF_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_CLIENT_BOOTSTRAP_FIELD_NUMBER: _ClassVar[int]
     enabled: bool
     transfer_backend: str
     local_endpoints: _containers.RepeatedCompositeFieldContainer[KvEndpoint]
@@ -70,7 +84,9 @@ class KvConnectorInfo(_message.Message):
     supports_abort_cleanup: bool
     supports_drain: bool
     schema_version: int
-    def __init__(self, enabled: _Optional[bool] = ..., transfer_backend: _Optional[str] = ..., local_endpoints: _Optional[_Iterable[_Union[KvEndpoint, _Mapping]]] = ..., supported_protocols: _Optional[_Iterable[str]] = ..., supports_remote_prefill: _Optional[bool] = ..., supports_decode_pull: _Optional[bool] = ..., supports_abort_cleanup: _Optional[bool] = ..., supports_drain: _Optional[bool] = ..., schema_version: _Optional[int] = ...) -> None: ...
+    handoff_profile: str
+    supports_client_bootstrap: bool
+    def __init__(self, enabled: _Optional[bool] = ..., transfer_backend: _Optional[str] = ..., local_endpoints: _Optional[_Iterable[_Union[KvEndpoint, _Mapping]]] = ..., supported_protocols: _Optional[_Iterable[str]] = ..., supports_remote_prefill: _Optional[bool] = ..., supports_decode_pull: _Optional[bool] = ..., supports_abort_cleanup: _Optional[bool] = ..., supports_drain: _Optional[bool] = ..., schema_version: _Optional[int] = ..., handoff_profile: _Optional[str] = ..., supports_client_bootstrap: _Optional[bool] = ...) -> None: ...
 
 class GetKvEventSourcesRequest(_message.Message):
     __slots__ = ("data_parallel_ranks",)
