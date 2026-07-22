@@ -47,10 +47,14 @@ fn descriptor_set_contains_inference_and_control_services() {
         .iter()
         .find(|service| service.name.as_deref() == Some("Inference"))
         .unwrap();
-    assert!(inference
-        .method
-        .iter()
-        .any(|method| method.name.as_deref() == Some("Embed")));
+    assert_eq!(
+        inference
+            .method
+            .iter()
+            .filter_map(|method| method.name.as_deref())
+            .collect::<Vec<_>>(),
+        ["Generate"]
+    );
     let control = service_file
         .service
         .iter()
@@ -60,6 +64,10 @@ fn descriptor_set_contains_inference_and_control_services() {
         .method
         .iter()
         .any(|method| method.name.as_deref() == Some("GetServerInfo")));
+    assert!(!control
+        .method
+        .iter()
+        .any(|method| method.name.as_deref() == Some("SubscribeRuntimeEvents")));
 }
 
 #[test]

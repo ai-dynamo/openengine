@@ -11,6 +11,10 @@ distribution, and Rust crate.
 
 ## [Unreleased]
 
+### Removed
+
+- Unimplemented embedding, classification, scoring, and runtime-event subscription RPCs.
+
 ## 0.2.0 - 2026-07-12
 
 ### Added

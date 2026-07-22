@@ -108,7 +108,7 @@ The canonical schema is organized by domain under
 | Area                  | What the contract provides                                                                                        |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Portable generation   | Text or token input, sampling, stopping, transport priorities, multiple sequences, and deterministic seeds        |
-| Non-generative tasks  | Typed embedding, classification, and grouped query/candidate scoring with stable correlation                      |
+| Reserved task schemas | Typed embedding, classification, and grouped query/candidate scoring messages for a future task service           |
 | Structured output     | JSON Schema, JSON object, regex, EBNF grammar, structural tags, and fixed choices                                 |
 | Token information     | Prompt and output logprobs, ranks, candidate-token selection, per-token records, and streamed text deltas         |
 | Discovery             | Server identity, deployment capacity, model limits, topology, parsers, and inference capabilities                 |
@@ -116,7 +116,7 @@ The canonical schema is organized by domain under
 | Disaggregated serving | Prefill/decode roles, decode-context parallel topology, KV handoff, connector discovery, and cache controls       |
 | KV-aware routing      | Typed KV event streams plus discovery of engine-native event sources                                              |
 | Model extensions      | Multimodal inputs and LoRA adapter lifecycle                                                                      |
-| Observability         | Point-in-time load snapshots and structured runtime event streams                                                 |
+| Observability         | Point-in-time load snapshots and reserved structured runtime-event messages                                      |
 
 See the [human-readable API reference](docs/api.md) for field-level behavior and
 validation rules.
@@ -212,7 +212,7 @@ depend on it. Expect direct schema refinement during this phase.
 
 The intended adoption path is incremental:
 
-1. Aggregated generation and non-generative tasks, discovery, health, abort, and drain.
+1. Aggregated generation, discovery, health, abort, and drain.
 2. Prefill/decode roles, KV handoff, rank affinity, and KV event integration.
 3. Logprobs, guided decoding, LoRA, and multimodal input as needed.
 

@@ -17,3 +17,6 @@ lint:
 breaking:
   use:
     - FILE
+  except:
+    # Revision 2 is a pre-adoption draft and may prune unimplemented RPCs.
+    - RPC_NO_DELETE

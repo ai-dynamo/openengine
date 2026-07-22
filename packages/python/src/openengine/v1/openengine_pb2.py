@@ -22,27 +22,24 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-from openengine.v1 import classification_pb2 as openengine_dot_v1_dot_classification__pb2
-from openengine.v1 import embedding_pb2 as openengine_dot_v1_dot_embedding__pb2
 from openengine.v1 import generation_pb2 as openengine_dot_v1_dot_generation__pb2
 from openengine.v1 import kv_pb2 as openengine_dot_v1_dot_kv__pb2
 from openengine.v1 import lifecycle_pb2 as openengine_dot_v1_dot_lifecycle__pb2
 from openengine.v1 import lora_pb2 as openengine_dot_v1_dot_lora__pb2
 from openengine.v1 import model_pb2 as openengine_dot_v1_dot_model__pb2
 from openengine.v1 import observability_pb2 as openengine_dot_v1_dot_observability__pb2
-from openengine.v1 import scoring_pb2 as openengine_dot_v1_dot_scoring__pb2
 from openengine.v1 import server_pb2 as openengine_dot_v1_dot_server__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1eopenengine/v1/openengine.proto\x12\ropenengine.v1\x1a\"openengine/v1/classification.proto\x1a\x1dopenengine/v1/embedding.proto\x1a\x1eopenengine/v1/generation.proto\x1a\x16openengine/v1/kv.proto\x1a\x1dopenengine/v1/lifecycle.proto\x1a\x18openengine/v1/lora.proto\x1a\x19openengine/v1/model.proto\x1a!openengine/v1/observability.proto\x1a\x1bopenengine/v1/scoring.proto\x1a\x1aopenengine/v1/server.proto2\xaf\x02\n\tInference\x12M\n\x08Generate\x12\x1e.openengine.v1.GenerateRequest\x1a\x1f.openengine.v1.GenerateResponse0\x01\x12\x42\n\x05\x45mbed\x12\x1b.openengine.v1.EmbedRequest\x1a\x1c.openengine.v1.EmbedResponse\x12K\n\x08\x43lassify\x12\x1e.openengine.v1.ClassifyRequest\x1a\x1f.openengine.v1.ClassifyResponse\x12\x42\n\x05Score\x12\x1b.openengine.v1.ScoreRequest\x1a\x1c.openengine.v1.ScoreResponse2\xd7\x08\n\x07\x43ontrol\x12O\n\rGetServerInfo\x12#.openengine.v1.GetServerInfoRequest\x1a\x19.openengine.v1.ServerInfo\x12L\n\x0cGetModelInfo\x12\".openengine.v1.GetModelInfoRequest\x1a\x18.openengine.v1.ModelInfo\x12\x41\n\x07GetLoad\x12\x1d.openengine.v1.GetLoadRequest\x1a\x17.openengine.v1.LoadInfo\x12\x45\n\x06Health\x12\x1c.openengine.v1.HealthRequest\x1a\x1d.openengine.v1.HealthResponse\x12\x42\n\x05\x41\x62ort\x12\x1b.openengine.v1.AbortRequest\x1a\x1c.openengine.v1.AbortResponse\x12\x44\n\x05\x44rain\x12\x1b.openengine.v1.DrainRequest\x1a\x1c.openengine.v1.DrainResponse0\x01\x12K\n\x08LoadLora\x12\x1e.openengine.v1.LoadLoraRequest\x1a\x1f.openengine.v1.LoadLoraResponse\x12Q\n\nUnloadLora\x12 .openengine.v1.UnloadLoraRequest\x1a!.openengine.v1.UnloadLoraResponse\x12N\n\tListLoras\x12\x1f.openengine.v1.ListLorasRequest\x1a .openengine.v1.ListLorasResponse\x12^\n\x12GetKvConnectorInfo\x12(.openengine.v1.GetKvConnectorInfoRequest\x1a\x1e.openengine.v1.KvConnectorInfo\x12\x66\n\x11GetKvEventSources\x12\'.openengine.v1.GetKvEventSourcesRequest\x1a(.openengine.v1.GetKvEventSourcesResponse\x12h\n\x11SubscribeKvEvents\x12\'.openengine.v1.SubscribeKvEventsRequest\x1a(.openengine.v1.SubscribeKvEventsResponse0\x01\x12w\n\x16SubscribeRuntimeEvents\x12,.openengine.v1.SubscribeRuntimeEventsRequest\x1a-.openengine.v1.SubscribeRuntimeEventsResponse0\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1eopenengine/v1/openengine.proto\x12\ropenengine.v1\x1a\x1eopenengine/v1/generation.proto\x1a\x16openengine/v1/kv.proto\x1a\x1dopenengine/v1/lifecycle.proto\x1a\x18openengine/v1/lora.proto\x1a\x19openengine/v1/model.proto\x1a!openengine/v1/observability.proto\x1a\x1aopenengine/v1/server.proto2Z\n\tInference\x12M\n\x08Generate\x12\x1e.openengine.v1.GenerateRequest\x1a\x1f.openengine.v1.GenerateResponse0\x01\x32\xde\x07\n\x07\x43ontrol\x12O\n\rGetServerInfo\x12#.openengine.v1.GetServerInfoRequest\x1a\x19.openengine.v1.ServerInfo\x12L\n\x0cGetModelInfo\x12\".openengine.v1.GetModelInfoRequest\x1a\x18.openengine.v1.ModelInfo\x12\x41\n\x07GetLoad\x12\x1d.openengine.v1.GetLoadRequest\x1a\x17.openengine.v1.LoadInfo\x12\x45\n\x06Health\x12\x1c.openengine.v1.HealthRequest\x1a\x1d.openengine.v1.HealthResponse\x12\x42\n\x05\x41\x62ort\x12\x1b.openengine.v1.AbortRequest\x1a\x1c.openengine.v1.AbortResponse\x12\x44\n\x05\x44rain\x12\x1b.openengine.v1.DrainRequest\x1a\x1c.openengine.v1.DrainResponse0\x01\x12K\n\x08LoadLora\x12\x1e.openengine.v1.LoadLoraRequest\x1a\x1f.openengine.v1.LoadLoraResponse\x12Q\n\nUnloadLora\x12 .openengine.v1.UnloadLoraRequest\x1a!.openengine.v1.UnloadLoraResponse\x12N\n\tListLoras\x12\x1f.openengine.v1.ListLorasRequest\x1a .openengine.v1.ListLorasResponse\x12^\n\x12GetKvConnectorInfo\x12(.openengine.v1.GetKvConnectorInfoRequest\x1a\x1e.openengine.v1.KvConnectorInfo\x12\x66\n\x11GetKvEventSources\x12\'.openengine.v1.GetKvEventSourcesRequest\x1a(.openengine.v1.GetKvEventSourcesResponse\x12h\n\x11SubscribeKvEvents\x12\'.openengine.v1.SubscribeKvEventsRequest\x1a(.openengine.v1.SubscribeKvEventsResponse0\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'openengine.v1.openengine_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_INFERENCE']._serialized_start=349
-  _globals['_INFERENCE']._serialized_end=652
-  _globals['_CONTROL']._serialized_start=655
-  _globals['_CONTROL']._serialized_end=1766
+  _globals['_INFERENCE']._serialized_start=252
+  _globals['_INFERENCE']._serialized_end=342
+  _globals['_CONTROL']._serialized_start=345
+  _globals['_CONTROL']._serialized_end=1335
 # @@protoc_insertion_point(module_scope)

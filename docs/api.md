@@ -23,11 +23,6 @@ import "google/protobuf/struct.proto";
 service Inference {
   // Core inference path.
   rpc Generate(GenerateRequest) returns (stream GenerateResponse);
-
-  // Non-generative inference paths.
-  rpc Embed(EmbedRequest) returns (EmbedResponse);
-  rpc Classify(ClassifyRequest) returns (ClassifyResponse);
-  rpc Score(ScoreRequest) returns (ScoreResponse);
 }
 
 service Control {
@@ -51,8 +46,6 @@ service Control {
   rpc GetKvEventSources(GetKvEventSourcesRequest) returns (GetKvEventSourcesResponse);
   rpc SubscribeKvEvents(SubscribeKvEventsRequest) returns (stream SubscribeKvEventsResponse);
 
-  // Structured runtime events for planners/controllers.
-  rpc SubscribeRuntimeEvents(SubscribeRuntimeEventsRequest) returns (stream SubscribeRuntimeEventsResponse);
 }
 ```
 
@@ -292,11 +285,11 @@ value rejects non-empty `GenerateRequest.media_options`.
 
 ---
 
-## Non-generative task API
+## Reserved non-generative task messages
 
-`Embed`, `Classify`, and `Score` are unary inference operations. They share a
-request context and typed inputs, but retain task-specific options and outputs.
-Support is optional per model and advertised through `ModelInfo.tasks`.
+The schema retains typed embedding, classification, and scoring messages for
+future task-oriented services. The current `Inference` service exposes only
+`Generate`; these messages are not reachable through an OpenEngine RPC.
 
 ```protobuf
 message TaskRequestContext {
@@ -1268,12 +1261,12 @@ message RankLoadInfo {
 Every load scalar has explicit presence. Absent means unavailable in that
 engine or snapshot; present zero means the measured load is zero.
 
-`LoadInfo.attributes` and `RuntimeEvent.attributes` carry engine-specific metrics as a
+`LoadInfo.attributes` and the reserved `RuntimeEvent.attributes` field carry engine-specific metrics as a
 `google.protobuf.Struct`, so numeric, boolean, and list values keep their JSON
 type on the wire instead of being flattened to strings. `Struct` numbers are
 IEEE-754 doubles (exact only to 2^53); carry larger integers as strings.
 
-Runtime event stream:
+Reserved runtime-event messages:
 
 ```protobuf
 message SubscribeRuntimeEventsRequest {
@@ -1303,9 +1296,8 @@ message RuntimeEvent {
 }
 ```
 
-After subscription acceptance, an application failure is the final
-`SubscribeRuntimeEventsResponse` with `error` set. No runtime event may follow
-it, and the server closes the stream with gRPC `OK`.
+The current `Control` service does not expose a runtime-event subscription RPC.
+These messages remain reserved for a future optional observability service.
 
 ---
 

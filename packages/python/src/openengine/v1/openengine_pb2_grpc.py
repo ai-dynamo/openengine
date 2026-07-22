@@ -3,15 +3,12 @@
 import grpc
 import warnings
 
-from openengine.v1 import classification_pb2 as openengine_dot_v1_dot_classification__pb2
-from openengine.v1 import embedding_pb2 as openengine_dot_v1_dot_embedding__pb2
 from openengine.v1 import generation_pb2 as openengine_dot_v1_dot_generation__pb2
 from openengine.v1 import kv_pb2 as openengine_dot_v1_dot_kv__pb2
 from openengine.v1 import lifecycle_pb2 as openengine_dot_v1_dot_lifecycle__pb2
 from openengine.v1 import lora_pb2 as openengine_dot_v1_dot_lora__pb2
 from openengine.v1 import model_pb2 as openengine_dot_v1_dot_model__pb2
 from openengine.v1 import observability_pb2 as openengine_dot_v1_dot_observability__pb2
-from openengine.v1 import scoring_pb2 as openengine_dot_v1_dot_scoring__pb2
 from openengine.v1 import server_pb2 as openengine_dot_v1_dot_server__pb2
 
 GRPC_GENERATED_VERSION = '1.81.1'
@@ -60,21 +57,6 @@ class InferenceStub:
                 request_serializer=openengine_dot_v1_dot_generation__pb2.GenerateRequest.SerializeToString,
                 response_deserializer=openengine_dot_v1_dot_generation__pb2.GenerateResponse.FromString,
                 _registered_method=True)
-        self.Embed = channel.unary_unary(
-                '/openengine.v1.Inference/Embed',
-                request_serializer=openengine_dot_v1_dot_embedding__pb2.EmbedRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_embedding__pb2.EmbedResponse.FromString,
-                _registered_method=True)
-        self.Classify = channel.unary_unary(
-                '/openengine.v1.Inference/Classify',
-                request_serializer=openengine_dot_v1_dot_classification__pb2.ClassifyRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_classification__pb2.ClassifyResponse.FromString,
-                _registered_method=True)
-        self.Score = channel.unary_unary(
-                '/openengine.v1.Inference/Score',
-                request_serializer=openengine_dot_v1_dot_scoring__pb2.ScoreRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_scoring__pb2.ScoreResponse.FromString,
-                _registered_method=True)
 
 
 class InferenceServicer:
@@ -99,25 +81,6 @@ class InferenceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def Embed(self, request, context):
-        """Non-generative inference paths.
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def Classify(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def Score(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
 
 def add_InferenceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -125,21 +88,6 @@ def add_InferenceServicer_to_server(servicer, server):
                     servicer.Generate,
                     request_deserializer=openengine_dot_v1_dot_generation__pb2.GenerateRequest.FromString,
                     response_serializer=openengine_dot_v1_dot_generation__pb2.GenerateResponse.SerializeToString,
-            ),
-            'Embed': grpc.unary_unary_rpc_method_handler(
-                    servicer.Embed,
-                    request_deserializer=openengine_dot_v1_dot_embedding__pb2.EmbedRequest.FromString,
-                    response_serializer=openengine_dot_v1_dot_embedding__pb2.EmbedResponse.SerializeToString,
-            ),
-            'Classify': grpc.unary_unary_rpc_method_handler(
-                    servicer.Classify,
-                    request_deserializer=openengine_dot_v1_dot_classification__pb2.ClassifyRequest.FromString,
-                    response_serializer=openengine_dot_v1_dot_classification__pb2.ClassifyResponse.SerializeToString,
-            ),
-            'Score': grpc.unary_unary_rpc_method_handler(
-                    servicer.Score,
-                    request_deserializer=openengine_dot_v1_dot_scoring__pb2.ScoreRequest.FromString,
-                    response_serializer=openengine_dot_v1_dot_scoring__pb2.ScoreResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -181,87 +129,6 @@ class Inference:
             '/openengine.v1.Inference/Generate',
             openengine_dot_v1_dot_generation__pb2.GenerateRequest.SerializeToString,
             openengine_dot_v1_dot_generation__pb2.GenerateResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def Embed(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/openengine.v1.Inference/Embed',
-            openengine_dot_v1_dot_embedding__pb2.EmbedRequest.SerializeToString,
-            openengine_dot_v1_dot_embedding__pb2.EmbedResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def Classify(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/openengine.v1.Inference/Classify',
-            openengine_dot_v1_dot_classification__pb2.ClassifyRequest.SerializeToString,
-            openengine_dot_v1_dot_classification__pb2.ClassifyResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def Score(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/openengine.v1.Inference/Score',
-            openengine_dot_v1_dot_scoring__pb2.ScoreRequest.SerializeToString,
-            openengine_dot_v1_dot_scoring__pb2.ScoreResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -341,11 +208,6 @@ class ControlStub:
                 '/openengine.v1.Control/SubscribeKvEvents',
                 request_serializer=openengine_dot_v1_dot_kv__pb2.SubscribeKvEventsRequest.SerializeToString,
                 response_deserializer=openengine_dot_v1_dot_kv__pb2.SubscribeKvEventsResponse.FromString,
-                _registered_method=True)
-        self.SubscribeRuntimeEvents = channel.unary_stream(
-                '/openengine.v1.Control/SubscribeRuntimeEvents',
-                request_serializer=openengine_dot_v1_dot_observability__pb2.SubscribeRuntimeEventsRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_observability__pb2.SubscribeRuntimeEventsResponse.FromString,
                 _registered_method=True)
 
 
@@ -428,13 +290,6 @@ class ControlServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def SubscribeRuntimeEvents(self, request, context):
-        """Structured runtime events for planners/controllers.
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
 
 def add_ControlServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -497,11 +352,6 @@ def add_ControlServicer_to_server(servicer, server):
                     servicer.SubscribeKvEvents,
                     request_deserializer=openengine_dot_v1_dot_kv__pb2.SubscribeKvEventsRequest.FromString,
                     response_serializer=openengine_dot_v1_dot_kv__pb2.SubscribeKvEventsResponse.SerializeToString,
-            ),
-            'SubscribeRuntimeEvents': grpc.unary_stream_rpc_method_handler(
-                    servicer.SubscribeRuntimeEvents,
-                    request_deserializer=openengine_dot_v1_dot_observability__pb2.SubscribeRuntimeEventsRequest.FromString,
-                    response_serializer=openengine_dot_v1_dot_observability__pb2.SubscribeRuntimeEventsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -828,33 +678,6 @@ class Control:
             '/openengine.v1.Control/SubscribeKvEvents',
             openengine_dot_v1_dot_kv__pb2.SubscribeKvEventsRequest.SerializeToString,
             openengine_dot_v1_dot_kv__pb2.SubscribeKvEventsResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def SubscribeRuntimeEvents(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_stream(
-            request,
-            target,
-            '/openengine.v1.Control/SubscribeRuntimeEvents',
-            openengine_dot_v1_dot_observability__pb2.SubscribeRuntimeEventsRequest.SerializeToString,
-            openengine_dot_v1_dot_observability__pb2.SubscribeRuntimeEventsResponse.FromString,
             options,
             channel_credentials,
             insecure,

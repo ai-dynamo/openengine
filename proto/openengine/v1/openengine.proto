@@ -16,15 +16,12 @@ syntax = "proto3";
 
 package openengine.v1;
 
-import "openengine/v1/classification.proto";
-import "openengine/v1/embedding.proto";
 import "openengine/v1/generation.proto";
 import "openengine/v1/kv.proto";
 import "openengine/v1/lifecycle.proto";
 import "openengine/v1/lora.proto";
 import "openengine/v1/model.proto";
 import "openengine/v1/observability.proto";
-import "openengine/v1/scoring.proto";
 import "openengine/v1/server.proto";
 
 // Standard ASCII gRPC request metadata:
@@ -42,11 +39,6 @@ import "openengine/v1/server.proto";
 service Inference {
   // Core inference path.
   rpc Generate(GenerateRequest) returns (stream GenerateResponse);
-
-  // Non-generative inference paths.
-  rpc Embed(EmbedRequest) returns (EmbedResponse);
-  rpc Classify(ClassifyRequest) returns (ClassifyResponse);
-  rpc Score(ScoreRequest) returns (ScoreResponse);
 }
 
 service Control {
@@ -69,7 +61,4 @@ service Control {
   rpc GetKvConnectorInfo(GetKvConnectorInfoRequest) returns (KvConnectorInfo);
   rpc GetKvEventSources(GetKvEventSourcesRequest) returns (GetKvEventSourcesResponse);
   rpc SubscribeKvEvents(SubscribeKvEventsRequest) returns (stream SubscribeKvEventsResponse);
-
-  // Structured runtime events for planners/controllers.
-  rpc SubscribeRuntimeEvents(SubscribeRuntimeEventsRequest) returns (stream SubscribeRuntimeEventsResponse);
 }
