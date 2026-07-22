@@ -116,7 +116,7 @@ The canonical schema is organized by domain under
 | Disaggregated serving | Prefill/decode roles, decode-context parallel topology, KV handoff, connector discovery, and cache controls       |
 | KV-aware routing      | Typed KV event streams plus discovery of engine-native event sources                                              |
 | Model extensions      | Multimodal inputs and LoRA adapter lifecycle                                                                      |
-| Observability         | Point-in-time load snapshots and reserved structured runtime-event messages                                      |
+| Observability         | Point-in-time load snapshots and reserved structured runtime-event messages                                       |
 
 See the [human-readable API reference](docs/api.md) for field-level behavior and
 validation rules.
