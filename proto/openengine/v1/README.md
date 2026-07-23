@@ -11,14 +11,12 @@ share the same package and together define the API.
 | File | Area |
 | --- | --- |
 | [`openengine.proto`](openengine.proto) | `Inference` and `Control` service declarations |
-| [`input.proto`](input.proto) | Shared text, token, and multimodal inputs |
-| [`server.proto`](server.proto) | Server identity, deployment capacity, engine roles, and parallelism |
+| [`server.proto`](server.proto) | Server identity, deployment capacity, engine roles, parallelism, and load |
 | [`model.proto`](model.proto) | Model metadata and inference capabilities |
-| [`generation.proto`](generation.proto) | Generation requests, parameters, streamed events, and usage |
+| [`generation.proto`](generation.proto) | Generation inputs, requests, parameters, streamed events, and usage |
 | [`lora.proto`](lora.proto) | LoRA adapter lifecycle |
 | [`kv.proto`](kv.proto) | KV sessions, connector discovery, and cache events |
-| [`lifecycle.proto`](lifecycle.proto) | Health, abort, and drain operations |
-| [`observability.proto`](observability.proto) | Load snapshots |
+| [`lifecycle.proto`](lifecycle.proto) | Health and abort operations |
 | [`error.proto`](error.proto) | Terminal errors for accepted streaming requests |
 
 Generate bindings from every `.proto` file in this directory. Compiling only

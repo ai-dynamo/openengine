@@ -34,7 +34,6 @@ service Control {
   // Health and lifecycle.
   rpc Health(HealthRequest) returns (HealthResponse);
   rpc Abort(AbortRequest) returns (AbortResponse);
-  rpc Drain(DrainRequest) returns (stream DrainResponse);
 
   // LoRA lifecycle.
   rpc LoadLora(LoadLoraRequest) returns (LoadLoraResponse);
@@ -744,7 +743,7 @@ server closes the stream with gRPC `OK`.
 
 ---
 
-## Health, abort, and drain
+## Health and abort
 
 ```protobuf
 message HealthRequest {
@@ -800,29 +799,6 @@ enum AbortStatus {
   ABORT_STATUS_ABORTED = 1;
   ABORT_STATUS_ALREADY_FINISHED = 2;
 }
-
-message DrainRequest {
-  bool stop_accepting_new_requests = 1;
-  optional uint32 deadline_ms = 2;
-  bool abort_after_deadline = 3;
-}
-
-message DrainResponse {
-  oneof event {
-    DrainState state = 1;
-    EngineError error = 5;
-  }
-  optional uint32 in_flight_requests = 2;
-  optional uint32 open_kv_sessions = 3;
-  string message = 4;
-}
-
-enum DrainState {
-  DRAIN_STATE_UNSPECIFIED = 0;
-  DRAIN_STATE_STARTED = 1;
-  DRAIN_STATE_IN_PROGRESS = 2;
-  DRAIN_STATE_COMPLETE = 3;
-}
 ```
 
 Exactly one abort target must be set. Use `all_requests {}` to abort every
@@ -830,13 +806,6 @@ request; omitting the target returns gRPC `INVALID_ARGUMENT`. An unknown request
 or KV session target returns gRPC `NOT_FOUND`; an engine that does not support
 abort returns gRPC `UNIMPLEMENTED`. `ALREADY_FINISHED` remains a successful
 idempotent outcome rather than an error.
-
-`STARTED` and `IN_PROGRESS` are progress events; `COMPLETE` is terminal. A
-failure after the drain is accepted is represented by one terminal
-`EngineError`, not by a failed drain state. An absent `deadline_ms` means no
-deadline; an explicit zero means the deadline is immediate. Absent progress
-counts are unknown, while present zero values report that no requests or KV
-sessions remain.
 
 ---
 
@@ -847,8 +816,6 @@ message EngineError {
   ErrorCode code = 1;
   string message = 2;
   bool retryable = 3;
-  optional uint64 retry_after_ms = 4;
-  google.protobuf.Struct details = 5;
 }
 
 enum ErrorCode {
@@ -883,14 +850,8 @@ accepted stream phase and report failures with non-OK gRPC status.
 `GenerationFinished` is terminal for its `output_index`; other output indexes
 may continue. The last `GenerationFinished` ends a successful aggregated or
 decode stream, `PrefillReady` ends a successful prefill stream, and
-`EngineError` ends any failed generation stream. `DrainState.COMPLETE` and
-`EngineError` terminate a drain stream. An `EngineError` also terminates a
-KV-event or runtime-event subscription. No response may follow a terminal
-`EngineError`. Application failure is neither a `GenerationFinished` reason nor
-a failed drain state.
+`EngineError` ends any failed generation stream. An `EngineError` also
+terminates a KV-event subscription. No response may follow a terminal
+`EngineError`. Application failure is not a `GenerationFinished` reason.
 
 `retryable` states whether the unchanged operation can succeed on retry.
-`retry_after_ms` is present only for retryable errors and is the recommended
-minimum delay; an explicit zero permits immediate retry. `details` contains
-machine-readable error context. Stable detail keys are part of this API;
-engine-specific keys should be namespaced to avoid collisions.
