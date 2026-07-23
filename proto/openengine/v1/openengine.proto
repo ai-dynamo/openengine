@@ -60,4 +60,5 @@ service Control {
   // Disaggregated serving / KV transfer.
   rpc GetKvConnectorInfo(GetKvConnectorInfoRequest) returns (KvConnectorInfo);
   rpc GetKvEventSources(GetKvEventSourcesRequest) returns (GetKvEventSourcesResponse);
+  rpc SubscribeKvEvents(SubscribeKvEventsRequest) returns (stream SubscribeKvEventsResponse);
 }
