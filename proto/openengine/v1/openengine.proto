@@ -21,7 +21,6 @@ import "openengine/v1/kv.proto";
 import "openengine/v1/lifecycle.proto";
 import "openengine/v1/lora.proto";
 import "openengine/v1/model.proto";
-import "openengine/v1/observability.proto";
 import "openengine/v1/server.proto";
 
 // Standard ASCII gRPC request metadata:
