@@ -23,11 +23,6 @@ import "google/protobuf/struct.proto";
 service Inference {
   // Core inference path.
   rpc Generate(GenerateRequest) returns (stream GenerateResponse);
-
-  // Non-generative inference paths.
-  rpc Embed(EmbedRequest) returns (EmbedResponse);
-  rpc Classify(ClassifyRequest) returns (ClassifyResponse);
-  rpc Score(ScoreRequest) returns (ScoreResponse);
 }
 
 service Control {
@@ -49,10 +44,6 @@ service Control {
   // Disaggregated serving / KV transfer.
   rpc GetKvConnectorInfo(GetKvConnectorInfoRequest) returns (KvConnectorInfo);
   rpc GetKvEventSources(GetKvEventSourcesRequest) returns (GetKvEventSourcesResponse);
-  rpc SubscribeKvEvents(SubscribeKvEventsRequest) returns (stream SubscribeKvEventsResponse);
-
-  // Structured runtime events for planners/controllers.
-  rpc SubscribeRuntimeEvents(SubscribeRuntimeEventsRequest) returns (stream SubscribeRuntimeEventsResponse);
 }
 ```
 
