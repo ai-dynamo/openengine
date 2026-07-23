@@ -106,7 +106,6 @@ The canonical schema is organized by domain under
 | Area                  | What the contract provides                                                                                        |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Portable generation   | Text or token input, sampling, stopping, transport priorities, multiple sequences, and deterministic seeds        |
-| Non-generative tasks  | Typed embedding, classification, and grouped query/candidate scoring with stable correlation                      |
 | Structured output     | JSON Schema, JSON object, regex, EBNF grammar, structural tags, and fixed choices                                 |
 | Token information     | Prompt and output logprobs, ranks, candidate-token selection, per-token records, and streamed text deltas         |
 | Discovery             | Server identity, deployment capacity, model limits, topology, parsers, and inference capabilities                 |

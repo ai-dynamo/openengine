@@ -8,9 +8,6 @@ syntax = "proto3";
 package openengine.v1;
 
 import "google/protobuf/struct.proto";
-import "openengine/v1/classification.proto";
-import "openengine/v1/embedding.proto";
-import "openengine/v1/scoring.proto";
 
 message GetModelInfoRequest {
   string model = 1;
@@ -36,8 +33,6 @@ message ModelInfo {
   string reasoning_parser = 25;
   string tool_call_parser = 26;
 
-  TaskCapabilities tasks = 27; // Optional non-generative task support for this model.
-
   // Engine-specific model metadata with no portable field (e.g. kv-cache dtype,
   // quantization, capabilities not yet standardized). NOT part of the portable
   // contract: clients read it opportunistically and never depend on it for
@@ -45,11 +40,6 @@ message ModelInfo {
   google.protobuf.Struct extra = 28;
 }
 
-message TaskCapabilities {
-  EmbedCapabilities embed = 1;
-  ClassifyCapabilities classify = 2;
-  ScoreCapabilities score = 3;
-}
 
 message GenerationCapabilities {
   LogprobCapabilities prompt_logprobs = 1;
