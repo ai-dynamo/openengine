@@ -41,8 +41,7 @@ service Control {
   rpc UnloadLora(UnloadLoraRequest) returns (UnloadLoraResponse);
   rpc ListLoras(ListLorasRequest) returns (ListLorasResponse);
 
-  // Disaggregated serving / KV transfer.
-  rpc GetKvConnectorInfo(GetKvConnectorInfoRequest) returns (KvConnectorInfo);
+  // Disaggregated serving / KV transfer. Connector info: ServerInfo.kv_connector.
   rpc GetKvEventSources(GetKvEventSourcesRequest) returns (GetKvEventSourcesResponse);
   rpc SubscribeKvEvents(SubscribeKvEventsRequest) returns (stream SubscribeKvEventsResponse);
 }
@@ -618,9 +617,11 @@ OpenEngine should support two KV-event modes:
 2. **Compatibility source discovery:** `GetKvEventSources` advertises existing
    engine-native sources such as SGLang/vLLM ZMQ publishers.
 
-```protobuf
-message GetKvConnectorInfoRequest {}
+`KvConnectorInfo` describes the disaggregation transfer connector. It is static
+per deployment and is reported once through `ServerInfo.kv_connector`
+(`GetServerInfo`), not a dedicated RPC.
 
+```protobuf
 message KvConnectorInfo {
   optional bool enabled = 1;
   string transfer_backend = 2;

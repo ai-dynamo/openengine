@@ -29,8 +29,6 @@ message KvEndpoint {
   string protocol = 3; // grpc, nixl, ucx, tcp, shm, etc.
 }
 
-message GetKvConnectorInfoRequest {}
-
 message KvConnectorInfo {
   optional bool enabled = 1;
   string transfer_backend = 2;
