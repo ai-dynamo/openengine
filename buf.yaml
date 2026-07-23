@@ -2,7 +2,7 @@ version: v2
 
 modules:
   - path: proto
-    name: buf.build/ai-dynamo/openengine
+    name: buf.build/openengine/openengine
 
 lint:
   use:
