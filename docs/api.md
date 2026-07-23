@@ -847,8 +847,6 @@ message EngineError {
   ErrorCode code = 1;
   string message = 2;
   bool retryable = 3;
-  optional uint64 retry_after_ms = 4;
-  google.protobuf.Struct details = 5;
 }
 
 enum ErrorCode {
@@ -890,7 +888,3 @@ KV-event or runtime-event subscription. No response may follow a terminal
 a failed drain state.
 
 `retryable` states whether the unchanged operation can succeed on retry.
-`retry_after_ms` is present only for retryable errors and is the recommended
-minimum delay; an explicit zero permits immediate retry. `details` contains
-machine-readable error context. Stable detail keys are part of this API;
-engine-specific keys should be namespaced to avoid collisions.
