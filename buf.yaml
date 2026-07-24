@@ -13,3 +13,12 @@ lint:
     # Discovery and event RPCs intentionally return their domain message type
     # directly instead of adding one-field response wrappers.
     - RPC_RESPONSE_STANDARD_NAME
+
+breaking:
+  use:
+    - FILE
+  except:
+    # OpenEngine is a pre-adoption draft and may prune unimplemented surface.
+    - ENUM_NO_DELETE
+    - MESSAGE_NO_DELETE
+    - RPC_NO_DELETE

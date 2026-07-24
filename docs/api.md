@@ -85,6 +85,11 @@ Routing and admission keys apply only to `Inference` RPCs.
 ## Server identity, deployment capacity, and engine roles
 
 ```protobuf
+enum SchemaRevision {
+  SCHEMA_REVISION_UNSPECIFIED = 0;
+  SCHEMA_REVISION_1 = 1;
+}
+
 enum EngineRole {
   ENGINE_ROLE_UNSPECIFIED = 0;
   ENGINE_ROLE_AGGREGATED = 1;
@@ -102,9 +107,9 @@ message ServerInfo {
   repeated string supported_models = 5;
   ParallelismInfo parallelism = 6;
   KvConnectorInfo kv_connector = 7;
-  uint32 schema_revision = 8;
-  uint32 minimum_client_revision = 9;
-  string schema_release = 10;
+  uint32 schema_revision = 8;         // Canonical SchemaRevision value.
+  uint32 minimum_client_revision = 9; // Oldest compatible SchemaRevision value.
+  string schema_release = 10;         // Immutable BSR module commit.
   DeploymentCapacity capacity = 11; // Configured capacity for this deployed server.
   google.protobuf.Struct extra = 12; // Engine-specific, non-portable; read opportunistically.
 }
@@ -133,8 +138,9 @@ Revision `1` is the schema in this repository. Every server must populate:
   implements. Zero is invalid.
 - `minimum_client_revision` with the oldest client revision the server supports.
   A client below this revision must reject the server as incompatible.
-- `schema_release` with an immutable OpenEngine repository release or source tag
-  containing that revision. Moving branch names such as `main` are not valid.
+- `schema_release` with the immutable BSR module commit containing that
+  revision. Unpublished builds may use an immutable OpenEngine source commit;
+  moving labels or branch names such as `main` are not valid.
 
 Servers implementing this contract advertise `schema_revision = 1` and
 `minimum_client_revision = 1`.
@@ -193,6 +199,7 @@ message ModelInfo {
   optional uint32 max_context_length = 4; // Effective context-window limit in this deployment.
   optional uint32 max_output_tokens = 5; // Effective generated-token limit in this deployment.
   repeated string tokenizer_modes = 10;
+  TokenizerInfo tokenizer = 11;
 
   optional bool supports_text_input = 20;
   optional bool supports_token_ids_input = 21;
@@ -203,6 +210,20 @@ message ModelInfo {
   string reasoning_parser = 25;
   string tool_call_parser = 26;
   google.protobuf.Struct extra = 28; // Engine-specific, non-portable; read opportunistically.
+  MultimodalCapabilities multimodal_capabilities = 29;
+}
+
+message MultimodalCapabilities {
+  repeated Modality aggregate_modalities = 1;
+  repeated Modality prefill_decode_modalities = 2;
+  repeated MediaSourceType source_types = 3;
+  optional bool supports_per_request_media_options = 4;
+  optional uint32 routing_image_token_id = 5;
+}
+
+message TokenizerInfo {
+  string source = 1;
+  string mode = 2;
 }
 
 message GenerationCapabilities {
@@ -247,6 +268,12 @@ enum GuidedDecodingMode {
 
 `GetModelInfoRequest.model` is required and selects one of
 `ServerInfo.supported_models`; an unknown model returns gRPC `NOT_FOUND`.
+`model_id` is the canonical model source used by the deployment,
+`served_model_name` is the primary name accepted by generation APIs, and
+`served_model_aliases` contains every additional accepted name. The selected
+`tokenizer.source` is its canonical source and may differ from `model_id`;
+`tokenizer.mode` is the active loading mode. `tokenizer_modes` remains the list
+of modes the deployment can accept or expose.
 `max_context_length` and `max_output_tokens` are the effective limits for the
 selected model in this deployment. KV layout and scheduler capacity are reported
 once through `ServerInfo.capacity`, not repeated as model identity.
@@ -259,6 +286,19 @@ support and limits for the corresponding request options.
 
 `supports_lora=true` means the engine accepts `GenerateRequest.lora_name` and
 the LoRA lifecycle RPCs on `Control`.
+
+`supports_multimodal` is the coarse revision-1 compatibility signal. Clients
+use `multimodal_capabilities` to validate a request before scheduling.
+`aggregate_modalities` lists modalities accepted for normal generation;
+`prefill_decode_modalities` lists modalities accepted by the context-first
+prefill/decode path. The latter may be a strict subset, such as image and video
+for a model that only supports audio in aggregated mode. `source_types` lists
+the URL, data-URI, and raw-byte encodings the engine can consume. An absent
+`supports_per_request_media_options` is unreported, while an explicitly false
+value rejects non-empty `GenerateRequest.media_options`.
+`routing_image_token_id`, when present, is the stable placeholder token a
+framework uses when constructing media-aware KV-routing keys. Clients omit
+media-aware routing when the engine cannot advertise this value.
 
 ---
 
@@ -328,6 +368,7 @@ message GenerateRequest {
   repeated MediaItem media = 10;
   string lora_name = 11;
   google.protobuf.Struct extra = 12; // Engine-specific, non-portable; may be ignored.
+  google.protobuf.Struct media_options = 14;
 }
 
 message TokenIds {
@@ -393,6 +434,13 @@ enum Modality {
   MODALITY_AUDIO = 3;
 }
 
+enum MediaSourceType {
+  MEDIA_SOURCE_TYPE_UNSPECIFIED = 0;
+  MEDIA_SOURCE_TYPE_URL = 1;
+  MEDIA_SOURCE_TYPE_DATA_URI = 2;
+  MEDIA_SOURCE_TYPE_RAW_BYTES = 3;
+}
+
 // A single multimodal input. Exactly one `source` should be set. The engine
 // owns fetch, decode, and preprocessing, so pre-decoded or RDMA media
 // descriptors are not represented here.
@@ -441,19 +489,28 @@ candidates with `all {}` and JSON-object guidance with `json_object {}`.
 `Generate` is always a server-streaming RPC, so response options do not carry a
 second streaming switch.
 
+`media` order is significant and is preserved independently of modality. Each
+item uses exactly one source whose encoding is advertised in
+`ModelInfo.multimodal_capabilities.source_types`. `media_options` is keyed by
+the modality names `image`, `video`, and `audio`. The server applies its media
+processor defaults first, then shallow-merges request keys over the matching
+modality defaults. Existing modality-specific conflict rules continue to
+apply. Engines reject unsupported modalities, source types, option keys, or
+per-request options rather than silently ignoring them.
+
 `include_stop_in_output` controls whether a matched caller-supplied stop token
 or string remains in emitted output. `bypass_prefix_cache = true` skips prefix
 cache reuse but does not prevent newly computed blocks from being cached.
 `cache_salt` namespaces the prefix-cache key.
 
-`GenerateRequest.extra` and `TaskRequestContext.extra` carry engine-specific
-parameters that have no portable field. They are an intentional escape hatch so
-an engine can expose a native knob without a schema revision, and so a client
-can adopt OpenEngine before every parameter it needs is standardized. They are
-explicitly outside the portable contract: an engine may ignore keys it does not
-recognize, every request must remain valid with `extra` empty, and clients must
-not depend on `extra` for correctness. Parameters that prove broadly useful
-should be promoted to typed fields in a later revision.
+`GenerateRequest.extra` carries engine-specific parameters that have no
+portable field. It is an intentional escape hatch so an engine can expose a
+native knob without a schema revision, and so a client can adopt OpenEngine
+before every parameter it needs is standardized. It is explicitly outside the
+portable contract: an engine may ignore keys it does not recognize, every
+request must remain valid with `extra` empty, and clients must not depend on
+`extra` for correctness. Parameters that prove broadly useful should be
+promoted to typed fields in a later revision.
 
 ```protobuf
 message GenerateResponse {
@@ -574,6 +631,8 @@ message KvSessionRef {
   repeated KvEndpoint endpoints = 3;
   uint32 dp_rank = 4;
   google.protobuf.Struct attributes_struct = 5; // type-preserving KV-transfer params
+  string handoff_profile = 6;
+  KvBootstrap bootstrap = 7;
 }
 
 message KvEndpoint {
@@ -582,21 +641,39 @@ message KvEndpoint {
   string protocol = 3; // grpc, nixl, ucx, tcp, shm, etc.
 }
 
+message KvBootstrap {
+  KvEndpoint endpoint = 1;
+  uint64 room_id = 2;
+}
+
 ```
 
 `attributes_struct` requires `import "google/protobuf/struct.proto";` at the
 top of the proto.
 
+`handoff_profile` identifies the engine-owned contract in `attributes_struct`.
+Revision 1 defines the profile names
+`tensorrt_llm.disaggregated_params.v1`, `vllm.kv_transfer_params.v1`, and
+`sglang.bootstrap.v1`. Engine-neutral clients forward a recognized profile and
+its attributes unchanged rather than interpreting or rewriting them.
+
 `attributes_struct` preserves number, boolean, array, and object types. Struct
-numbers are IEEE-754 doubles, so values above 2^53 should use strings or a
-dedicated field.
+numbers are IEEE-754 doubles, so 64-bit identifiers above 2^53 must use decimal
+strings. Opaque binary values must use base64 strings. `KvBootstrap.room_id` is
+a typed protobuf `uint64` and therefore does not require JSON string encoding.
+
+`bootstrap` carries a client-created rendezvous endpoint and room when
+`KvConnectorInfo.supports_client_bootstrap` is true. The client supplies the
+same bootstrap to the coordinated prefill and decode requests before either
+side begins handoff. Engines reject a missing or inconsistent bootstrap rather
+than falling back to an aggregate request.
 
 Prefill flow:
 
 1. Client sends `GenerateRequest` to a `PREFILL` engine.
 2. Engine returns a `KvSessionRef` in the terminal `PrefillReady` response when
    decode may attach.
-3. Engine owns KV session lifetime and cleanup, including finish, abort, drain, timeout, and transfer failure paths.  
+3. Engine owns KV session lifetime and cleanup, including finish, abort, shutdown, timeout, and transfer failure paths.
 4. An accepted prefill failure produces one terminal `EngineError` instead.
 
 Decode flow:
@@ -631,6 +708,8 @@ message KvConnectorInfo {
   optional bool supports_abort_cleanup = 7;
   optional bool supports_drain = 8;
   optional uint32 schema_version = 9;
+  string handoff_profile = 10;
+  optional bool supports_client_bootstrap = 11;
 }
 
 message GetKvEventSourcesRequest {
@@ -806,6 +885,55 @@ request; omitting the target returns gRPC `INVALID_ARGUMENT`. An unknown request
 or KV session target returns gRPC `NOT_FOUND`; an engine that does not support
 abort returns gRPC `UNIMPLEMENTED`. `ALREADY_FINISHED` remains a successful
 idempotent outcome rather than an error.
+
+---
+
+## Load reporting
+
+`GetLoad` returns a structured point-in-time load snapshot for schedulers and
+admission controllers. It is not a replacement for Prometheus metrics; it is
+the engine-facing control-plane signal for request routing and overload
+decisions.
+
+```protobuf
+message GetLoadRequest {
+  bool include_per_rank = 1;
+}
+
+message LoadInfo {
+  string instance_id = 1;
+  optional uint64 timestamp_unix_nanos = 2;
+  optional uint32 running_requests = 3;
+  optional uint32 queued_requests = 4;
+  optional uint32 active_kv_sessions = 5;
+  optional uint64 used_kv_blocks = 6;
+  optional uint64 total_kv_blocks = 7;
+  optional uint64 running_tokens = 8;
+  optional uint64 waiting_tokens = 9;
+  optional uint32 prefill_batch_size = 10;
+  optional uint32 decode_batch_size = 11;
+  repeated RankLoadInfo ranks = 20;
+  google.protobuf.Struct attributes = 30;
+}
+
+message RankLoadInfo {
+  optional uint32 data_parallel_rank = 1;
+  optional uint32 running_requests = 2;
+  optional uint32 queued_requests = 3;
+  optional uint64 used_kv_blocks = 4;
+  optional uint64 total_kv_blocks = 5;
+  optional uint32 prefill_batch_size = 6;
+  optional uint32 decode_batch_size = 7;
+}
+```
+
+Every load scalar has explicit presence. Absent means unavailable in that
+engine or snapshot; present zero means the measured load is zero.
+
+`LoadInfo.attributes` carries engine-specific metrics as a
+`google.protobuf.Struct`, so numeric, boolean, and list values keep their JSON
+type on the wire instead of being flattened to strings. `Struct` numbers are
+IEEE-754 doubles (exact only to 2^53); carry larger integers as strings.
 
 ---
 

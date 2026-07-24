@@ -28,6 +28,7 @@ SPDX-License-Identifier: Apache-2.0
   <a href="docs/motivation.md">Why OpenEngine?</a>
   · <a href="docs/api.md">API reference</a>
   · <a href="proto/openengine/v1/">Canonical schema</a>
+  · <a href="#consume-from-buf">Consume from Buf</a>
   · <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -43,6 +44,7 @@ SPDX-License-Identifier: Apache-2.0
 - [Architecture](#architecture)
 - [Capabilities](#capabilities)
 - [Getting started](#getting-started)
+- [Consume from Buf](#consume-from-buf)
 - [Project status](#project-status)
 - [Contributing](#contributing)
 - [Security](#security)
@@ -113,7 +115,7 @@ The canonical schema is organized by domain under
 | Disaggregated serving | Prefill/decode roles, decode-context parallel topology, KV handoff, connector discovery, and cache controls       |
 | KV-aware routing      | Typed KV event streams plus discovery of engine-native event sources                                              |
 | Model extensions      | Multimodal inputs and LoRA adapter lifecycle                                                                      |
-| Observability         | Point-in-time load snapshots and structured runtime event streams                                                 |
+| Observability         | Point-in-time load snapshots                                                                                      |
 
 See the [human-readable API reference](docs/api.md) for field-level behavior and
 validation rules.
@@ -132,34 +134,35 @@ buf build
 buf lint
 ```
 
-Buf lint, Markdown lint, and link checks run in GitHub Actions for relevant
-pull requests.
+Markdown lint and link checks run in GitHub Actions for relevant pull requests.
+Run the Buf checks locally before opening a protocol change.
 
-### Generate Python bindings
+## Consume from Buf
 
-Use a proto3 toolchain with explicit-optional support (`protoc` 3.15 or newer).
-The contract imports protobuf well-known types, so their include path must be
-available to the compiler.
+OpenEngine is distributed as the `buf.build/openengine/openengine` module.
+Consumers own language-specific code generation and should pin an immutable
+BSR module commit rather than a moving label.
+
+Generate bindings from the pinned module input with the consumer's
+language-specific `buf.gen.yaml`:
 
 ```bash
-python -m pip install grpcio-tools
-
-OUT_DIR=/tmp/openengine-python
-mkdir -p "$OUT_DIR"
-
-PROTO_INCLUDE=$(python -c \
-  'import grpc_tools, os; print(os.path.join(os.path.dirname(grpc_tools.__file__), "_proto"))')
-
-python -m grpc_tools.protoc \
-  -I proto \
-  -I "$PROTO_INCLUDE" \
-  --python_out="$OUT_DIR" \
-  --grpc_python_out="$OUT_DIR" \
-  proto/openengine/v1/*.proto
+buf generate buf.build/openengine/openengine:${OPENENGINE_BSR_COMMIT}
 ```
 
-Other protobuf-supported languages can generate clients and servers from the
-same canonical package.
+Consumers that import OpenEngine from their own Protobuf module may instead
+declare it in `buf.yaml`; commit the resulting `buf.lock` so builds resolve the
+same content. Keep generator plugins version-pinned in `buf.gen.yaml`.
+OpenEngine does not publish or check in language-specific packages.
+
+Generated bindings include the canonical `SCHEMA_REVISION_1` enum value.
+Servers implementing this contract advertise schema revision `1`, minimum
+client revision `1`, and the immutable BSR module commit they consumed in
+`ServerInfo.schema_release`. Unpublished local builds may use an immutable
+OpenEngine source commit instead.
+
+See [`RELEASING.md`](RELEASING.md) for BSR publication and
+[`CHANGELOG.md`](CHANGELOG.md) for schema changes.
 
 ## Project status
 

@@ -8,6 +8,7 @@ syntax = "proto3";
 package openengine.v1;
 
 import "google/protobuf/struct.proto";
+import "openengine/v1/generation.proto";
 
 message GetModelInfoRequest {
   string model = 1;
@@ -20,6 +21,7 @@ message ModelInfo {
   optional uint32 max_context_length = 4; // Effective context-window limit in this deployment.
   optional uint32 max_output_tokens = 5; // Effective generated-token limit in this deployment.
   repeated string tokenizer_modes = 10;
+  TokenizerInfo tokenizer = 11;
 
   optional bool supports_text_input = 20;
   optional bool supports_token_ids_input = 21;
@@ -38,8 +40,38 @@ message ModelInfo {
   // contract: clients read it opportunistically and never depend on it for
   // correctness. Carried as a Struct so JSON types survive the wire.
   google.protobuf.Struct extra = 28;
+
+  // Detailed multimodal support. The legacy supports_multimodal field remains
+  // the coarse compatibility signal for revision-1 clients.
+  MultimodalCapabilities multimodal_capabilities = 29;
 }
 
+message MultimodalCapabilities {
+  // Modalities accepted by an aggregated engine.
+  repeated Modality aggregate_modalities = 1;
+
+  // Modalities that can participate in a context-first prefill/decode flow.
+  repeated Modality prefill_decode_modalities = 2;
+
+  // Media source encodings accepted by the engine.
+  repeated MediaSourceType source_types = 3;
+
+  // Whether GenerateRequest.media_options can override server media defaults.
+  optional bool supports_per_request_media_options = 4;
+
+  // Token ID used in the framework's media-aware routing key. Absent means the
+  // engine cannot provide a stable image placeholder token for routing.
+  optional uint32 routing_image_token_id = 5;
+}
+
+message TokenizerInfo {
+  // Canonical tokenizer source, such as a Hugging Face repository ID or a
+  // deployment-local source shared with the client.
+  string source = 1;
+
+  // Active tokenizer loading mode, such as auto, slow, or mistral.
+  string mode = 2;
+}
 
 message GenerationCapabilities {
   LogprobCapabilities prompt_logprobs = 1;

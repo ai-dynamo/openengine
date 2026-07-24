@@ -2,6 +2,11 @@
 __pycache__/
 *.py[cod]
 
-# Ignore generated Python gRPC stubs if the README example is run locally.
+# Local environments and build output
+.venv/
+dist/
+target/
+
+# Ignore generated Python gRPC stubs if an example is run locally.
 *_pb2.py
 *_pb2_grpc.py

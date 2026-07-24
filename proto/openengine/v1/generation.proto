@@ -23,6 +23,15 @@ enum Modality {
   MODALITY_AUDIO = 3;
 }
 
+// Portable source encodings accepted for multimodal media. Capability
+// discovery advertises which encodings a model can dereference.
+enum MediaSourceType {
+  MEDIA_SOURCE_TYPE_UNSPECIFIED = 0;
+  MEDIA_SOURCE_TYPE_URL = 1;
+  MEDIA_SOURCE_TYPE_DATA_URI = 2;
+  MEDIA_SOURCE_TYPE_RAW_BYTES = 3;
+}
+
 // A single multimodal input. Exactly one `source` should be set. The engine
 // owns fetch, decode, and preprocessing, so pre-decoded or RDMA media
 // descriptors are not represented here.
@@ -69,6 +78,12 @@ message GenerateRequest {
   // this field empty. Clients treat it as best-effort and never depend on it
   // for correctness. Carried as a Struct so JSON types survive the wire.
   google.protobuf.Struct extra = 12;
+
+  // Per-request media processor options keyed by modality name: `image`,
+  // `video`, and `audio`. Engines apply their server defaults first, then
+  // shallow-merge request keys over the matching modality defaults. Existing
+  // modality-specific conflict rules continue to apply.
+  google.protobuf.Struct media_options = 14;
 }
 
 message SamplingParams {
