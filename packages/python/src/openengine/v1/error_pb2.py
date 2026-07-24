@@ -22,18 +22,17 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x19openengine/v1/error.proto\x12\ropenengine.v1\x1a\x1cgoogle/protobuf/struct.proto\"\xb3\x01\n\x0b\x45ngineError\x12&\n\x04\x63ode\x18\x01 \x01(\x0e\x32\x18.openengine.v1.ErrorCode\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x11\n\tretryable\x18\x03 \x01(\x08\x12\x1b\n\x0eretry_after_ms\x18\x04 \x01(\x04H\x00\x88\x01\x01\x12(\n\x07\x64\x65tails\x18\x05 \x01(\x0b\x32\x17.google.protobuf.StructB\x11\n\x0f_retry_after_ms*\x9d\x03\n\tErrorCode\x12\x1a\n\x16\x45RROR_CODE_UNSPECIFIED\x10\x00\x12\x1f\n\x1b\x45RROR_CODE_INVALID_ARGUMENT\x10\x01\x12\"\n\x1e\x45RROR_CODE_UNSUPPORTED_FEATURE\x10\x02\x12\x1c\n\x18\x45RROR_CODE_ROLE_MISMATCH\x10\x03\x12\x1e\n\x1a\x45RROR_CODE_MODEL_NOT_FOUND\x10\x04\x12\x19\n\x15\x45RROR_CODE_OVERLOADED\x10\x05\x12 \n\x1c\x45RROR_CODE_REQUEST_NOT_FOUND\x10\x06\x12 \n\x1c\x45RROR_CODE_DUPLICATE_REQUEST\x10\x07\x12#\n\x1f\x45RROR_CODE_KV_SESSION_NOT_FOUND\x10\x08\x12!\n\x1d\x45RROR_CODE_KV_TRANSFER_FAILED\x10\t\x12\x18\n\x14\x45RROR_CODE_CANCELLED\x10\n\x12\x17\n\x13\x45RROR_CODE_DRAINING\x10\x0b\x12\x17\n\x13\x45RROR_CODE_INTERNAL\x10\x0c\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x19openengine/v1/error.proto\x12\ropenengine.v1\"Y\n\x0b\x45ngineError\x12&\n\x04\x63ode\x18\x01 \x01(\x0e\x32\x18.openengine.v1.ErrorCode\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x11\n\tretryable\x18\x03 \x01(\x08*\x9d\x03\n\tErrorCode\x12\x1a\n\x16\x45RROR_CODE_UNSPECIFIED\x10\x00\x12\x1f\n\x1b\x45RROR_CODE_INVALID_ARGUMENT\x10\x01\x12\"\n\x1e\x45RROR_CODE_UNSUPPORTED_FEATURE\x10\x02\x12\x1c\n\x18\x45RROR_CODE_ROLE_MISMATCH\x10\x03\x12\x1e\n\x1a\x45RROR_CODE_MODEL_NOT_FOUND\x10\x04\x12\x19\n\x15\x45RROR_CODE_OVERLOADED\x10\x05\x12 \n\x1c\x45RROR_CODE_REQUEST_NOT_FOUND\x10\x06\x12 \n\x1c\x45RROR_CODE_DUPLICATE_REQUEST\x10\x07\x12#\n\x1f\x45RROR_CODE_KV_SESSION_NOT_FOUND\x10\x08\x12!\n\x1d\x45RROR_CODE_KV_TRANSFER_FAILED\x10\t\x12\x18\n\x14\x45RROR_CODE_CANCELLED\x10\n\x12\x17\n\x13\x45RROR_CODE_DRAINING\x10\x0b\x12\x17\n\x13\x45RROR_CODE_INTERNAL\x10\x0c\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'openengine.v1.error_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_ERRORCODE']._serialized_start=257
-  _globals['_ERRORCODE']._serialized_end=670
-  _globals['_ENGINEERROR']._serialized_start=75
-  _globals['_ENGINEERROR']._serialized_end=254
+  _globals['_ERRORCODE']._serialized_start=136
+  _globals['_ERRORCODE']._serialized_end=549
+  _globals['_ENGINEERROR']._serialized_start=44
+  _globals['_ENGINEERROR']._serialized_end=133
 # @@protoc_insertion_point(module_scope)

@@ -7,8 +7,8 @@ from openengine import (
     SCHEMA_RELEASE,
     SCHEMA_REVISION,
 )
-from openengine.v1.generation_pb2 import GenerateRequest
-from openengine.v1.input_pb2 import (
+from openengine.v1.generation_pb2 import (
+    GenerateRequest,
     MEDIA_SOURCE_TYPE_DATA_URI,
     MEDIA_SOURCE_TYPE_RAW_BYTES,
     MEDIA_SOURCE_TYPE_URL,
@@ -18,6 +18,7 @@ from openengine.v1.input_pb2 import (
 )
 from openengine.v1.kv_pb2 import KvBootstrap, KvConnectorInfo, KvSessionRef
 from openengine.v1.model_pb2 import ModelInfo, MultimodalCapabilities
+from openengine.v1.openengine_pb2 import DESCRIPTOR as OPENENGINE_DESCRIPTOR
 from openengine.v1.openengine_pb2_grpc import ControlStub, InferenceStub
 
 
@@ -139,6 +140,37 @@ class BindingsTest(unittest.TestCase):
 
         self.assertTrue(callable(inference.Generate))
         self.assertTrue(callable(control.GetServerInfo))
+        self.assertTrue(callable(control.Drain))
+
+    def test_reduced_rpc_surface_is_exact(self) -> None:
+        self.assertEqual(
+            [
+                method.name
+                for method in OPENENGINE_DESCRIPTOR.services_by_name[
+                    "Inference"
+                ].methods
+            ],
+            ["Generate"],
+        )
+        self.assertEqual(
+            [
+                method.name
+                for method in OPENENGINE_DESCRIPTOR.services_by_name["Control"].methods
+            ],
+            [
+                "GetServerInfo",
+                "GetModelInfo",
+                "GetLoad",
+                "Health",
+                "Abort",
+                "Drain",
+                "LoadLora",
+                "UnloadLora",
+                "ListLoras",
+                "GetKvEventSources",
+                "SubscribeKvEvents",
+            ],
+        )
 
     def test_package_metadata_matches_schema(self) -> None:
         self.assertEqual(SCHEMA_REVISION, 3)

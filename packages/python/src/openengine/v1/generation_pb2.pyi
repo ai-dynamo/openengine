@@ -1,6 +1,5 @@
 from google.protobuf import struct_pb2 as _struct_pb2
 from openengine.v1 import error_pb2 as _error_pb2
-from openengine.v1 import input_pb2 as _input_pb2
 from openengine.v1 import kv_pb2 as _kv_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -11,16 +10,60 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class Modality(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MODALITY_UNSPECIFIED: _ClassVar[Modality]
+    MODALITY_IMAGE: _ClassVar[Modality]
+    MODALITY_VIDEO: _ClassVar[Modality]
+    MODALITY_AUDIO: _ClassVar[Modality]
+
+class MediaSourceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MEDIA_SOURCE_TYPE_UNSPECIFIED: _ClassVar[MediaSourceType]
+    MEDIA_SOURCE_TYPE_URL: _ClassVar[MediaSourceType]
+    MEDIA_SOURCE_TYPE_DATA_URI: _ClassVar[MediaSourceType]
+    MEDIA_SOURCE_TYPE_RAW_BYTES: _ClassVar[MediaSourceType]
+
 class FinishReason(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     FINISH_REASON_UNSPECIFIED: _ClassVar[FinishReason]
     FINISH_REASON_STOP: _ClassVar[FinishReason]
     FINISH_REASON_LENGTH: _ClassVar[FinishReason]
     FINISH_REASON_CANCELLED: _ClassVar[FinishReason]
+MODALITY_UNSPECIFIED: Modality
+MODALITY_IMAGE: Modality
+MODALITY_VIDEO: Modality
+MODALITY_AUDIO: Modality
+MEDIA_SOURCE_TYPE_UNSPECIFIED: MediaSourceType
+MEDIA_SOURCE_TYPE_URL: MediaSourceType
+MEDIA_SOURCE_TYPE_DATA_URI: MediaSourceType
+MEDIA_SOURCE_TYPE_RAW_BYTES: MediaSourceType
 FINISH_REASON_UNSPECIFIED: FinishReason
 FINISH_REASON_STOP: FinishReason
 FINISH_REASON_LENGTH: FinishReason
 FINISH_REASON_CANCELLED: FinishReason
+
+class TokenIds(_message.Message):
+    __slots__ = ("ids",)
+    IDS_FIELD_NUMBER: _ClassVar[int]
+    ids: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, ids: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class MediaItem(_message.Message):
+    __slots__ = ("modality", "url", "data_uri", "raw_bytes", "mime_type", "uuid")
+    MODALITY_FIELD_NUMBER: _ClassVar[int]
+    URL_FIELD_NUMBER: _ClassVar[int]
+    DATA_URI_FIELD_NUMBER: _ClassVar[int]
+    RAW_BYTES_FIELD_NUMBER: _ClassVar[int]
+    MIME_TYPE_FIELD_NUMBER: _ClassVar[int]
+    UUID_FIELD_NUMBER: _ClassVar[int]
+    modality: Modality
+    url: str
+    data_uri: str
+    raw_bytes: bytes
+    mime_type: str
+    uuid: str
+    def __init__(self, modality: _Optional[_Union[Modality, str]] = ..., url: _Optional[str] = ..., data_uri: _Optional[str] = ..., raw_bytes: _Optional[bytes] = ..., mime_type: _Optional[str] = ..., uuid: _Optional[str] = ...) -> None: ...
 
 class GenerateRequest(_message.Message):
     __slots__ = ("request_id", "model", "prompt", "token_ids", "sampling", "stopping", "response", "kv", "guided", "media", "lora_name", "extra", "media_options")
@@ -40,17 +83,17 @@ class GenerateRequest(_message.Message):
     request_id: str
     model: str
     prompt: str
-    token_ids: _input_pb2.TokenIds
+    token_ids: TokenIds
     sampling: SamplingParams
     stopping: StoppingOptions
     response: ResponseOptions
     kv: KvOptions
     guided: GuidedDecoding
-    media: _containers.RepeatedCompositeFieldContainer[_input_pb2.MediaItem]
+    media: _containers.RepeatedCompositeFieldContainer[MediaItem]
     lora_name: str
     extra: _struct_pb2.Struct
     media_options: _struct_pb2.Struct
-    def __init__(self, request_id: _Optional[str] = ..., model: _Optional[str] = ..., prompt: _Optional[str] = ..., token_ids: _Optional[_Union[_input_pb2.TokenIds, _Mapping]] = ..., sampling: _Optional[_Union[SamplingParams, _Mapping]] = ..., stopping: _Optional[_Union[StoppingOptions, _Mapping]] = ..., response: _Optional[_Union[ResponseOptions, _Mapping]] = ..., kv: _Optional[_Union[KvOptions, _Mapping]] = ..., guided: _Optional[_Union[GuidedDecoding, _Mapping]] = ..., media: _Optional[_Iterable[_Union[_input_pb2.MediaItem, _Mapping]]] = ..., lora_name: _Optional[str] = ..., extra: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., media_options: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+    def __init__(self, request_id: _Optional[str] = ..., model: _Optional[str] = ..., prompt: _Optional[str] = ..., token_ids: _Optional[_Union[TokenIds, _Mapping]] = ..., sampling: _Optional[_Union[SamplingParams, _Mapping]] = ..., stopping: _Optional[_Union[StoppingOptions, _Mapping]] = ..., response: _Optional[_Union[ResponseOptions, _Mapping]] = ..., kv: _Optional[_Union[KvOptions, _Mapping]] = ..., guided: _Optional[_Union[GuidedDecoding, _Mapping]] = ..., media: _Optional[_Iterable[_Union[MediaItem, _Mapping]]] = ..., lora_name: _Optional[str] = ..., extra: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., media_options: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class SamplingParams(_message.Message):
     __slots__ = ("temperature", "top_p", "top_k", "min_p", "frequency_penalty", "presence_penalty", "repetition_penalty", "seed", "num_sequences")
@@ -108,9 +151,9 @@ class CandidateTokenSelection(_message.Message):
     TOKEN_IDS_FIELD_NUMBER: _ClassVar[int]
     ALL_FIELD_NUMBER: _ClassVar[int]
     top_n: int
-    token_ids: _input_pb2.TokenIds
+    token_ids: TokenIds
     all: AllCandidates
-    def __init__(self, top_n: _Optional[int] = ..., token_ids: _Optional[_Union[_input_pb2.TokenIds, _Mapping]] = ..., all: _Optional[_Union[AllCandidates, _Mapping]] = ...) -> None: ...
+    def __init__(self, top_n: _Optional[int] = ..., token_ids: _Optional[_Union[TokenIds, _Mapping]] = ..., all: _Optional[_Union[AllCandidates, _Mapping]] = ...) -> None: ...
 
 class AllCandidates(_message.Message):
     __slots__ = ()

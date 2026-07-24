@@ -41,11 +41,9 @@ service Control {
   rpc UnloadLora(UnloadLoraRequest) returns (UnloadLoraResponse);
   rpc ListLoras(ListLorasRequest) returns (ListLorasResponse);
 
-  // Disaggregated serving / KV transfer.
-  rpc GetKvConnectorInfo(GetKvConnectorInfoRequest) returns (KvConnectorInfo);
+  // Disaggregated serving / KV transfer. Connector info: ServerInfo.kv_connector.
   rpc GetKvEventSources(GetKvEventSourcesRequest) returns (GetKvEventSourcesResponse);
   rpc SubscribeKvEvents(SubscribeKvEventsRequest) returns (stream SubscribeKvEventsResponse);
-
 }
 ```
 
@@ -207,7 +205,6 @@ message ModelInfo {
 
   string reasoning_parser = 25;
   string tool_call_parser = 26;
-  TaskCapabilities tasks = 27; // Optional non-generative task support for this model.
   google.protobuf.Struct extra = 28; // Engine-specific, non-portable; read opportunistically.
   MultimodalCapabilities multimodal_capabilities = 29;
 }
@@ -298,351 +295,6 @@ value rejects non-empty `GenerateRequest.media_options`.
 `routing_image_token_id`, when present, is the stable placeholder token a
 framework uses when constructing media-aware KV-routing keys. Clients omit
 media-aware routing when the engine cannot advertise this value.
-
----
-
-## Reserved non-generative task messages
-
-The schema retains typed embedding, classification, and scoring messages for
-future task-oriented services. The current `Inference` service exposes only
-`Generate`; these messages are not reachable through an OpenEngine RPC.
-
-```protobuf
-message TaskRequestContext {
-  string request_id = 1;
-  string model = 2;
-  string lora_name = 3;
-  google.protobuf.Struct extra = 4; // Engine-specific, non-portable; may be ignored.
-}
-
-message TaskInput {
-  string item_id = 1;
-  oneof input {
-    string text = 2;
-    TokenIds token_ids = 3;
-    MultimodalTaskInput multimodal = 4;
-  }
-}
-
-message MultimodalTaskInput {
-  oneof prompt {
-    string text = 1;
-    TokenIds token_ids = 2;
-  }
-  repeated MediaItem media = 3;
-}
-
-message DenseFloatTensor {
-  repeated uint64 shape = 1;
-  repeated float values = 2;
-}
-
-message SparseFloatTensor {
-  repeated uint64 shape = 1;
-  repeated uint64 indices = 2;
-  repeated float values = 3;
-}
-
-message TaskUsage {
-  uint64 input_tokens = 1;
-  optional uint64 cached_input_tokens = 2;
-}
-
-enum TaskInputType {
-  TASK_INPUT_TYPE_UNSPECIFIED = 0;
-  TASK_INPUT_TYPE_TEXT = 1;
-  TASK_INPUT_TYPE_TOKEN_IDS = 2;
-  TASK_INPUT_TYPE_MULTIMODAL = 3;
-}
-
-enum TaskOutputGranularity {
-  TASK_OUTPUT_GRANULARITY_UNSPECIFIED = 0;
-  TASK_OUTPUT_GRANULARITY_SEQUENCE = 1;
-  TASK_OUTPUT_GRANULARITY_TOKEN = 2;
-}
-
-enum EmbeddingEncoding {
-  EMBEDDING_ENCODING_UNSPECIFIED = 0;
-  EMBEDDING_ENCODING_DENSE = 1;
-  EMBEDDING_ENCODING_SPARSE = 2;
-}
-
-enum TaskValueSemantics {
-  TASK_VALUE_SEMANTICS_UNSPECIFIED = 0;
-  TASK_VALUE_SEMANTICS_LOGITS = 1;
-  TASK_VALUE_SEMANTICS_PROBABILITIES = 2;
-  TASK_VALUE_SEMANTICS_LOG_PROBABILITIES = 3;
-  TASK_VALUE_SEMANTICS_SIMILARITY = 4;
-  TASK_VALUE_SEMANTICS_RELEVANCE = 5;
-  TASK_VALUE_SEMANTICS_REWARD = 6;
-  TASK_VALUE_SEMANTICS_MODEL_DEFINED = 7;
-}
-
-enum ScoreNormalization {
-  SCORE_NORMALIZATION_UNSPECIFIED = 0;
-  SCORE_NORMALIZATION_NONE = 1;
-  SCORE_NORMALIZATION_SOFTMAX = 2;
-}
-```
-
-`TaskRequestContext.request_id` and `model` are required and non-empty. Request
-IDs share the same namespace and abort semantics as generation request IDs.
-A non-empty `lora_name` selects an already loaded adapter. Clients use
-`openengine-priority` only when the corresponding task capability advertises
-priority support, and use `lora_name` only when it advertises LoRA support.
-
-Each request batch must be non-empty. `item_id` is required and unique within
-an embed/classify batch, and every query/candidate item ID is unique within one
-score group. Exactly one `TaskInput.input` variant is set. A multimodal input must
-contain at least one `MediaItem`; its optional prompt is either text or token
-IDs, never both. Media ordering and validation follow `GenerateRequest.media`.
-
-`DenseFloatTensor` is row-major FP32 data. Every dimension is greater than zero,
-the product of `shape` equals `values.size()`, and every value is finite.
-`SparseFloatTensor` uses flattened row-major indices; `indices` and `values`
-have equal length, indices are unique and strictly increasing, and every index
-is smaller than the product of `shape`. A scalar is encoded with shape `[1]`,
-not an empty shape. `cached_input_tokens`, when present, does not exceed
-`input_tokens`.
-
-### Embedding
-
-```protobuf
-message EmbedRequest {
-  TaskRequestContext context = 1;
-  repeated TaskInput inputs = 2;
-  EmbedOptions options = 3;
-}
-
-message EmbedOptions {
-  optional TaskOutputGranularity granularity = 1;
-  optional bool normalize = 2;
-  optional uint32 dimensions = 3;
-  optional EmbeddingEncoding encoding = 4;
-}
-
-message EmbedResponse {
-  string request_id = 1;
-  repeated EmbeddingOutput outputs = 2;
-  TaskUsage usage = 3;
-}
-
-message EmbeddingOutput {
-  string item_id = 1;
-  optional uint32 input_index = 2;
-  TaskOutputGranularity granularity = 3;
-  oneof embedding {
-    DenseFloatTensor dense = 4;
-    SparseFloatTensor sparse = 5;
-  }
-  repeated uint32 token_ids = 6;
-}
-```
-
-Absent embedding options select model defaults. An explicit granularity,
-normalization, or encoding request must be implemented exactly or rejected.
-`dimensions` must be greater than zero and requests dimensionality reduction;
-it does not permit padding a smaller model output.
-
-Sequence embeddings have shape `[dimension]`. Token embeddings have shape
-`[token_count, dimension]`; `token_ids`, when returned, has `token_count`
-entries aligned to the first tensor dimension. Outputs preserve request order,
-and `input_index` is present even for index zero and identifies the matching
-input. A successful response contains exactly one output for every request
-input.
-
-### Classification
-
-```protobuf
-message ClassifyRequest {
-  TaskRequestContext context = 1;
-  repeated TaskInput inputs = 2;
-  ClassifyOptions options = 3;
-}
-
-message ClassifyOptions {
-  optional TaskOutputGranularity granularity = 1;
-  optional TaskValueSemantics output_semantics = 2;
-}
-
-message ClassifyResponse {
-  string request_id = 1;
-  repeated ClassificationOutput outputs = 2;
-  TaskUsage usage = 3;
-}
-
-message ClassificationOutput {
-  string item_id = 1;
-  optional uint32 input_index = 2;
-  TaskOutputGranularity granularity = 3;
-  TaskValueSemantics semantics = 4;
-  DenseFloatTensor scores = 5;
-  repeated string labels = 6;
-  repeated uint32 token_ids = 7;
-}
-```
-
-Classification normally returns logits, probabilities, log probabilities, or
-model-defined values. The engine reports the actual non-`UNSPECIFIED`
-semantics. Sequence classification has shape `[class_count]`; token
-classification has shape `[token_count, class_count]`. When labels are
-returned, their count equals `class_count` and their order matches the final
-tensor dimension. Token IDs follow the same alignment rule as token
-embeddings. Outputs preserve request order and correlation. A successful
-response contains exactly one output for every request input, and `input_index`
-is present even for index zero.
-
-### Scoring
-
-```protobuf
-message ScoreRequest {
-  TaskRequestContext context = 1;
-  repeated ScoreGroup groups = 2;
-  ScoreOptions options = 3;
-}
-
-message ScoreGroup {
-  string group_id = 1;
-  TaskInput query = 2;
-  repeated TaskInput candidates = 3;
-}
-
-message ScoreOptions {
-  optional TaskOutputGranularity granularity = 1;
-  optional TaskValueSemantics output_semantics = 2;
-  ScoreNormalization normalization = 3;
-  repeated uint32 label_token_ids = 4;
-  string instruction = 5;
-}
-
-message ScoreResponse {
-  string request_id = 1;
-  repeated ScoreGroupOutput groups = 2;
-  TaskOutputGranularity granularity = 3;
-  TaskValueSemantics semantics = 4;
-  optional bool higher_is_better = 5;
-  ScoreNormalization normalization = 6;
-  repeated uint32 label_token_ids = 7;
-  TaskUsage usage = 8;
-}
-
-message ScoreGroupOutput {
-  string group_id = 1;
-  optional uint32 group_index = 2;
-  repeated ScoreCandidateOutput candidates = 3;
-}
-
-message ScoreCandidateOutput {
-  string candidate_id = 1;
-  optional uint32 candidate_index = 2;
-  DenseFloatTensor scores = 3;
-  repeated uint32 token_ids = 4;
-}
-```
-
-Every score request has at least one group. Group IDs are unique, every group
-has one query and at least one candidate, and candidate IDs are unique within
-the group. Repeating groups represents N:N paired scoring; one group with many
-candidates represents the optimized 1:N path used by rerankers and multi-item
-scoring engines.
-
-Absent granularity and output semantics select model defaults. An explicit
-value must be supported. `SCORE_NORMALIZATION_UNSPECIFIED` selects the model
-default, `NONE` requests native unnormalized values, and `SOFTMAX` requests
-normalization across each returned label vector. Duplicate label token IDs are
-invalid. When `label_token_ids` is non-empty, the engine performs causal-model
-label-token scoring and the response repeats those IDs in the same order.
-When it is empty, the engine performs its advertised model-native scoring
-operation. A non-empty `instruction` is valid only when instruction support is
-advertised; template selection and rendering remain engine-owned.
-
-`ScoreResponse` reports the actual granularity, semantics, normalization, and
-label-token order. Group and candidate results preserve request order and carry
-their present zero-based original indexes, including index zero. A successful
-response contains every group and candidate exactly once; partial success is
-not represented. Token-granularity candidate tensors may return aligned token
-IDs. The engine never sorts candidates or echoes source documents.
-
-A gateway may derive reranking only when every candidate has exactly one score
-and `higher_is_better` is present. It stable-sorts using that direction, breaks
-ties by `candidate_index`, applies its external `top_n`, and attaches documents
-from gateway-owned request state. Reranking is response shaping, not a separate
-OpenEngine inference capability.
-
-### Task capability discovery
-
-```protobuf
-message TaskCapabilities {
-  EmbedCapabilities embed = 1;
-  ClassifyCapabilities classify = 2;
-  ScoreCapabilities score = 3;
-}
-
-message EmbedCapabilities {
-  optional bool supported = 1;
-  repeated TaskInputType input_types = 2;
-  repeated TaskOutputGranularity granularities = 3;
-  repeated EmbeddingEncoding encodings = 4;
-  optional uint32 dimension = 5;
-  optional uint32 max_batch_size = 6;
-  optional uint64 max_output_values_per_item = 7;
-  optional bool supports_priority = 8;
-  optional bool supports_lora = 9;
-  optional bool supports_normalization = 10;
-  optional bool supports_dimension_override = 11;
-  repeated Modality modalities = 12;
-}
-
-message ClassifyCapabilities {
-  optional bool supported = 1;
-  repeated TaskInputType input_types = 2;
-  repeated TaskOutputGranularity granularities = 3;
-  repeated TaskValueSemantics semantics = 4;
-  optional uint32 max_batch_size = 5;
-  optional uint64 max_output_values_per_item = 6;
-  optional bool supports_priority = 7;
-  optional bool supports_lora = 8;
-  repeated Modality modalities = 9;
-}
-
-message ScoreCapabilities {
-  optional bool supported = 1;
-  repeated TaskInputType input_types = 2;
-  repeated TaskOutputGranularity granularities = 3;
-  repeated TaskValueSemantics semantics = 4;
-  repeated ScoreNormalization normalizations = 5;
-  optional bool supports_label_token_scoring = 6;
-  optional bool supports_instruction = 7;
-  optional uint32 max_groups = 8;
-  optional uint32 max_candidates_per_group = 9;
-  optional uint64 max_output_values_per_candidate = 10;
-  optional bool supports_priority = 11;
-  optional bool supports_lora = 12;
-  optional bool higher_is_better = 13;
-  repeated Modality modalities = 14;
-  optional uint32 max_label_token_ids = 15;
-}
-```
-
-An absent `ModelInfo.tasks` means the model does not advertise non-generative
-task support. Within it, an absent task capability is unreported; a present
-capability uses `supported` presence to distinguish unreported support from an
-explicit `true` or `false`. Capability lists never contain `UNSPECIFIED`.
-Reported dimensions and limits are greater than zero. `dimension` is present
-only when a model has one fixed native embedding dimension. A rankable native
-score advertises its default direction through `higher_is_better`; the response
-still reports the actual direction for each request. `modalities` is meaningful
-only when the task includes `TASK_INPUT_TYPE_MULTIMODAL`, and never contains
-`MODALITY_UNSPECIFIED`.
-For dense embeddings, `max_output_values_per_item` limits the flattened element
-count; for sparse embeddings, it limits the number of returned nonzero values.
-
-The server rejects an unsupported task with `FAILED_PRECONDITION`, an unknown
-model with `NOT_FOUND`, malformed input or unsupported explicit options with
-`INVALID_ARGUMENT`, and admission/capacity exhaustion with
-`RESOURCE_EXHAUSTED`. A successful unary response is terminal. Client
-cancellation or deadline expiration stops queued or running work, and
-`Abort(request_id)` follows the same semantics as generation.
 
 ---
 
@@ -847,14 +499,14 @@ or string remains in emitted output. `bypass_prefix_cache = true` skips prefix
 cache reuse but does not prevent newly computed blocks from being cached.
 `cache_salt` namespaces the prefix-cache key.
 
-`GenerateRequest.extra` and `TaskRequestContext.extra` carry engine-specific
-parameters that have no portable field. They are an intentional escape hatch so
-an engine can expose a native knob without a schema revision, and so a client
-can adopt OpenEngine before every parameter it needs is standardized. They are
-explicitly outside the portable contract: an engine may ignore keys it does not
-recognize, every request must remain valid with `extra` empty, and clients must
-not depend on `extra` for correctness. Parameters that prove broadly useful
-should be promoted to typed fields in a later revision.
+`GenerateRequest.extra` carries engine-specific parameters that have no
+portable field. It is an intentional escape hatch so an engine can expose a
+native knob without a schema revision, and so a client can adopt OpenEngine
+before every parameter it needs is standardized. It is explicitly outside the
+portable contract: an engine may ignore keys it does not recognize, every
+request must remain valid with `extra` empty, and clients must not depend on
+`extra` for correctness. Parameters that prove broadly useful should be
+promoted to typed fields in a later revision.
 
 ```protobuf
 message GenerateResponse {
@@ -1017,7 +669,7 @@ Prefill flow:
 1. Client sends `GenerateRequest` to a `PREFILL` engine.
 2. Engine returns a `KvSessionRef` in the terminal `PrefillReady` response when
    decode may attach.
-3. Engine owns KV session lifetime and cleanup, including finish, abort, drain, timeout, and transfer failure paths.  
+3. Engine owns KV session lifetime and cleanup, including finish, abort, drain, timeout, and transfer failure paths.
 4. An accepted prefill failure produces one terminal `EngineError` instead.
 
 Decode flow:
@@ -1037,9 +689,11 @@ OpenEngine should support two KV-event modes:
 2. **Compatibility source discovery:** `GetKvEventSources` advertises existing
    engine-native sources such as SGLang/vLLM ZMQ publishers.
 
-```protobuf
-message GetKvConnectorInfoRequest {}
+`KvConnectorInfo` describes the disaggregation transfer connector. It is static
+per deployment and is reported once through `ServerInfo.kv_connector`
+(`GetServerInfo`), not a dedicated RPC.
 
+```protobuf
 message KvConnectorInfo {
   optional bool enabled = 1;
   string transfer_backend = 2;
@@ -1260,9 +914,12 @@ sessions remain.
 
 ---
 
-## Runtime observability
+## Load reporting
 
-`GetLoad` returns a structured point-in-time load snapshot for schedulers and admission controllers. It is not a replacement for Prometheus metrics; it is the engine-facing control-plane signal for request routing and overload decisions.
+`GetLoad` returns a structured point-in-time load snapshot for schedulers and
+admission controllers. It is not a replacement for Prometheus metrics; it is
+the engine-facing control-plane signal for request routing and overload
+decisions.
 
 ```protobuf
 message GetLoadRequest {
@@ -1299,43 +956,10 @@ message RankLoadInfo {
 Every load scalar has explicit presence. Absent means unavailable in that
 engine or snapshot; present zero means the measured load is zero.
 
-`LoadInfo.attributes` and the reserved `RuntimeEvent.attributes` field carry engine-specific metrics as a
+`LoadInfo.attributes` carries engine-specific metrics as a
 `google.protobuf.Struct`, so numeric, boolean, and list values keep their JSON
 type on the wire instead of being flattened to strings. `Struct` numbers are
 IEEE-754 doubles (exact only to 2^53); carry larger integers as strings.
-
-Reserved runtime-event messages:
-
-```protobuf
-message SubscribeRuntimeEventsRequest {
-  repeated RuntimeEventType types = 1;
-}
-
-message SubscribeRuntimeEventsResponse {
-  oneof event {
-    RuntimeEvent runtime_event = 1;
-    EngineError error = 2;
-  }
-}
-
-enum RuntimeEventType {
-  RUNTIME_EVENT_TYPE_UNSPECIFIED = 0;
-  RUNTIME_EVENT_TYPE_FORWARD_PASS = 1;
-  RUNTIME_EVENT_TYPE_BATCH = 2;
-  RUNTIME_EVENT_TYPE_QUEUE = 3;
-  RUNTIME_EVENT_TYPE_TRANSFER = 4;
-}
-
-message RuntimeEvent {
-  string event_id = 1;
-  uint64 timestamp_unix_nanos = 2;
-  RuntimeEventType type = 3;
-  google.protobuf.Struct attributes = 4;
-}
-```
-
-The current `Control` service does not expose a runtime-event subscription RPC.
-These messages remain reserved for a future optional observability service.
 
 ---
 
@@ -1346,8 +970,6 @@ message EngineError {
   ErrorCode code = 1;
   string message = 2;
   bool retryable = 3;
-  optional uint64 retry_after_ms = 4;
-  google.protobuf.Struct details = 5;
 }
 
 enum ErrorCode {
@@ -1384,12 +1006,8 @@ may continue. The last `GenerationFinished` ends a successful aggregated or
 decode stream, `PrefillReady` ends a successful prefill stream, and
 `EngineError` ends any failed generation stream. `DrainState.COMPLETE` and
 `EngineError` terminate a drain stream. An `EngineError` also terminates a
-KV-event or runtime-event subscription. No response may follow a terminal
-`EngineError`. Application failure is neither a `GenerationFinished` reason nor
-a failed drain state.
+KV-event subscription. No response may follow a terminal `EngineError`.
+Application failure is not a `GenerationFinished` reason or a failed drain
+state.
 
 `retryable` states whether the unchanged operation can succeed on retry.
-`retry_after_ms` is present only for retryable errors and is the recommended
-minimum delay; an explicit zero permits immediate retry. `details` contains
-machine-readable error context. Stable detail keys are part of this API;
-engine-specific keys should be namespaced to avoid collisions.

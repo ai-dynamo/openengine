@@ -8,7 +8,6 @@ from openengine.v1 import kv_pb2 as openengine_dot_v1_dot_kv__pb2
 from openengine.v1 import lifecycle_pb2 as openengine_dot_v1_dot_lifecycle__pb2
 from openengine.v1 import lora_pb2 as openengine_dot_v1_dot_lora__pb2
 from openengine.v1 import model_pb2 as openengine_dot_v1_dot_model__pb2
-from openengine.v1 import observability_pb2 as openengine_dot_v1_dot_observability__pb2
 from openengine.v1 import server_pb2 as openengine_dot_v1_dot_server__pb2
 
 GRPC_GENERATED_VERSION = '1.81.1'
@@ -161,8 +160,8 @@ class ControlStub:
                 _registered_method=True)
         self.GetLoad = channel.unary_unary(
                 '/openengine.v1.Control/GetLoad',
-                request_serializer=openengine_dot_v1_dot_observability__pb2.GetLoadRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_observability__pb2.LoadInfo.FromString,
+                request_serializer=openengine_dot_v1_dot_server__pb2.GetLoadRequest.SerializeToString,
+                response_deserializer=openengine_dot_v1_dot_server__pb2.LoadInfo.FromString,
                 _registered_method=True)
         self.Health = channel.unary_unary(
                 '/openengine.v1.Control/Health',
@@ -193,11 +192,6 @@ class ControlStub:
                 '/openengine.v1.Control/ListLoras',
                 request_serializer=openengine_dot_v1_dot_lora__pb2.ListLorasRequest.SerializeToString,
                 response_deserializer=openengine_dot_v1_dot_lora__pb2.ListLorasResponse.FromString,
-                _registered_method=True)
-        self.GetKvConnectorInfo = channel.unary_unary(
-                '/openengine.v1.Control/GetKvConnectorInfo',
-                request_serializer=openengine_dot_v1_dot_kv__pb2.GetKvConnectorInfoRequest.SerializeToString,
-                response_deserializer=openengine_dot_v1_dot_kv__pb2.KvConnectorInfo.FromString,
                 _registered_method=True)
         self.GetKvEventSources = channel.unary_unary(
                 '/openengine.v1.Control/GetKvEventSources',
@@ -271,15 +265,9 @@ class ControlServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def GetKvConnectorInfo(self, request, context):
-        """Disaggregated serving / KV transfer.
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
     def GetKvEventSources(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+        """Disaggregated serving / KV transfer. Connector info: ServerInfo.kv_connector.
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -305,8 +293,8 @@ def add_ControlServicer_to_server(servicer, server):
             ),
             'GetLoad': grpc.unary_unary_rpc_method_handler(
                     servicer.GetLoad,
-                    request_deserializer=openengine_dot_v1_dot_observability__pb2.GetLoadRequest.FromString,
-                    response_serializer=openengine_dot_v1_dot_observability__pb2.LoadInfo.SerializeToString,
+                    request_deserializer=openengine_dot_v1_dot_server__pb2.GetLoadRequest.FromString,
+                    response_serializer=openengine_dot_v1_dot_server__pb2.LoadInfo.SerializeToString,
             ),
             'Health': grpc.unary_unary_rpc_method_handler(
                     servicer.Health,
@@ -337,11 +325,6 @@ def add_ControlServicer_to_server(servicer, server):
                     servicer.ListLoras,
                     request_deserializer=openengine_dot_v1_dot_lora__pb2.ListLorasRequest.FromString,
                     response_serializer=openengine_dot_v1_dot_lora__pb2.ListLorasResponse.SerializeToString,
-            ),
-            'GetKvConnectorInfo': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetKvConnectorInfo,
-                    request_deserializer=openengine_dot_v1_dot_kv__pb2.GetKvConnectorInfoRequest.FromString,
-                    response_serializer=openengine_dot_v1_dot_kv__pb2.KvConnectorInfo.SerializeToString,
             ),
             'GetKvEventSources': grpc.unary_unary_rpc_method_handler(
                     servicer.GetKvEventSources,
@@ -433,8 +416,8 @@ class Control:
             request,
             target,
             '/openengine.v1.Control/GetLoad',
-            openengine_dot_v1_dot_observability__pb2.GetLoadRequest.SerializeToString,
-            openengine_dot_v1_dot_observability__pb2.LoadInfo.FromString,
+            openengine_dot_v1_dot_server__pb2.GetLoadRequest.SerializeToString,
+            openengine_dot_v1_dot_server__pb2.LoadInfo.FromString,
             options,
             channel_credentials,
             insecure,
@@ -597,33 +580,6 @@ class Control:
             '/openengine.v1.Control/ListLoras',
             openengine_dot_v1_dot_lora__pb2.ListLorasRequest.SerializeToString,
             openengine_dot_v1_dot_lora__pb2.ListLorasResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def GetKvConnectorInfo(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/openengine.v1.Control/GetKvConnectorInfo',
-            openengine_dot_v1_dot_kv__pb2.GetKvConnectorInfoRequest.SerializeToString,
-            openengine_dot_v1_dot_kv__pb2.KvConnectorInfo.FromString,
             options,
             channel_credentials,
             insecure,

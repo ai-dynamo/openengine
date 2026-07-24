@@ -15,18 +15,12 @@ commit SHA in `ServerInfo.schema_release`.
 | File | Area |
 | --- | --- |
 | [`openengine.proto`](openengine.proto) | `Inference` and `Control` service declarations |
-| [`input.proto`](input.proto) | Shared text, token, and multimodal inputs |
-| [`server.proto`](server.proto) | Server identity, deployment capacity, engine roles, and parallelism |
+| [`server.proto`](server.proto) | Server identity, deployment capacity, engine roles, parallelism, and load |
 | [`model.proto`](model.proto) | Model metadata and inference capabilities |
-| [`generation.proto`](generation.proto) | Generation requests, parameters, streamed events, and usage |
-| [`tasks.proto`](tasks.proto) | Reserved non-generative task request and output vocabulary |
-| [`embedding.proto`](embedding.proto) | Reserved dense and sparse embedding messages |
-| [`classification.proto`](classification.proto) | Reserved sequence and token classification messages |
-| [`scoring.proto`](scoring.proto) | Reserved grouped query and candidate scoring messages |
+| [`generation.proto`](generation.proto) | Generation inputs, requests, parameters, streamed events, and usage |
 | [`lora.proto`](lora.proto) | LoRA adapter lifecycle |
 | [`kv.proto`](kv.proto) | KV sessions, connector discovery, and cache events |
 | [`lifecycle.proto`](lifecycle.proto) | Health, abort, and drain operations |
-| [`observability.proto`](observability.proto) | Load snapshots and reserved runtime-event messages |
 | [`error.proto`](error.proto) | Terminal errors for accepted streaming requests |
 
 Generate bindings from every `.proto` file in this directory. Compiling only

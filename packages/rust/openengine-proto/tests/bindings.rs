@@ -60,14 +60,26 @@ fn descriptor_set_contains_inference_and_control_services() {
         .iter()
         .find(|service| service.name.as_deref() == Some("Control"))
         .unwrap();
-    assert!(control
-        .method
-        .iter()
-        .any(|method| method.name.as_deref() == Some("GetServerInfo")));
-    assert!(!control
-        .method
-        .iter()
-        .any(|method| method.name.as_deref() == Some("SubscribeRuntimeEvents")));
+    assert_eq!(
+        control
+            .method
+            .iter()
+            .filter_map(|method| method.name.as_deref())
+            .collect::<Vec<_>>(),
+        [
+            "GetServerInfo",
+            "GetModelInfo",
+            "GetLoad",
+            "Health",
+            "Abort",
+            "Drain",
+            "LoadLora",
+            "UnloadLora",
+            "ListLoras",
+            "GetKvEventSources",
+            "SubscribeKvEvents",
+        ]
+    );
 }
 
 #[test]

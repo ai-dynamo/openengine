@@ -39,8 +39,6 @@ message KvBootstrap {
   uint64 room_id = 2;
 }
 
-message GetKvConnectorInfoRequest {}
-
 message KvConnectorInfo {
   optional bool enabled = 1;
   string transfer_backend = 2;

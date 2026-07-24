@@ -58,10 +58,6 @@ class KvBootstrap(_message.Message):
     room_id: int
     def __init__(self, endpoint: _Optional[_Union[KvEndpoint, _Mapping]] = ..., room_id: _Optional[int] = ...) -> None: ...
 
-class GetKvConnectorInfoRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
 class KvConnectorInfo(_message.Message):
     __slots__ = ("enabled", "transfer_backend", "local_endpoints", "supported_protocols", "supports_remote_prefill", "supports_decode_pull", "supports_abort_cleanup", "supports_drain", "schema_version", "handoff_profile", "supports_client_bootstrap")
     ENABLED_FIELD_NUMBER: _ClassVar[int]

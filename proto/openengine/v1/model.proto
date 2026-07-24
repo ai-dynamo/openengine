@@ -8,10 +8,7 @@ syntax = "proto3";
 package openengine.v1;
 
 import "google/protobuf/struct.proto";
-import "openengine/v1/classification.proto";
-import "openengine/v1/embedding.proto";
-import "openengine/v1/input.proto";
-import "openengine/v1/scoring.proto";
+import "openengine/v1/generation.proto";
 
 message GetModelInfoRequest {
   string model = 1;
@@ -37,9 +34,6 @@ message ModelInfo {
   // Empty means no parser is configured for this model.
   string reasoning_parser = 25;
   string tool_call_parser = 26;
-
-  // Optional non-generative task support for this model.
-  TaskCapabilities tasks = 27;
 
   // Engine-specific model metadata with no portable field (e.g. kv-cache dtype,
   // quantization, capabilities not yet standardized). NOT part of the portable
@@ -77,12 +71,6 @@ message TokenizerInfo {
 
   // Active tokenizer loading mode, such as auto, slow, or mistral.
   string mode = 2;
-}
-
-message TaskCapabilities {
-  EmbedCapabilities embed = 1;
-  ClassifyCapabilities classify = 2;
-  ScoreCapabilities score = 3;
 }
 
 message GenerationCapabilities {

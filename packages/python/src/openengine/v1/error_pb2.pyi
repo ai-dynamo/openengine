@@ -1,8 +1,6 @@
-from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from collections.abc import Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
@@ -37,15 +35,11 @@ ERROR_CODE_DRAINING: ErrorCode
 ERROR_CODE_INTERNAL: ErrorCode
 
 class EngineError(_message.Message):
-    __slots__ = ("code", "message", "retryable", "retry_after_ms", "details")
+    __slots__ = ("code", "message", "retryable")
     CODE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     RETRYABLE_FIELD_NUMBER: _ClassVar[int]
-    RETRY_AFTER_MS_FIELD_NUMBER: _ClassVar[int]
-    DETAILS_FIELD_NUMBER: _ClassVar[int]
     code: ErrorCode
     message: str
     retryable: bool
-    retry_after_ms: int
-    details: _struct_pb2.Struct
-    def __init__(self, code: _Optional[_Union[ErrorCode, str]] = ..., message: _Optional[str] = ..., retryable: _Optional[bool] = ..., retry_after_ms: _Optional[int] = ..., details: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+    def __init__(self, code: _Optional[_Union[ErrorCode, str]] = ..., message: _Optional[str] = ..., retryable: _Optional[bool] = ...) -> None: ...

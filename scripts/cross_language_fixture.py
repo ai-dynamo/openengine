@@ -6,8 +6,12 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from openengine.v1.generation_pb2 import GenerateRequest
-from openengine.v1.input_pb2 import MODALITY_IMAGE, MODALITY_VIDEO, MediaItem
+from openengine.v1.generation_pb2 import (
+    GenerateRequest,
+    MODALITY_IMAGE,
+    MODALITY_VIDEO,
+    MediaItem,
+)
 from openengine.v1.kv_pb2 import KvBootstrap, KvEndpoint, KvSessionRef
 
 

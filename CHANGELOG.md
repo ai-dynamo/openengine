@@ -18,9 +18,14 @@ distribution, and Rust crate.
 - Active tokenizer discovery and multimodal routing-token metadata.
 - Named KV handoff profiles and typed client bootstrap rendezvous metadata.
 
+### Changed
+
+- Consolidated generation inputs into `generation.proto` and load reporting into `server.proto`.
+
 ### Removed
 
 - Unimplemented embedding, classification, scoring, and runtime-event subscription RPCs.
+- Dedicated KV-connector discovery RPC; connector metadata is reported by `GetServerInfo`.
 
 ## 0.2.0 - 2026-07-12
 

@@ -25,13 +25,13 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Lint schema
-        uses: bufbuild/buf-action@fd21066df7214747548607aaa45548ba2b9bc1ff # v1
+        uses: bufbuild/buf-action@8c6a16e16f12ba20b6470afa9c2ba9b5ba8c97c3 # v1.5.0
         with:
-          version: "1.71.0"
+          version: "1.72.0"
           lint: true
           format: false
           breaking: true
-          breaking_against: "https://github.com/ai-dynamo/openengine/archive/6262b4ce712f52d1d7964fade4a87a95b90fda57.tar.gz#strip_components=1"
+          breaking_against: "https://github.com/ai-dynamo/openengine/archive/4def7c50b05e0674a0c3b26917399155535966e4.tar.gz#strip_components=1"
           push: false
           archive: false
           pr_comment: false
