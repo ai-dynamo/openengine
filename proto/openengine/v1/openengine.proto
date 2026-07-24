@@ -49,7 +49,6 @@ service Control {
   // Health and lifecycle.
   rpc Health(HealthRequest) returns (HealthResponse);
   rpc Abort(AbortRequest) returns (AbortResponse);
-  rpc Drain(DrainRequest) returns (stream DrainResponse);
 
   // LoRA lifecycle.
   rpc LoadLora(LoadLoraRequest) returns (LoadLoraResponse);

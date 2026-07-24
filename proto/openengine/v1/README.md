@@ -20,7 +20,7 @@ at revision 1. Published servers advertise the immutable BSR module commit in
 | [`generation.proto`](generation.proto) | Generation inputs, requests, parameters, streamed events, and usage |
 | [`lora.proto`](lora.proto) | LoRA adapter lifecycle |
 | [`kv.proto`](kv.proto) | KV sessions, connector discovery, and cache events |
-| [`lifecycle.proto`](lifecycle.proto) | Health, abort, and drain operations |
+| [`lifecycle.proto`](lifecycle.proto) | Health and abort operations |
 | [`error.proto`](error.proto) | Terminal errors for accepted streaming requests |
 | [`version.proto`](version.proto) | Canonical schema revision values |
 

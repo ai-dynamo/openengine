@@ -18,5 +18,7 @@ breaking:
   use:
     - FILE
   except:
-    # OpenEngine is a pre-adoption draft and may prune unimplemented RPCs.
+    # OpenEngine is a pre-adoption draft and may prune unimplemented surface.
+    - ENUM_NO_DELETE
+    - MESSAGE_NO_DELETE
     - RPC_NO_DELETE

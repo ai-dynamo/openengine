@@ -14,7 +14,7 @@ schema releases are immutable commits in the Buf Schema Registry.
 
 - Initial revision-1 `openengine.v1` inference and control services.
 - Aggregate and context-first prefill/decode generation.
-- Health, abort, drain, load, LoRA, and KV-event control operations.
+- Health, abort, load, LoRA, and KV-event control operations.
 - Active tokenizer discovery and multimodal routing-token metadata.
 - Named KV handoff profiles and typed client bootstrap rendezvous metadata.
 - Canonical schema revision values in `version.proto`.
@@ -28,5 +28,6 @@ schema releases are immutable commits in the Buf Schema Registry.
 
 - Unimplemented embedding, classification, scoring, and runtime-event subscription RPCs.
 - Dedicated KV-connector discovery RPC; connector metadata is reported by `GetServerInfo`.
+- The engine-facing Drain RPC and its request, response, and state types.
 
 [Unreleased]: https://github.com/ai-dynamo/openengine/commits/main

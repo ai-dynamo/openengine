@@ -111,7 +111,7 @@ The canonical schema is organized by domain under
 | Structured output     | JSON Schema, JSON object, regex, EBNF grammar, structural tags, and fixed choices                                 |
 | Token information     | Prompt and output logprobs, ranks, candidate-token selection, per-token records, and streamed text deltas         |
 | Discovery             | Server identity, deployment capacity, model limits, topology, parsers, and inference capabilities                 |
-| Lifecycle             | Health checks, targeted or global abort, graceful drain, progress, and terminal failures                          |
+| Lifecycle             | Health checks and targeted or global abort                                                                        |
 | Disaggregated serving | Prefill/decode roles, decode-context parallel topology, KV handoff, connector discovery, and cache controls       |
 | KV-aware routing      | Typed KV event streams plus discovery of engine-native event sources                                              |
 | Model extensions      | Multimodal inputs and LoRA adapter lifecycle                                                                      |
@@ -134,8 +134,8 @@ buf build
 buf lint
 ```
 
-Buf lint, Markdown lint, and link checks run in GitHub Actions for relevant
-pull requests.
+Markdown lint and link checks run in GitHub Actions for relevant pull requests.
+Run the Buf checks locally before opening a protocol change.
 
 ## Consume from Buf
 
@@ -172,7 +172,7 @@ depend on it. Expect direct schema refinement during this phase.
 
 The intended adoption path is incremental:
 
-1. Aggregated generation, discovery, health, abort, and drain.
+1. Aggregated generation, discovery, health, and abort.
 2. Prefill/decode roles, KV handoff, rank affinity, and KV event integration.
 3. Logprobs, guided decoding, LoRA, and multimodal input as needed.
 

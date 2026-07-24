@@ -1,13 +1,12 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-// Health, abort, and drain operations.
+// Health and abort operations.
 
 syntax = "proto3";
 
 package openengine.v1;
 
-import "openengine/v1/error.proto";
 import "openengine/v1/kv.proto";
 import "openengine/v1/server.proto";
 
@@ -63,27 +62,4 @@ enum AbortStatus {
   ABORT_STATUS_UNSPECIFIED = 0;
   ABORT_STATUS_ABORTED = 1;
   ABORT_STATUS_ALREADY_FINISHED = 2;
-}
-
-message DrainRequest {
-  bool stop_accepting_new_requests = 1;
-  optional uint32 deadline_ms = 2; // Absent means no deadline; zero is immediate.
-  bool abort_after_deadline = 3;
-}
-
-message DrainResponse {
-  oneof event {
-    DrainState state = 1; // Progress or successful completion.
-    EngineError error = 5; // Terminal failure.
-  }
-  optional uint32 in_flight_requests = 2;
-  optional uint32 open_kv_sessions = 3;
-  string message = 4;
-}
-
-enum DrainState {
-  DRAIN_STATE_UNSPECIFIED = 0;
-  DRAIN_STATE_STARTED = 1;
-  DRAIN_STATE_IN_PROGRESS = 2;
-  DRAIN_STATE_COMPLETE = 3;
 }
