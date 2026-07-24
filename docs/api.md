@@ -86,6 +86,11 @@ Routing and admission keys apply only to `Inference` RPCs.
 ## Server identity, deployment capacity, and engine roles
 
 ```protobuf
+enum SchemaRevision {
+  SCHEMA_REVISION_UNSPECIFIED = 0;
+  SCHEMA_REVISION_1 = 1;
+}
+
 enum EngineRole {
   ENGINE_ROLE_UNSPECIFIED = 0;
   ENGINE_ROLE_AGGREGATED = 1;
@@ -103,9 +108,9 @@ message ServerInfo {
   repeated string supported_models = 5;
   ParallelismInfo parallelism = 6;
   KvConnectorInfo kv_connector = 7;
-  uint32 schema_revision = 8;
-  uint32 minimum_client_revision = 9;
-  string schema_release = 10;
+  uint32 schema_revision = 8;         // Canonical SchemaRevision value.
+  uint32 minimum_client_revision = 9; // Oldest compatible SchemaRevision value.
+  string schema_release = 10;         // Immutable BSR module commit.
   DeploymentCapacity capacity = 11; // Configured capacity for this deployed server.
   google.protobuf.Struct extra = 12; // Engine-specific, non-portable; read opportunistically.
 }
@@ -128,17 +133,17 @@ message ParallelismInfo {
 }
 ```
 
-Revision `3` is the schema in this repository. Every server must populate:
+Revision `1` is the schema in this repository. Every server must populate:
 
 - `schema_revision` with the exact monotonically increasing contract revision it
   implements. Zero is invalid.
 - `minimum_client_revision` with the oldest client revision the server supports.
   A client below this revision must reject the server as incompatible.
-- `schema_release` with the immutable OpenEngine commit SHA containing that
-  revision. Release builds may use an immutable signed release tag instead;
-  moving branch names such as `main` are not valid.
+- `schema_release` with the immutable BSR module commit containing that
+  revision. Unpublished builds may use an immutable OpenEngine source commit;
+  moving labels or branch names such as `main` are not valid.
 
-Servers implementing this contract advertise `schema_revision = 3` and
+Servers implementing this contract advertise `schema_revision = 1` and
 `minimum_client_revision = 1`.
 
 Clients should also define the oldest server revision they support and fail
@@ -283,8 +288,8 @@ support and limits for the corresponding request options.
 `supports_lora=true` means the engine accepts `GenerateRequest.lora_name` and
 the LoRA lifecycle RPCs on `Control`.
 
-`supports_multimodal` remains the revision-1 compatibility signal. Revision-2
-clients use `multimodal_capabilities` to validate a request before scheduling.
+`supports_multimodal` is the coarse revision-1 compatibility signal. Clients
+use `multimodal_capabilities` to validate a request before scheduling.
 `aggregate_modalities` lists modalities accepted for normal generation;
 `prefill_decode_modalities` lists modalities accepted by the context-first
 prefill/decode path. The latter may be a strict subset, such as image and video
@@ -648,7 +653,7 @@ message KvBootstrap {
 top of the proto.
 
 `handoff_profile` identifies the engine-owned contract in `attributes_struct`.
-Revision 3 defines the profile names
+Revision 1 defines the profile names
 `tensorrt_llm.disaggregated_params.v1`, `vllm.kv_transfer_params.v1`, and
 `sglang.bootstrap.v1`. Engine-neutral clients forward a recognized profile and
 its attributes unchanged rather than interpreting or rewriting them.

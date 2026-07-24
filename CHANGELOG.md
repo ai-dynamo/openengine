@@ -5,35 +5,28 @@ SPDX-License-Identifier: Apache-2.0
 
 # Changelog
 
-All notable changes to the OpenEngine schema and generated packages are
-documented here. OpenEngine uses the same version for its Git tag, Python
-distribution, and Rust crate.
+All notable changes to the OpenEngine schema are documented here. Published
+schema releases are immutable commits in the Buf Schema Registry.
 
 ## [Unreleased]
 
-## 0.3.0 - 2026-07-21
-
 ### Added
 
+- Initial revision-1 `openengine.v1` inference and control services.
+- Aggregate and context-first prefill/decode generation.
+- Health, abort, drain, load, LoRA, and KV-event control operations.
 - Active tokenizer discovery and multimodal routing-token metadata.
 - Named KV handoff profiles and typed client bootstrap rendezvous metadata.
+- Canonical schema revision values in `version.proto`.
 
 ### Changed
 
 - Consolidated generation inputs into `generation.proto` and load reporting into `server.proto`.
+- Made the BSR module the sole schema distribution mechanism.
 
 ### Removed
 
 - Unimplemented embedding, classification, scoring, and runtime-event subscription RPCs.
 - Dedicated KV-connector discovery RPC; connector metadata is reported by `GetServerInfo`.
-
-## 0.2.0 - 2026-07-12
-
-### Added
-
-- Generated Python protobuf and gRPC bindings.
-- Generated Rust Prost and Tonic client/server bindings.
-- Reproducible code generation, package CI, and tag-driven releases.
-- Revision-2 multimodal capability discovery and per-request media options.
 
 [Unreleased]: https://github.com/ai-dynamo/openengine/commits/main

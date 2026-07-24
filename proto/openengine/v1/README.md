@@ -8,9 +8,9 @@ SPDX-License-Identifier: Apache-2.0
 This directory is the canonical `openengine.v1` wire contract. All proto files
 share the same package and together define the API.
 
-The current contract is schema revision 3 and remains compatible with clients
-at revision 1. Servers built from source advertise the immutable OpenEngine
-commit SHA in `ServerInfo.schema_release`.
+The current contract is schema revision 1 and remains compatible with clients
+at revision 1. Published servers advertise the immutable BSR module commit in
+`ServerInfo.schema_release`; unpublished builds may use a source commit.
 
 | File | Area |
 | --- | --- |
@@ -22,10 +22,7 @@ commit SHA in `ServerInfo.schema_release`.
 | [`kv.proto`](kv.proto) | KV sessions, connector discovery, and cache events |
 | [`lifecycle.proto`](lifecycle.proto) | Health, abort, and drain operations |
 | [`error.proto`](error.proto) | Terminal errors for accepted streaming requests |
+| [`version.proto`](version.proto) | Canonical schema revision values |
 
 Generate bindings from every `.proto` file in this directory. Compiling only
 `openengine.proto` does not generate bindings for its imported message files.
-
-OpenEngine provides pre-generated bindings from this package for Python and
-Rust. Their sources and package manifests live under [`packages/`](../../../packages/),
-and the generation entry points live under [`scripts/`](../../../scripts/).

@@ -32,29 +32,17 @@ sending a PR.
 
 ## Development checks
 
-The schema under `proto/openengine/v1/` is the source of truth. Generated Python
-and Rust bindings are checked in for package consumers and must be updated in
-the same pull request as a schema change.
+The schema under `proto/openengine/v1/` is the source of truth. OpenEngine
+publishes that schema through the Buf Schema Registry and does not check in or
+publish language-specific bindings.
 
 ```bash
 buf build
 buf lint
-
-python -m pip install build==1.3.0 grpcio-tools==1.81.1 twine==6.2.0
-./scripts/generate-python.sh
-./scripts/generate-rust.sh
-./scripts/check-generated.sh
-
-cargo test --locked --package openengine-proto
-cargo package --allow-dirty --locked --package openengine-proto
-python -m build packages/python --outdir dist/python
-python -m twine check dist/python/*
-python scripts/check_package_contents.py
-./scripts/test-cross-language.sh
 ```
 
-The Python generator and Rust code-generation toolchain are pinned. Do not edit
-generated files by hand; update the schema or generator and regenerate them.
+Consumers generate bindings with their own version-pinned plugins. Protocol
+changes must update the human-readable API reference in the same pull request.
 
 ## Signing your work
 

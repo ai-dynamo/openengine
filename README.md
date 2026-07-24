@@ -28,14 +28,14 @@ SPDX-License-Identifier: Apache-2.0
   <a href="docs/motivation.md">Why OpenEngine?</a>
   · <a href="docs/api.md">API reference</a>
   · <a href="proto/openengine/v1/">Canonical schema</a>
-  · <a href="#generated-packages">Generated packages</a>
+  · <a href="#consume-from-buf">Consume from Buf</a>
   · <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
 > [!IMPORTANT]
 > OpenEngine is experimental and pre-adoption. The contract is being refined
 > before its first engine implementations and may make direct breaking changes
-> while it remains at schema revision `3`.
+> while it remains at schema revision `1`.
 
 ## Table of contents
 
@@ -44,7 +44,7 @@ SPDX-License-Identifier: Apache-2.0
 - [Architecture](#architecture)
 - [Capabilities](#capabilities)
 - [Getting started](#getting-started)
-- [Generated packages](#generated-packages)
+- [Consume from Buf](#consume-from-buf)
 - [Project status](#project-status)
 - [Contributing](#contributing)
 - [Security](#security)
@@ -137,72 +137,32 @@ buf lint
 Buf lint, Markdown lint, and link checks run in GitHub Actions for relevant
 pull requests.
 
-### Regenerate package bindings
+## Consume from Buf
 
-The repository checks in generated Python and Rust bindings so that package
-users do not need a protobuf compiler. Contributors changing the schema must
-regenerate both packages:
+OpenEngine is distributed as the `buf.build/openengine/openengine` module.
+Consumers own language-specific code generation and should pin an immutable
+BSR module commit rather than a moving label.
 
-```bash
-python -m pip install grpcio-tools==1.81.1
-./scripts/generate-python.sh
-./scripts/generate-rust.sh
-./scripts/check-generated.sh
-```
-
-Other protobuf-supported languages can generate clients and servers from the
-same canonical package.
-
-## Generated packages
-
-Each OpenEngine release builds Python and Rust bindings from the same schema and
-version tag. The artifacts contain generated code; installing them does not run
-Buf or `protoc`. Initial consumers pin the OpenEngine repository at an immutable
-commit and use path dependencies from that checkout.
-
-### Python
+Generate bindings from the pinned module input with the consumer's
+language-specific `buf.gen.yaml`:
 
 ```bash
-pip install ./packages/python
+buf generate buf.build/openengine/openengine:${OPENENGINE_BSR_COMMIT}
 ```
 
-```python
-import grpc
+Consumers that import OpenEngine from their own Protobuf module may instead
+declare it in `buf.yaml`; commit the resulting `buf.lock` so builds resolve the
+same content. Keep generator plugins version-pinned in `buf.gen.yaml`.
+OpenEngine does not publish or check in language-specific packages.
 
-from openengine.v1.generation_pb2 import GenerateRequest
-from openengine.v1.openengine_pb2_grpc import InferenceStub
+Generated bindings include the canonical `SCHEMA_REVISION_1` enum value.
+Servers implementing this contract advertise schema revision `1`, minimum
+client revision `1`, and the immutable BSR module commit they consumed in
+`ServerInfo.schema_release`. Unpublished local builds may use an immutable
+OpenEngine source commit instead.
 
-channel = grpc.aio.insecure_channel("localhost:50051")
-engine = InferenceStub(channel)
-request = GenerateRequest(request_id="example", model="model", prompt="Hello")
-```
-
-### Rust
-
-```toml
-openengine-proto = { path = "../openengine/packages/rust/openengine-proto" }
-```
-
-```rust
-use openengine_proto::openengine::v1::{
-    inference_client::InferenceClient,
-    GenerateRequest,
-};
-```
-
-The coordinated package version identifies the generated schema contents, but
-not the exact source of a path or Git dependency. Both packages expose schema
-revision `3`, minimum client revision `1`, and an `unreleased` identity sentinel.
-Engine servers must inject their immutable OpenEngine commit SHA (or signed
-release tag), and clients should inspect `ServerInfo` before accepting traffic.
-
-| Package release | Protobuf package | Schema revision |
-| --------------- | ---------------- | --------------- |
-| `0.2.x`         | `openengine.v1`  | `2`             |
-| `0.3.x`         | `openengine.v1`  | `3`             |
-
-See [`RELEASING.md`](RELEASING.md) for the coordinated release process and
-[`CHANGELOG.md`](CHANGELOG.md) for schema and package changes.
+See [`RELEASING.md`](RELEASING.md) for BSR publication and
+[`CHANGELOG.md`](CHANGELOG.md) for schema changes.
 
 ## Project status
 
@@ -233,8 +193,7 @@ git commit --signoff -m "docs: describe the change"
 
 Please validate protobuf changes with Buf and keep
 [`proto/openengine/v1/`](proto/openengine/v1/) and [`docs/api.md`](docs/api.md)
-synchronized. Changes to the schema must also regenerate and commit both
-language packages.
+synchronized.
 
 ## Security
 

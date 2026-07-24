@@ -5,60 +5,43 @@ SPDX-License-Identifier: Apache-2.0
 
 # Releasing OpenEngine
 
-OpenEngine builds the canonical schema and generated Python and Rust bindings
-from the same `vMAJOR.MINOR.PATCH` tag. Releases are immutable and all artifacts
-use the same version. Initial consumers use local path or immutable Git commit
-dependencies; publication to PyPI and crates.io is intentionally deferred.
-
-Release tooling requires Python 3.11 or newer.
+OpenEngine publishes its canonical Protobuf schema as
+`buf.build/openengine/openengine`. The repository does not publish
+language-specific packages. Consumers generate bindings with their own
+version-pinned plugins from an immutable BSR module commit.
 
 ## Prepare a release
 
-1. Choose the release version and update both version declarations:
-   - `packages/python/pyproject.toml` under `[project]`.
-   - `Cargo.toml` under `[workspace.package]`.
+1. Confirm the schema revision in `proto/openengine/v1/version.proto`. The first
+   valid revision is `1`; zero is invalid.
 2. Move the relevant entries from `Unreleased` in `CHANGELOG.md` into a section
-   named for the version and release date.
-3. Install the pinned Python generator and regenerate bindings:
+   named for the release version and date.
+3. Validate the schema:
 
    ```bash
-   python -m pip install build==1.3.0 grpcio-tools==1.81.1 twine==6.2.0
-   ./scripts/generate-python.sh
-   ./scripts/generate-rust.sh
+   buf format --diff --exit-code
+   buf lint
+   buf build
    ```
 
-4. Run the package checks:
-
-   ```bash
-   ./scripts/check-generated.sh
-   cargo test --locked --package openengine-proto
-   cargo package --allow-dirty --locked --package openengine-proto
-   python -m build packages/python --outdir dist/python
-   python -m twine check dist/python/*
-   python scripts/check_package_contents.py
-   ./scripts/test-cross-language.sh
-   ```
-
-5. Open and merge the release-preparation pull request.
+4. Open and merge the release-preparation pull request.
 
 ## Publish
 
-Create and push a signed tag from the release commit:
+Create and push a signed semantic-version tag from the release commit:
 
 ```bash
-python scripts/check_release_version.py v0.3.0
-git tag --sign v0.3.0 -m "OpenEngine v0.3.0"
-git push origin v0.3.0
+git tag --sign v0.1.0 -m "OpenEngine v0.1.0"
+git push origin v0.1.0
 ```
 
-The `Release` workflow validates the schema, regenerates and tests both
-packages, and creates a GitHub release containing:
+The tag triggers the `Buf Push` workflow, which validates and publishes the
+schema to the BSR module. Confirm the workflow succeeded and record the
+resulting immutable BSR module commit in the release notes.
 
-- The Python wheel and source distribution.
-- The packaged Rust crate.
-- The canonical proto source archive.
-- The complete protobuf descriptor set.
-- SHA-256 checksums.
+Maintainers may also run the workflow manually from `main`. A manual
+publication is immutable but does not replace a tagged release.
 
-Registry publication can be added later without changing package names or the
-coordinated versioning rule.
+Consumers may use release labels for discovery, but must pin the immutable BSR
+module commit directly or through `buf.lock`. Engine implementations advertise
+that commit in `ServerInfo.schema_release`.

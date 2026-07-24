@@ -1,0 +1,15 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+// OpenEngine schema revision metadata.
+
+syntax = "proto3";
+
+package openengine.v1;
+
+// Canonical values for ServerInfo.schema_revision and
+// ServerInfo.minimum_client_revision. Revision zero is invalid.
+enum SchemaRevision {
+  SCHEMA_REVISION_UNSPECIFIED = 0;
+  SCHEMA_REVISION_1 = 1;
+}
