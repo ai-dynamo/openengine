@@ -69,12 +69,6 @@ message GenerateRequest {
   // this field empty. Clients treat it as best-effort and never depend on it
   // for correctness. Carried as a Struct so JSON types survive the wire.
   google.protobuf.Struct extra = 12;
-
-  // Per-request media processor options keyed by modality name: `image`,
-  // `video`, and `audio`. Engines apply their server defaults first, then
-  // shallow-merge request keys over the matching modality defaults. Existing
-  // modality-specific conflict rules continue to apply.
-  google.protobuf.Struct media_options = 14;
 }
 
 message SamplingParams {

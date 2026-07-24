@@ -53,9 +53,6 @@ message MultimodalCapabilities {
   // Modalities that can participate in a context-first prefill/decode flow.
   repeated Modality prefill_decode_modalities = 2;
 
-  // Whether GenerateRequest.media_options can override server media defaults.
-  optional bool supports_per_request_media_options = 4;
-
   // Token ID used in the framework's media-aware routing key. Absent means the
   // engine cannot provide a stable image placeholder token for routing.
   optional uint32 routing_image_token_id = 5;

@@ -216,7 +216,6 @@ message ModelInfo {
 message MultimodalCapabilities {
   repeated Modality aggregate_modalities = 1;
   repeated Modality prefill_decode_modalities = 2;
-  optional bool supports_per_request_media_options = 4;
   optional uint32 routing_image_token_id = 5;
 }
 
@@ -291,9 +290,7 @@ use `multimodal_capabilities` to validate a request before scheduling.
 `aggregate_modalities` lists modalities accepted for normal generation;
 `prefill_decode_modalities` lists modalities accepted by the context-first
 prefill/decode path. The latter may be a strict subset, such as image and video
-for a model that only supports audio in aggregated mode. An absent
-`supports_per_request_media_options` is unreported, while an explicitly false
-value rejects non-empty `GenerateRequest.media_options`.
+for a model that only supports audio in aggregated mode.
 `routing_image_token_id`, when present, is the stable placeholder token a
 framework uses when constructing media-aware KV-routing keys. Clients omit
 media-aware routing when the engine cannot advertise this value.
@@ -366,7 +363,6 @@ message GenerateRequest {
   repeated MediaItem media = 10;
   string lora_name = 11;
   google.protobuf.Struct extra = 12; // Engine-specific, non-portable; may be ignored.
-  google.protobuf.Struct media_options = 14;
 }
 
 message TokenIds {
@@ -481,12 +477,8 @@ candidates with `all {}` and JSON-object guidance with `json_object {}`.
 second streaming switch.
 
 `media` order is significant and is preserved independently of modality. Each
-item uses exactly one source. `media_options` is keyed by the modality names
-`image`, `video`, and `audio`. The server applies its media processor defaults
-first, then shallow-merges request keys over the matching modality defaults.
-Existing modality-specific conflict rules continue to apply. Engines reject
-unsupported modalities, source encodings, option keys, or per-request options
-rather than silently ignoring them.
+item uses exactly one source. Engines reject unsupported modalities or source
+encodings rather than silently ignoring them.
 
 `include_stop_in_output` controls whether a matched caller-supplied stop token
 or string remains in emitted output. `bypass_prefix_cache = true` skips prefix
