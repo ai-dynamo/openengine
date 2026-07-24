@@ -27,8 +27,8 @@ message ServerInfo {
   repeated string supported_models = 5;
   ParallelismInfo parallelism = 6;
   KvConnectorInfo kv_connector = 7;
-  uint32 schema_revision = 8; // SchemaRevision value; zero is invalid.
-  uint32 minimum_client_revision = 9; // Oldest compatible SchemaRevision value.
+  uint32 schema_revision = 8; // Contract revision implemented; zero is invalid.
+  uint32 minimum_client_revision = 9; // Oldest compatible contract revision.
   // Immutable BSR module commit; unpublished builds may use a source commit.
   string schema_release = 10;
   DeploymentCapacity capacity = 11; // Configured capacity for this deployed server.

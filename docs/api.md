@@ -85,11 +85,6 @@ Routing and admission keys apply only to `Inference` RPCs.
 ## Server identity, deployment capacity, and engine roles
 
 ```protobuf
-enum SchemaRevision {
-  SCHEMA_REVISION_UNSPECIFIED = 0;
-  SCHEMA_REVISION_1 = 1;
-}
-
 enum EngineRole {
   ENGINE_ROLE_UNSPECIFIED = 0;
   ENGINE_ROLE_AGGREGATED = 1;
@@ -107,8 +102,8 @@ message ServerInfo {
   repeated string supported_models = 5;
   ParallelismInfo parallelism = 6;
   KvConnectorInfo kv_connector = 7;
-  uint32 schema_revision = 8;         // Canonical SchemaRevision value.
-  uint32 minimum_client_revision = 9; // Oldest compatible SchemaRevision value.
+  uint32 schema_revision = 8;         // Contract revision implemented; zero is invalid.
+  uint32 minimum_client_revision = 9; // Oldest compatible contract revision.
   string schema_release = 10;         // Immutable BSR module commit.
   DeploymentCapacity capacity = 11; // Configured capacity for this deployed server.
   google.protobuf.Struct extra = 12; // Engine-specific, non-portable; read opportunistically.

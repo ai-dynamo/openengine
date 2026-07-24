@@ -22,7 +22,6 @@ at revision 1. Published servers advertise the immutable BSR module commit in
 | [`kv.proto`](kv.proto) | KV sessions, connector discovery, and cache events |
 | [`lifecycle.proto`](lifecycle.proto) | Health and abort operations |
 | [`error.proto`](error.proto) | Terminal errors for accepted streaming requests |
-| [`version.proto`](version.proto) | Canonical schema revision values |
 
 Generate bindings from every `.proto` file in this directory. Compiling only
 `openengine.proto` does not generate bindings for its imported message files.

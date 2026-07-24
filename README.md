@@ -155,7 +155,6 @@ declare it in `buf.yaml`; commit the resulting `buf.lock` so builds resolve the
 same content. Keep generator plugins version-pinned in `buf.gen.yaml`.
 OpenEngine does not publish or check in language-specific packages.
 
-Generated bindings include the canonical `SCHEMA_REVISION_1` enum value.
 Servers implementing this contract advertise schema revision `1`, minimum
 client revision `1`, and the immutable BSR module commit they consumed in
 `ServerInfo.schema_release`. Unpublished local builds may use an immutable

@@ -12,8 +12,8 @@ version-pinned plugins from an immutable BSR module commit.
 
 ## Prepare a release
 
-1. Confirm the schema revision in `proto/openengine/v1/version.proto`. The first
-   valid revision is `1`; zero is invalid.
+1. Confirm the schema revision documented in `proto/openengine/v1/README.md`
+   and `docs/api.md`. The first valid revision is `1`; zero is invalid.
 2. Move the relevant entries from `Unreleased` in `CHANGELOG.md` into a section
    named for the release version and date.
 3. Validate the schema:

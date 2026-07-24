@@ -17,7 +17,6 @@ schema releases are immutable commits in the Buf Schema Registry.
 - Health, abort, load, LoRA, and KV-event control operations.
 - Active tokenizer discovery and multimodal routing-token metadata.
 - Named KV handoff profiles and typed client bootstrap rendezvous metadata.
-- Canonical schema revision values in `version.proto`.
 
 ### Changed
 
