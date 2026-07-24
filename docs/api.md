@@ -216,7 +216,6 @@ message ModelInfo {
 message MultimodalCapabilities {
   repeated Modality aggregate_modalities = 1;
   repeated Modality prefill_decode_modalities = 2;
-  repeated MediaSourceType source_types = 3;
   optional bool supports_per_request_media_options = 4;
   optional uint32 routing_image_token_id = 5;
 }
@@ -292,8 +291,7 @@ use `multimodal_capabilities` to validate a request before scheduling.
 `aggregate_modalities` lists modalities accepted for normal generation;
 `prefill_decode_modalities` lists modalities accepted by the context-first
 prefill/decode path. The latter may be a strict subset, such as image and video
-for a model that only supports audio in aggregated mode. `source_types` lists
-the URL, data-URI, and raw-byte encodings the engine can consume. An absent
+for a model that only supports audio in aggregated mode. An absent
 `supports_per_request_media_options` is unreported, while an explicitly false
 value rejects non-empty `GenerateRequest.media_options`.
 `routing_image_token_id`, when present, is the stable placeholder token a
@@ -434,13 +432,6 @@ enum Modality {
   MODALITY_AUDIO = 3;
 }
 
-enum MediaSourceType {
-  MEDIA_SOURCE_TYPE_UNSPECIFIED = 0;
-  MEDIA_SOURCE_TYPE_URL = 1;
-  MEDIA_SOURCE_TYPE_DATA_URI = 2;
-  MEDIA_SOURCE_TYPE_RAW_BYTES = 3;
-}
-
 // A single multimodal input. Exactly one `source` should be set. The engine
 // owns fetch, decode, and preprocessing, so pre-decoded or RDMA media
 // descriptors are not represented here.
@@ -490,13 +481,12 @@ candidates with `all {}` and JSON-object guidance with `json_object {}`.
 second streaming switch.
 
 `media` order is significant and is preserved independently of modality. Each
-item uses exactly one source whose encoding is advertised in
-`ModelInfo.multimodal_capabilities.source_types`. `media_options` is keyed by
-the modality names `image`, `video`, and `audio`. The server applies its media
-processor defaults first, then shallow-merges request keys over the matching
-modality defaults. Existing modality-specific conflict rules continue to
-apply. Engines reject unsupported modalities, source types, option keys, or
-per-request options rather than silently ignoring them.
+item uses exactly one source. `media_options` is keyed by the modality names
+`image`, `video`, and `audio`. The server applies its media processor defaults
+first, then shallow-merges request keys over the matching modality defaults.
+Existing modality-specific conflict rules continue to apply. Engines reject
+unsupported modalities, source encodings, option keys, or per-request options
+rather than silently ignoring them.
 
 `include_stop_in_output` controls whether a matched caller-supplied stop token
 or string remains in emitted output. `bypass_prefix_cache = true` skips prefix
