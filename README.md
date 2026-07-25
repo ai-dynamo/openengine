@@ -160,8 +160,7 @@ client revision `1`, and the immutable BSR module commit they consumed in
 `ServerInfo.schema_release`. Unpublished local builds may use an immutable
 OpenEngine source commit instead.
 
-See [`RELEASING.md`](RELEASING.md) for BSR publication and
-[`CHANGELOG.md`](CHANGELOG.md) for schema changes.
+See [`RELEASING.md`](RELEASING.md) for BSR publication.
 
 ## Project status
 

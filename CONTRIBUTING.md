@@ -30,21 +30,7 @@ sending a PR.
 - **Bugs / feedback / design questions**: open a [GitHub issue](https://github.com/ai-dynamo/openengine/issues).
 - **Pull requests**: open against `main`. Keep changes focused (one logical change per PR).
 
-## Development checks
-
-The schema under `proto/openengine/v1/` is the source of truth. OpenEngine
-publishes that schema through the Buf Schema Registry and does not check in or
-publish language-specific bindings.
-
-```bash
-buf build
-buf lint
-```
-
-Consumers generate bindings with their own version-pinned plugins. Protocol
-changes must update the human-readable API reference in the same pull request.
-
-## Signing your work
+## Signing Your Work
 
 We require that all contributors "sign off" on their commits. This certifies that
 you wrote the contribution, or otherwise have the right to submit it under the

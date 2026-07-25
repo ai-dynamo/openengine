@@ -14,9 +14,7 @@ version-pinned plugins from an immutable BSR module commit.
 
 1. Confirm the schema revision documented in `proto/openengine/v1/README.md`
    and `docs/api.md`. The first valid revision is `1`; zero is invalid.
-2. Move the relevant entries from `Unreleased` in `CHANGELOG.md` into a section
-   named for the release version and date.
-3. Validate the schema:
+2. Validate the schema:
 
    ```bash
    buf format --diff --exit-code
@@ -24,7 +22,7 @@ version-pinned plugins from an immutable BSR module commit.
    buf build
    ```
 
-4. Open and merge the release-preparation pull request.
+3. Open and merge the release-preparation pull request.
 
 ## Publish
 
