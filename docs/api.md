@@ -194,7 +194,6 @@ message ModelInfo {
   optional uint32 max_context_length = 4; // Effective context-window limit in this deployment.
   optional uint32 max_output_tokens = 5; // Effective generated-token limit in this deployment.
   repeated string tokenizer_modes = 10;
-  TokenizerInfo tokenizer = 11;
 
   optional bool supports_text_input = 20;
   optional bool supports_token_ids_input = 21;
@@ -205,18 +204,6 @@ message ModelInfo {
   string reasoning_parser = 25;
   string tool_call_parser = 26;
   google.protobuf.Struct extra = 28; // Engine-specific, non-portable; read opportunistically.
-  MultimodalCapabilities multimodal_capabilities = 29;
-}
-
-message MultimodalCapabilities {
-  repeated Modality aggregate_modalities = 1;
-  repeated Modality prefill_decode_modalities = 2;
-  optional uint32 routing_image_token_id = 5;
-}
-
-message TokenizerInfo {
-  string source = 1;
-  string mode = 2;
 }
 
 message GenerationCapabilities {
@@ -261,12 +248,10 @@ enum GuidedDecodingMode {
 
 `GetModelInfoRequest.model` is required and selects one of
 `ServerInfo.supported_models`; an unknown model returns gRPC `NOT_FOUND`.
-`model_id` is the canonical model source used by the deployment,
+`model_id` is the canonical model and tokenizer source used by the deployment,
 `served_model_name` is the primary name accepted by generation APIs, and
-`served_model_aliases` contains every additional accepted name. The selected
-`tokenizer.source` is its canonical source and may differ from `model_id`;
-`tokenizer.mode` is the active loading mode. `tokenizer_modes` remains the list
-of modes the deployment can accept or expose.
+`served_model_aliases` contains every additional accepted name.
+`tokenizer_modes` lists tokenizer modes the deployment can accept or expose.
 `max_context_length` and `max_output_tokens` are the effective limits for the
 selected model in this deployment. KV layout and scheduler capacity are reported
 once through `ServerInfo.capacity`, not repeated as model identity.
@@ -280,15 +265,9 @@ support and limits for the corresponding request options.
 `supports_lora=true` means the engine accepts `GenerateRequest.lora_name` and
 the LoRA lifecycle RPCs on `Control`.
 
-`supports_multimodal` is the coarse revision-1 compatibility signal. Clients
-use `multimodal_capabilities` to validate a request before scheduling.
-`aggregate_modalities` lists modalities accepted for normal generation;
-`prefill_decode_modalities` lists modalities accepted by the context-first
-prefill/decode path. The latter may be a strict subset, such as image and video
-for a model that only supports audio in aggregated mode.
-`routing_image_token_id`, when present, is the stable placeholder token a
-framework uses when constructing media-aware KV-routing keys. Clients omit
-media-aware routing when the engine cannot advertise this value.
+`supports_multimodal=true` means the model accepts at least one media modality.
+The server validates the requested modality and engine role before admitting
+the request.
 
 ---
 
