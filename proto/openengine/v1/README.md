@@ -8,6 +8,10 @@ SPDX-License-Identifier: Apache-2.0
 This directory is the canonical `openengine.v1` wire contract. All proto files
 share the same package and together define the API.
 
+The current contract is schema revision 1 and remains compatible with clients
+at revision 1. Published servers advertise the immutable BSR module commit in
+`ServerInfo.schema_release`; unpublished builds may use a source commit.
+
 | File | Area |
 | --- | --- |
 | [`openengine.proto`](openengine.proto) | `Inference` and `Control` service declarations |

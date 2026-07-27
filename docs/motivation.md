@@ -27,7 +27,7 @@ workers:
 - discovery and routing;
 - admission and load balancing;
 - prefill/decode placement;
-- health, drain, and cancellation policy;
+- health and cancellation policy;
 - KV-aware scheduling across workers.
 
 Without a shared boundary, direct users need engine-specific clients and every
@@ -61,7 +61,7 @@ request and control data needed across the process boundary.
 | --- | --- |
 | Generation | Streaming tokens, usage, finish state, and errors |
 | Discovery | Server, model, engine role, topology, limits, and capabilities |
-| Lifecycle | Health, abort, and drain |
+| Lifecycle | Health and abort |
 | Scheduling | Load data, data-parallel rank affinity, and decode-context parallel topology |
 | Disaggregation | Prefill readiness, KV-session handoff, and connector data |
 | KV routing | Event streams and native event-source discovery |
@@ -122,7 +122,7 @@ integrations.
 
 An implementation can add support in stages:
 
-1. Aggregated text generation, discovery, health, abort, and drain.
+1. Aggregated text generation, discovery, health, and abort.
 2. Prefill/decode roles, KV handoff, rank affinity, and KV events.
 3. Logprobs, guided decoding, LoRA, and multimodal input as needed.
 

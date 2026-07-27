@@ -102,9 +102,9 @@ message ServerInfo {
   repeated string supported_models = 5;
   ParallelismInfo parallelism = 6;
   KvConnectorInfo kv_connector = 7;
-  uint32 schema_revision = 8;
-  uint32 minimum_client_revision = 9;
-  string schema_release = 10;
+  uint32 schema_revision = 8;         // Contract revision implemented; zero is invalid.
+  uint32 minimum_client_revision = 9; // Oldest compatible contract revision.
+  string schema_release = 10;         // Immutable BSR module commit.
   DeploymentCapacity capacity = 11; // Configured capacity for this deployed server.
   google.protobuf.Struct extra = 12; // Engine-specific, non-portable; read opportunistically.
 }
@@ -133,8 +133,9 @@ Revision `1` is the schema in this repository. Every server must populate:
   implements. Zero is invalid.
 - `minimum_client_revision` with the oldest client revision the server supports.
   A client below this revision must reject the server as incompatible.
-- `schema_release` with an immutable OpenEngine repository release or source tag
-  containing that revision. Moving branch names such as `main` are not valid.
+- `schema_release` with the immutable BSR module commit containing that
+  revision. Unpublished builds may use an immutable OpenEngine source commit;
+  moving labels or branch names such as `main` are not valid.
 
 Servers implementing this contract advertise `schema_revision = 1` and
 `minimum_client_revision = 1`.
@@ -247,6 +248,10 @@ enum GuidedDecodingMode {
 
 `GetModelInfoRequest.model` is required and selects one of
 `ServerInfo.supported_models`; an unknown model returns gRPC `NOT_FOUND`.
+`model_id` is the canonical model and tokenizer source used by the deployment,
+`served_model_name` is the primary name accepted by generation APIs, and
+`served_model_aliases` contains every additional accepted name.
+`tokenizer_modes` lists tokenizer modes the deployment can accept or expose.
 `max_context_length` and `max_output_tokens` are the effective limits for the
 selected model in this deployment. KV layout and scheduler capacity are reported
 once through `ServerInfo.capacity`, not repeated as model identity.
@@ -259,6 +264,10 @@ support and limits for the corresponding request options.
 
 `supports_lora=true` means the engine accepts `GenerateRequest.lora_name` and
 the LoRA lifecycle RPCs on `Control`.
+
+`supports_multimodal=true` means the model accepts at least one media modality.
+The server validates the requested modality and engine role before admitting
+the request.
 
 ---
 
@@ -441,19 +450,23 @@ candidates with `all {}` and JSON-object guidance with `json_object {}`.
 `Generate` is always a server-streaming RPC, so response options do not carry a
 second streaming switch.
 
+`media` order is significant and is preserved independently of modality. Each
+item uses exactly one source. Engines reject unsupported modalities or source
+encodings rather than silently ignoring them.
+
 `include_stop_in_output` controls whether a matched caller-supplied stop token
 or string remains in emitted output. `bypass_prefix_cache = true` skips prefix
 cache reuse but does not prevent newly computed blocks from being cached.
 `cache_salt` namespaces the prefix-cache key.
 
-`GenerateRequest.extra` and `TaskRequestContext.extra` carry engine-specific
-parameters that have no portable field. They are an intentional escape hatch so
-an engine can expose a native knob without a schema revision, and so a client
-can adopt OpenEngine before every parameter it needs is standardized. They are
-explicitly outside the portable contract: an engine may ignore keys it does not
-recognize, every request must remain valid with `extra` empty, and clients must
-not depend on `extra` for correctness. Parameters that prove broadly useful
-should be promoted to typed fields in a later revision.
+`GenerateRequest.extra` carries engine-specific parameters that have no
+portable field. It is an intentional escape hatch so an engine can expose a
+native knob without a schema revision, and so a client can adopt OpenEngine
+before every parameter it needs is standardized. It is explicitly outside the
+portable contract: an engine may ignore keys it does not recognize, every
+request must remain valid with `extra` empty, and clients must not depend on
+`extra` for correctness. Parameters that prove broadly useful should be
+promoted to typed fields in a later revision.
 
 ```protobuf
 message GenerateResponse {
@@ -581,22 +594,23 @@ message KvEndpoint {
   uint32 port = 2;
   string protocol = 3; // grpc, nixl, ucx, tcp, shm, etc.
 }
-
 ```
 
 `attributes_struct` requires `import "google/protobuf/struct.proto";` at the
 top of the proto.
 
 `attributes_struct` preserves number, boolean, array, and object types. Struct
-numbers are IEEE-754 doubles, so values above 2^53 should use strings or a
-dedicated field.
+numbers are IEEE-754 doubles, so 64-bit identifiers above 2^53 must use decimal
+strings. Opaque binary values must use base64 strings. Engine-specific transfer
+and rendezvous data belongs in this structure; clients preserve it unchanged
+when forwarding a handoff.
 
 Prefill flow:
 
 1. Client sends `GenerateRequest` to a `PREFILL` engine.
 2. Engine returns a `KvSessionRef` in the terminal `PrefillReady` response when
    decode may attach.
-3. Engine owns KV session lifetime and cleanup, including finish, abort, drain, timeout, and transfer failure paths.  
+3. Engine owns KV session lifetime and cleanup, including finish, abort, shutdown, timeout, and transfer failure paths.
 4. An accepted prefill failure produces one terminal `EngineError` instead.
 
 Decode flow:
@@ -629,8 +643,7 @@ message KvConnectorInfo {
   optional bool supports_remote_prefill = 5;
   optional bool supports_decode_pull = 6;
   optional bool supports_abort_cleanup = 7;
-  optional bool supports_drain = 8;
-  optional uint32 schema_version = 9;
+  optional uint32 schema_version = 8;
 }
 
 message GetKvEventSourcesRequest {
@@ -769,8 +782,7 @@ enum HealthState {
   HEALTH_STATE_STARTING = 1;
   HEALTH_STATE_READY = 2;
   HEALTH_STATE_DEGRADED = 3;
-  HEALTH_STATE_DRAINING = 4;
-  HEALTH_STATE_NOT_READY = 5;
+  HEALTH_STATE_NOT_READY = 4;
 }
 
 message HealthCheck {
@@ -809,6 +821,55 @@ idempotent outcome rather than an error.
 
 ---
 
+## Load reporting
+
+`GetLoad` returns a structured point-in-time load snapshot for schedulers and
+admission controllers. It is not a replacement for Prometheus metrics; it is
+the engine-facing control-plane signal for request routing and overload
+decisions.
+
+```protobuf
+message GetLoadRequest {
+  bool include_per_rank = 1;
+}
+
+message LoadInfo {
+  string instance_id = 1;
+  optional uint64 timestamp_unix_nanos = 2;
+  optional uint32 running_requests = 3;
+  optional uint32 queued_requests = 4;
+  optional uint32 active_kv_sessions = 5;
+  optional uint64 used_kv_blocks = 6;
+  optional uint64 total_kv_blocks = 7;
+  optional uint64 running_tokens = 8;
+  optional uint64 waiting_tokens = 9;
+  optional uint32 prefill_batch_size = 10;
+  optional uint32 decode_batch_size = 11;
+  repeated RankLoadInfo ranks = 20;
+  google.protobuf.Struct attributes = 30;
+}
+
+message RankLoadInfo {
+  optional uint32 data_parallel_rank = 1;
+  optional uint32 running_requests = 2;
+  optional uint32 queued_requests = 3;
+  optional uint64 used_kv_blocks = 4;
+  optional uint64 total_kv_blocks = 5;
+  optional uint32 prefill_batch_size = 6;
+  optional uint32 decode_batch_size = 7;
+}
+```
+
+Every load scalar has explicit presence. Absent means unavailable in that
+engine or snapshot; present zero means the measured load is zero.
+
+`LoadInfo.attributes` carries engine-specific metrics as a
+`google.protobuf.Struct`, so numeric, boolean, and list values keep their JSON
+type on the wire instead of being flattened to strings. `Struct` numbers are
+IEEE-754 doubles (exact only to 2^53); carry larger integers as strings.
+
+---
+
 ## Standard errors
 
 ```protobuf
@@ -830,8 +891,7 @@ enum ErrorCode {
   ERROR_CODE_KV_SESSION_NOT_FOUND = 8;
   ERROR_CODE_KV_TRANSFER_FAILED = 9;
   ERROR_CODE_CANCELLED = 10;
-  ERROR_CODE_DRAINING = 11;
-  ERROR_CODE_INTERNAL = 12;
+  ERROR_CODE_INTERNAL = 11;
 }
 ```
 

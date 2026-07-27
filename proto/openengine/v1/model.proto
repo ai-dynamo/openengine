@@ -40,7 +40,6 @@ message ModelInfo {
   google.protobuf.Struct extra = 28;
 }
 
-
 message GenerationCapabilities {
   LogprobCapabilities prompt_logprobs = 1;
   LogprobCapabilities output_logprobs = 2;
