@@ -636,8 +636,6 @@ per deployment and is reported once through `ServerInfo.kv_connector`
 
 ```protobuf
 message KvConnectorInfo {
-  reserved 8;
-
   optional bool enabled = 1;
   string transfer_backend = 2;
   repeated KvEndpoint local_endpoints = 3;
@@ -645,7 +643,7 @@ message KvConnectorInfo {
   optional bool supports_remote_prefill = 5;
   optional bool supports_decode_pull = 6;
   optional bool supports_abort_cleanup = 7;
-  optional uint32 schema_version = 9;
+  optional uint32 schema_version = 8;
 }
 
 message GetKvEventSourcesRequest {
@@ -780,13 +778,11 @@ message HealthResponse {
 }
 
 enum HealthState {
-  reserved 4;
-
   HEALTH_STATE_UNSPECIFIED = 0;
   HEALTH_STATE_STARTING = 1;
   HEALTH_STATE_READY = 2;
   HEALTH_STATE_DEGRADED = 3;
-  HEALTH_STATE_NOT_READY = 5;
+  HEALTH_STATE_NOT_READY = 4;
 }
 
 message HealthCheck {
@@ -895,8 +891,7 @@ enum ErrorCode {
   ERROR_CODE_KV_SESSION_NOT_FOUND = 8;
   ERROR_CODE_KV_TRANSFER_FAILED = 9;
   ERROR_CODE_CANCELLED = 10;
-  ERROR_CODE_DRAINING = 11;
-  ERROR_CODE_INTERNAL = 12;
+  ERROR_CODE_INTERNAL = 11;
 }
 ```
 
