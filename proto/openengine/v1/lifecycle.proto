@@ -29,11 +29,12 @@ message HealthResponse {
 }
 
 enum HealthState {
+  reserved 4;
+
   HEALTH_STATE_UNSPECIFIED = 0;
   HEALTH_STATE_STARTING = 1;
   HEALTH_STATE_READY = 2;
   HEALTH_STATE_DEGRADED = 3;
-  HEALTH_STATE_DRAINING = 4;
   HEALTH_STATE_NOT_READY = 5;
 }
 
