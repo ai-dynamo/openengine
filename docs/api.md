@@ -587,8 +587,6 @@ message KvSessionRef {
   repeated KvEndpoint endpoints = 3;
   uint32 dp_rank = 4;
   google.protobuf.Struct attributes_struct = 5; // type-preserving KV-transfer params
-  string handoff_profile = 6;
-  KvBootstrap bootstrap = 7;
 }
 
 message KvEndpoint {
@@ -596,33 +594,16 @@ message KvEndpoint {
   uint32 port = 2;
   string protocol = 3; // grpc, nixl, ucx, tcp, shm, etc.
 }
-
-message KvBootstrap {
-  KvEndpoint endpoint = 1;
-  uint64 room_id = 2;
-}
-
 ```
 
 `attributes_struct` requires `import "google/protobuf/struct.proto";` at the
 top of the proto.
 
-`handoff_profile` identifies the engine-owned contract in `attributes_struct`.
-Revision 1 defines the profile names
-`tensorrt_llm.disaggregated_params.v1`, `vllm.kv_transfer_params.v1`, and
-`sglang.bootstrap.v1`. Engine-neutral clients forward a recognized profile and
-its attributes unchanged rather than interpreting or rewriting them.
-
 `attributes_struct` preserves number, boolean, array, and object types. Struct
 numbers are IEEE-754 doubles, so 64-bit identifiers above 2^53 must use decimal
-strings. Opaque binary values must use base64 strings. `KvBootstrap.room_id` is
-a typed protobuf `uint64` and therefore does not require JSON string encoding.
-
-`bootstrap` carries a client-created rendezvous endpoint and room when
-`KvConnectorInfo.supports_client_bootstrap` is true. The client supplies the
-same bootstrap to the coordinated prefill and decode requests before either
-side begins handoff. Engines reject a missing or inconsistent bootstrap rather
-than falling back to an aggregate request.
+strings. Opaque binary values must use base64 strings. Engine-specific transfer
+and rendezvous data belongs in this structure; clients preserve it unchanged
+when forwarding a handoff.
 
 Prefill flow:
 
@@ -664,8 +645,6 @@ message KvConnectorInfo {
   optional bool supports_abort_cleanup = 7;
   optional bool supports_drain = 8;
   optional uint32 schema_version = 9;
-  string handoff_profile = 10;
-  optional bool supports_client_bootstrap = 11;
 }
 
 message GetKvEventSourcesRequest {
