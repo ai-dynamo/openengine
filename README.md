@@ -130,6 +130,7 @@ Install [Buf](https://buf.build/docs/cli/installation/), then run:
 git clone https://github.com/ai-dynamo/openengine.git
 cd openengine
 
+buf format --diff --exit-code
 buf build
 buf lint
 ```
