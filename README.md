@@ -12,12 +12,8 @@ SPDX-License-Identifier: Apache-2.0
 </p>
 
 <p align="center">
-  Keep engine execution native. Connect distributed systems through one typed runtime contract.
-</p>
-
-<p align="center">
   <a href="https://github.com/ai-dynamo/openengine/actions/workflows/buf.yml"><img alt="Buf CI" src="https://github.com/ai-dynamo/openengine/actions/workflows/buf.yml/badge.svg?branch=main"></a>
-  <a href="https://github.com/ai-dynamo/openengine/releases/tag/v0.1.0"><img alt="Release: v0.1.0" src="https://img.shields.io/badge/release-v0.1.0-2ea44f"></a>
+  <a href="https://github.com/ai-dynamo/openengine/releases/tag/v0.1.0"><img alt="Release: v0.1.0" src="https://img.shields.io/badge/release-v0.1.0-d63384"></a>
   <a href="LICENSE"><img alt="Apache 2.0 License" src="https://img.shields.io/github/license/ai-dynamo/openengine?color=blue"></a>
   <a href="#project-status"><img alt="Status: Experimental" src="https://img.shields.io/badge/status-experimental-f59e0b"></a>
   <a href="https://protobuf.dev/"><img alt="Schema: Protocol Buffers" src="https://img.shields.io/badge/schema-Protobuf-6f42c1"></a>
