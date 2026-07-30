@@ -12,30 +12,24 @@ SPDX-License-Identifier: Apache-2.0
 </p>
 
 <p align="center">
-  Keep engine execution native. Connect distributed systems through one typed runtime contract.
-</p>
-
-<p align="center">
   <a href="https://github.com/ai-dynamo/openengine/actions/workflows/buf.yml"><img alt="Buf CI" src="https://github.com/ai-dynamo/openengine/actions/workflows/buf.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/ai-dynamo/openengine/releases/tag/v0.1.0"><img alt="Release: v0.1.0" src="https://img.shields.io/badge/release-v0.1.0-d63384"></a>
   <a href="LICENSE"><img alt="Apache 2.0 License" src="https://img.shields.io/github/license/ai-dynamo/openengine?color=blue"></a>
   <a href="#project-status"><img alt="Status: Experimental" src="https://img.shields.io/badge/status-experimental-f59e0b"></a>
-  <a href="proto/openengine/v1/"><img alt="API: openengine.v1" src="https://img.shields.io/badge/API-openengine.v1-6f42c1"></a>
-  <a href="https://grpc.io/"><img alt="Transport: gRPC" src="https://img.shields.io/badge/transport-gRPC-244c5a"></a>
-  <a href="https://protobuf.dev/"><img alt="Schema: Protocol Buffers" src="https://img.shields.io/badge/schema-Protobuf-4285F4"></a>
+  <a href="https://protobuf.dev/"><img alt="Schema: Protocol Buffers" src="https://img.shields.io/badge/schema-Protobuf-6f42c1"></a>
 </p>
 
 <p align="center">
   <a href="docs/motivation.md">Why OpenEngine?</a>
   · <a href="docs/api.md">API reference</a>
   · <a href="proto/openengine/v1/">Canonical schema</a>
+  · <a href="#release-v010">Release v0.1.0</a>
   · <a href="#consume-from-buf">Consume from Buf</a>
   · <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
 > [!IMPORTANT]
-> OpenEngine is experimental and pre-adoption. The contract is being refined
-> before its first engine implementations and may make direct breaking changes
-> while it remains at schema revision `1`.
+> OpenEngine v0.1.0 is the first experimental release. The contract is being refined before its first engine implementations and may make direct breaking changes while it remains at schema revision `1`.
 
 ## Table of contents
 
@@ -44,6 +38,7 @@ SPDX-License-Identifier: Apache-2.0
 - [Architecture](#architecture)
 - [Capabilities](#capabilities)
 - [Getting started](#getting-started)
+- [Release v0.1.0](#release-v010)
 - [Consume from Buf](#consume-from-buf)
 - [Project status](#project-status)
 - [Contributing](#contributing)
@@ -138,23 +133,32 @@ buf lint
 Markdown lint and link checks run in GitHub Actions for relevant pull requests.
 Run the Buf checks locally before opening a protocol change.
 
+## Release v0.1.0
+
+[OpenEngine v0.1.0](https://github.com/ai-dynamo/openengine/releases/tag/v0.1.0) is available as a signed Git tag and an immutable Buf Schema Registry module commit.
+
+| Artifact | Release identifier |
+| --- | --- |
+| Protobuf package | `openengine.v1` |
+| Schema revision | `1` |
+| Git tag | [`v0.1.0`](https://github.com/ai-dynamo/openengine/tree/v0.1.0) |
+| Git commit | [`b5f2bd93721f7b888d3e2440679e0ae7012939d1`](https://github.com/ai-dynamo/openengine/commit/b5f2bd93721f7b888d3e2440679e0ae7012939d1) |
+| BSR module | [`buf.build/openengine/openengine`](https://buf.build/openengine/openengine) |
+| Immutable BSR commit | `768a93c7b44e40f28c692ad0b471a8f2` |
+
+Use the immutable BSR commit as the dependency identifier. The `v0.1.0` and `main` BSR labels identify the same published content but are intended for discovery rather than production pinning.
+
 ## Consume from Buf
 
-OpenEngine is distributed as the `buf.build/openengine/openengine` module.
-Consumers own language-specific code generation and should pin an immutable
-BSR module commit rather than a moving label.
+OpenEngine is distributed as the [`buf.build/openengine/openengine`](https://buf.build/openengine/openengine) module. Consumers can use [BSR-generated SDKs](https://buf.build/docs/bsr/generated-sdks/) or generate bindings with their own version-pinned plugins. OpenEngine does not currently maintain first-party language packages.
 
-Generate bindings from the pinned module input with the consumer's
-language-specific `buf.gen.yaml`:
+Generate bindings for v0.1.0 from the immutable module input with the consumer's language-specific `buf.gen.yaml`:
 
 ```bash
-buf generate buf.build/openengine/openengine:${OPENENGINE_BSR_COMMIT}
+buf generate buf.build/openengine/openengine:768a93c7b44e40f28c692ad0b471a8f2
 ```
 
-Consumers that import OpenEngine from their own Protobuf module may instead
-declare it in `buf.yaml`; commit the resulting `buf.lock` so builds resolve the
-same content. Keep generator plugins version-pinned in `buf.gen.yaml`.
-OpenEngine does not publish or check in language-specific packages.
+Consumers that import OpenEngine from their own Protobuf module may instead declare it in `buf.yaml`; commit the resulting `buf.lock` so builds resolve the same content. Keep generator plugins version-pinned in `buf.gen.yaml`.
 
 Servers implementing this contract advertise schema revision `1`, minimum
 client revision `1`, and the immutable BSR module commit they consumed in
@@ -165,9 +169,7 @@ See [`RELEASING.md`](RELEASING.md) for BSR publication.
 
 ## Project status
 
-OpenEngine is an experimental, pre-adoption API draft. The current focus is
-making the contract coherent across inference engines before implementations
-depend on it. Expect direct schema refinement during this phase.
+OpenEngine v0.1.0 is an experimental, pre-adoption release. The current focus is making the contract coherent across inference engines before implementations depend on it. Expect direct schema refinement during this phase.
 
 The intended adoption path is incremental:
 

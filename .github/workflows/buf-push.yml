@@ -8,11 +8,9 @@ name: Buf Push
 #   * `push: tags: ['v*']` lets a tagged release publish a labeled commit.
 # It does NOT run on every push to `main`.
 #
-# Prerequisites before this can succeed:
-#   1. OSRB approval of BSR distribution for OpenEngine.
-#   2. `buf.build/openengine` org + `openengine` module exist (public).
-#   3. `BUF_TOKEN` repo secret is configured.
-# Until then, the workflow is dormant.
+# Repository configuration:
+#   * `buf.build/openengine/openengine` is the public release module.
+#   * `BUF_TOKEN` supplies publish access through the repository secret.
 
 on:
   workflow_dispatch:
