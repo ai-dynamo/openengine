@@ -1,5 +1,5 @@
 [package]
-name = "openengine-proto"
+name = "openengine"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,8 +7,11 @@ license.workspace = true
 repository.workspace = true
 description = "Generated Rust bindings for the OpenEngine gRPC protocol"
 readme = "README.md"
+homepage = "https://github.com/ai-dynamo/openengine"
+documentation = "https://docs.rs/openengine"
 keywords = ["grpc", "inference", "protobuf"]
 categories = ["api-bindings", "network-programming"]
+publish = ["crates-io"]
 
 [dependencies]
 prost = "0.14.4"

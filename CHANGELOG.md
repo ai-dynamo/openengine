@@ -5,16 +5,13 @@ SPDX-License-Identifier: Apache-2.0
 
 # Changelog
 
-All notable changes to the OpenEngine schema and generated packages are
-documented here. OpenEngine uses the same version for its Git tag, Python
-distribution, and Rust crate.
+All notable changes to the generated OpenEngine Rust crate are documented here.
 
 ## [Unreleased]
 
 ### Added
 
-- Generated Python protobuf and gRPC bindings.
-- Generated Rust Prost and Tonic client/server bindings.
-- Reproducible code generation, package CI, and tag-driven releases.
+- Generated `openengine` Prost messages and Tonic client/server bindings.
+- Reproducible Rust code generation, package CI, and tag-driven crates.io releases.
 
 [Unreleased]: https://github.com/ai-dynamo/openengine/commits/main

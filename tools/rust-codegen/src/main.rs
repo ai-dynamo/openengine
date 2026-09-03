@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap_or(env::current_dir()?);
     let proto_root = repository.join("proto");
     let package_root = proto_root.join("openengine/v1");
-    let output = repository.join("packages/rust/openengine-proto/src/generated");
+    let output = repository.join("packages/rust/openengine/src/generated");
 
     fs::create_dir_all(&output)?;
 

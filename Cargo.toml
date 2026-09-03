@@ -1,6 +1,6 @@
 [workspace]
 members = [
-  "packages/rust/openengine-proto",
+  "packages/rust/openengine",
   "tools/rust-codegen",
 ]
 resolver = "2"

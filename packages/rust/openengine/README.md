@@ -10,14 +10,11 @@ Generated Prost messages and Tonic client/server bindings for the
 protocol.
 
 ```bash
-cargo add openengine-proto
+cargo add openengine
 ```
 
 ```rust
-use openengine_proto::openengine::v1::{
-    open_engine_client::OpenEngineClient,
-    GenerateRequest,
-};
+use openengine::v1::{control_client::ControlClient, inference_client::InferenceClient};
 ```
 
 The crate contains generated Rust source and a protobuf descriptor set.
