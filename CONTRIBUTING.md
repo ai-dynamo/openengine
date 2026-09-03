@@ -20,7 +20,7 @@ limitations under the License.
 Thank you for your interest in OpenEngine. We welcome bug reports, feedback on
 the API design, and pull requests.
 
-OpenEngine is a pre-adoption API draft. The files under
+OpenEngine is an experimental, pre-adoption protocol. The files under
 `proto/openengine/v1/` are the canonical wire contract and the single source of
 truth. Until an external consumer adopts it, the schema may remove or renumber
 fields to stay minimal. After external adoption, changes within `openengine.v1`

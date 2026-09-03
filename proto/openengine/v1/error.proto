@@ -7,16 +7,12 @@ syntax = "proto3";
 
 package openengine.v1;
 
-import "google/protobuf/struct.proto";
-
 // Accepted failures emit one terminal EngineError and close with OK.
 // Validation and transport failures use non-OK gRPC status instead.
 message EngineError {
   ErrorCode code = 1;
   string message = 2;
   bool retryable = 3; // Retry may succeed without changing the request.
-  optional uint64 retry_after_ms = 4; // Zero permits immediate retry.
-  google.protobuf.Struct details = 5; // Machine-readable context.
 }
 
 enum ErrorCode {
@@ -31,6 +27,5 @@ enum ErrorCode {
   ERROR_CODE_KV_SESSION_NOT_FOUND = 8;
   ERROR_CODE_KV_TRANSFER_FAILED = 9;
   ERROR_CODE_CANCELLED = 10;
-  ERROR_CODE_DRAINING = 11;
-  ERROR_CODE_INTERNAL = 12;
+  ERROR_CODE_INTERNAL = 11;
 }

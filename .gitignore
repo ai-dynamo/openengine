@@ -2,10 +2,11 @@
 __pycache__/
 *.py[cod]
 
-# Local Python environments and package artifacts
+# Local environments and build output
 .venv/
-*.egg-info/
 dist/
-
-# Rust build artifacts
 target/
+
+# Ignore generated Python gRPC stubs if an example is run locally.
+*_pb2.py
+*_pb2_grpc.py

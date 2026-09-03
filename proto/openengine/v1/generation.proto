@@ -1,15 +1,41 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-// Generation requests, streamed events, and usage.
+// Generation inputs, requests, streamed events, and usage.
 
 syntax = "proto3";
 
 package openengine.v1;
 
+import "google/protobuf/struct.proto";
 import "openengine/v1/error.proto";
-import "openengine/v1/generation_params.proto";
 import "openengine/v1/kv.proto";
+
+message TokenIds {
+  repeated uint32 ids = 1;
+}
+
+// Multimodal modality discriminator. UNSPECIFIED means the sender left it unset.
+enum Modality {
+  MODALITY_UNSPECIFIED = 0;
+  MODALITY_IMAGE = 1;
+  MODALITY_VIDEO = 2;
+  MODALITY_AUDIO = 3;
+}
+
+// A single multimodal input. Exactly one `source` should be set. The engine
+// owns fetch, decode, and preprocessing, so pre-decoded or RDMA media
+// descriptors are not represented here.
+message MediaItem {
+  Modality modality = 1;
+  oneof source {
+    string url = 2; // http(s):// -- engine fetches
+    string data_uri = 3; // data:<mime>;base64,<...> -- engine decodes
+    bytes raw_bytes = 4; // pre-fetched bytes -- engine still preprocesses
+  }
+  string mime_type = 5; // optional, hints raw_bytes decode
+  string uuid = 6; // optional caller id / mm_hash
+}
 
 message GenerateRequest {
   string request_id = 1;
@@ -37,35 +63,87 @@ message GenerateRequest {
   // available through OpenEngine.
   string lora_name = 11;
 
-  // Higher values receive higher scheduling priority.
-  optional int32 priority = 12;
-
-  // Optional request metadata for tracing/admission/routing.
-  map<string, string> metadata = 13;
+  // Engine-specific request parameters that have no portable field above (e.g.
+  // an experimental sampler knob). NOT part of the portable contract: an engine
+  // MAY ignore keys it does not recognize, and a request MUST remain valid with
+  // this field empty. Clients treat it as best-effort and never depend on it
+  // for correctness. Carried as a Struct so JSON types survive the wire.
+  google.protobuf.Struct extra = 12;
 }
 
-// Multimodal modality discriminator. 0 is treated as image for forward
-// compatibility with senders that omit the field.
-enum Modality {
-  MODALITY_UNSPECIFIED = 0;
-  MODALITY_IMAGE = 1;
-  MODALITY_VIDEO = 2;
-  MODALITY_AUDIO = 3;
+message SamplingParams {
+  optional double temperature = 1;
+  optional double top_p = 2;
+  optional int32 top_k = 3;
+  optional double min_p = 4;
+  optional double frequency_penalty = 5;
+  optional double presence_penalty = 6;
+  optional double repetition_penalty = 7;
+  optional uint64 seed = 8;
+  optional uint32 num_sequences = 9;
 }
 
-// A single multimodal input. Exactly one `source` should be set. The engine
-// owns fetch, decode, and preprocessing, so pre-decoded or RDMA media
-// descriptors are not represented here.
-message MediaItem {
-  Modality modality = 1;
-  oneof source {
-    string url = 2; // http(s):// -- engine fetches
-    string data_uri = 3; // data:<mime>;base64,<...> -- engine decodes
-    bytes raw_bytes = 4; // pre-fetched bytes -- engine still preprocesses
+message StoppingOptions {
+  optional uint32 max_tokens = 1;
+  optional uint32 min_tokens = 2;
+  repeated StopCondition conditions = 3;
+  optional bool ignore_eos = 4;
+  optional bool include_stop_in_output = 5;
+}
+
+message ResponseOptions {
+  optional bool return_prompt_logprobs = 1;
+  CandidateTokenSelection prompt_candidates = 2;
+  optional bool return_output_logprobs = 3;
+  CandidateTokenSelection output_candidates = 4;
+  optional uint32 prompt_logprob_start = 5;
+}
+
+message CandidateTokenSelection {
+  oneof selection {
+    uint32 top_n = 1;
+    TokenIds token_ids = 2;
+    AllCandidates all = 3;
   }
-  string mime_type = 5; // optional, hints raw_bytes decode
-  string uuid = 6; // optional caller id / mm_hash
 }
+
+message AllCandidates {}
+
+message KvOptions {
+  KvSessionRef session = 1;
+  optional bool bypass_prefix_cache = 2;
+  optional string cache_salt = 3;
+}
+
+message StopCondition {
+  oneof condition {
+    string stop_text = 1;
+    uint32 stop_token_id = 2;
+  }
+}
+
+// Constrained / guided decoding spec. At most one of `guide` should be set.
+// The engine enforces the constraint during sampling via its grammar backend
+// (xgrammar / outlines / llguidance); clients cannot apply it post-hoc.
+message GuidedDecoding {
+  oneof guide {
+    string json_schema = 1; // output conforms to this JSON schema
+    string regex = 2; // output matches this regex
+    string ebnf_grammar = 3; // output follows this EBNF / context-free grammar
+    string structural_tag = 4; // xgrammar structural-tag constraint (JSON string)
+    ChoiceConstraint choice = 5;
+    JsonObjectConstraint json_object = 6;
+  }
+  // Optional grammar backend override (e.g. "xgrammar", "outlines",
+  // "llguidance"). Empty = engine default.
+  string backend = 7;
+}
+
+message ChoiceConstraint {
+  repeated string choices = 1;
+}
+
+message JsonObjectConstraint {}
 
 message GenerateResponse {
   string request_id = 1;

@@ -16,38 +16,46 @@ syntax = "proto3";
 
 package openengine.v1;
 
-import "openengine/v1/engine.proto";
 import "openengine/v1/generation.proto";
 import "openengine/v1/kv.proto";
 import "openengine/v1/lifecycle.proto";
 import "openengine/v1/lora.proto";
 import "openengine/v1/model.proto";
-import "openengine/v1/observability.proto";
+import "openengine/v1/server.proto";
 
-service OpenEngine {
+// Standard ASCII gRPC request metadata:
+// - openengine-routing-key: opaque application routing key.
+// - openengine-target-dp-rank: base-10 uint32 routing target. This does not
+//   establish KV affinity; KvSessionRef.dp_rank is authoritative for a session.
+// - openengine-priority: base-10 int32 admission priority; higher values have
+//   higher priority.
+// - traceparent and tracestate: W3C Trace Context.
+//
+// The openengine- prefix is reserved for metadata defined by this protocol.
+// Routing and admission keys apply to Inference RPCs. Trace Context applies to
+// every RPC and should be propagated across downstream calls.
+
+service Inference {
   // Core inference path.
   rpc Generate(GenerateRequest) returns (stream GenerateResponse);
+}
 
+service Control {
   // Runtime metadata and scheduling state.
-  rpc GetEngineInfo(GetEngineInfoRequest) returns (EngineInfo);
+  rpc GetServerInfo(GetServerInfoRequest) returns (ServerInfo);
   rpc GetModelInfo(GetModelInfoRequest) returns (ModelInfo);
   rpc GetLoad(GetLoadRequest) returns (LoadInfo);
 
   // Health and lifecycle.
   rpc Health(HealthRequest) returns (HealthResponse);
   rpc Abort(AbortRequest) returns (AbortResponse);
-  rpc Drain(DrainRequest) returns (stream DrainResponse);
 
   // LoRA lifecycle.
   rpc LoadLora(LoadLoraRequest) returns (LoadLoraResponse);
   rpc UnloadLora(UnloadLoraRequest) returns (UnloadLoraResponse);
   rpc ListLoras(ListLorasRequest) returns (ListLorasResponse);
 
-  // Disaggregated serving / KV transfer.
-  rpc GetKvConnectorInfo(GetKvConnectorInfoRequest) returns (KvConnectorInfo);
+  // Disaggregated serving / KV transfer. Connector info: ServerInfo.kv_connector.
   rpc GetKvEventSources(GetKvEventSourcesRequest) returns (GetKvEventSourcesResponse);
   rpc SubscribeKvEvents(SubscribeKvEventsRequest) returns (stream SubscribeKvEventsResponse);
-
-  // Structured runtime events for planners/controllers.
-  rpc SubscribeRuntimeEvents(SubscribeRuntimeEventsRequest) returns (stream SubscribeRuntimeEventsResponse);
 }

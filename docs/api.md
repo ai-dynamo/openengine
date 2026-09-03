@@ -20,38 +20,69 @@ package openengine.v1;
 
 import "google/protobuf/struct.proto";
 
-service OpenEngine {
+service Inference {
   // Core inference path.
   rpc Generate(GenerateRequest) returns (stream GenerateResponse);
+}
 
+service Control {
   // Runtime metadata and scheduling state.
-  rpc GetEngineInfo(GetEngineInfoRequest) returns (EngineInfo);
+  rpc GetServerInfo(GetServerInfoRequest) returns (ServerInfo);
   rpc GetModelInfo(GetModelInfoRequest) returns (ModelInfo);
   rpc GetLoad(GetLoadRequest) returns (LoadInfo);
 
   // Health and lifecycle.
   rpc Health(HealthRequest) returns (HealthResponse);
   rpc Abort(AbortRequest) returns (AbortResponse);
-  rpc Drain(DrainRequest) returns (stream DrainResponse);
 
   // LoRA lifecycle.
   rpc LoadLora(LoadLoraRequest) returns (LoadLoraResponse);
   rpc UnloadLora(UnloadLoraRequest) returns (UnloadLoraResponse);
   rpc ListLoras(ListLorasRequest) returns (ListLorasResponse);
 
-  // Disaggregated serving / KV transfer.
-  rpc GetKvConnectorInfo(GetKvConnectorInfoRequest) returns (KvConnectorInfo);
+  // Disaggregated serving / KV transfer. Connector info: ServerInfo.kv_connector.
   rpc GetKvEventSources(GetKvEventSourcesRequest) returns (GetKvEventSourcesResponse);
   rpc SubscribeKvEvents(SubscribeKvEventsRequest) returns (stream SubscribeKvEventsResponse);
-
-  // Structured runtime events for planners/controllers.
-  rpc SubscribeRuntimeEvents(SubscribeRuntimeEventsRequest) returns (stream SubscribeRuntimeEventsResponse);
 }
 ```
 
+`Inference` is the inference data plane. `Control` is the discovery, lifecycle,
+and coordination control plane. Implementations may expose both services on the
+same listener, or isolate them on separate listeners and access policies without
+changing the protocol contract.
+
+### gRPC request metadata
+
+Routing, admission, and tracing context belongs in
+[gRPC request metadata](https://grpc.io/docs/guides/metadata/) rather than
+protobuf request payloads. OpenEngine defines these lowercase ASCII keys:
+
+| Key | Value | Scope |
+| --- | --- | --- |
+| `openengine-routing-key` | Opaque non-empty ASCII routing key | Consistent hashing, tenancy, or other application routing |
+| `openengine-target-dp-rank` | Base-10 `uint32` | Requested data-parallel routing target |
+| `openengine-priority` | Base-10 `int32` | Admission priority; higher values have higher priority |
+| `traceparent` | W3C Trace Context value | Portable distributed-trace parent |
+| `tracestate` | W3C Trace Context value | Vendor-specific trace state associated with `traceparent` |
+
+The `openengine-` prefix is reserved for this protocol. Clients send at most one
+value for each OpenEngine key; malformed numeric values or repeated OpenEngine
+keys return gRPC `INVALID_ARGUMENT`. Application-specific metadata may use other
+gRPC metadata keys without adding fields to inference messages.
+
+`openengine-target-dp-rank` is a routing instruction, not KV state. When a
+request carries a `KvSessionRef`, its `dp_rank` is the authoritative KV-affinity
+value. If both values reach the engine and disagree, the engine returns
+`INVALID_ARGUMENT`. The priority key is used only when the selected model and
+task advertise priority support.
+
+All RPCs accept `traceparent` and `tracestate` and propagate them on downstream
+RPCs according to [W3C Trace Context](https://www.w3.org/TR/trace-context/).
+Routing and admission keys apply only to `Inference` RPCs.
+
 ---
 
-## Core identity and roles
+## Server identity, deployment capacity, and engine roles
 
 ```protobuf
 enum EngineRole {
@@ -61,19 +92,29 @@ enum EngineRole {
   ENGINE_ROLE_DECODE = 3;
 }
 
-message GetEngineInfoRequest {}
+message GetServerInfoRequest {}
 
-message EngineInfo {
+message ServerInfo {
   string engine_name = 1;          // sglang, vllm, tensorrt_llm, etc.
   string engine_version = 2;
-  EngineRole role = 3;
+  EngineRole engine_role = 3;
   string instance_id = 4;
   repeated string supported_models = 5;
   ParallelismInfo parallelism = 6;
   KvConnectorInfo kv_connector = 7;
-  uint32 schema_revision = 8;
-  uint32 minimum_client_revision = 9;
-  string schema_release = 10;
+  uint32 schema_revision = 8;         // Contract revision implemented; zero is invalid.
+  uint32 minimum_client_revision = 9; // Oldest compatible contract revision.
+  string schema_release = 10;         // Immutable BSR module commit.
+  DeploymentCapacity capacity = 11; // Configured capacity for this deployed server.
+  google.protobuf.Struct extra = 12; // Engine-specific, non-portable; read opportunistically.
+}
+
+message DeploymentCapacity {
+  optional uint32 kv_block_size = 1; // Tokens per deployed KV-cache block.
+  optional uint64 total_kv_blocks = 2; // Allocatable KV blocks in the reporting scope.
+  optional uint64 max_running_requests = 3; // Concurrent running-request ceiling.
+  optional uint64 max_batched_tokens = 4; // Scheduler token ceiling per batch.
+  optional uint32 max_loras = 5; // Maximum simultaneously resident LoRA adapters.
 }
 
 message ParallelismInfo {
@@ -82,6 +123,7 @@ message ParallelismInfo {
   optional uint32 data_parallel_size = 3;
   optional uint32 data_parallel_rank = 4;
   optional uint32 data_parallel_start_rank = 5;
+  optional uint32 decode_context_parallel_size = 6; // Ranks per decode-context group; at least 1.
 }
 ```
 
@@ -91,8 +133,9 @@ Revision `1` is the schema in this repository. Every server must populate:
   implements. Zero is invalid.
 - `minimum_client_revision` with the oldest client revision the server supports.
   A client below this revision must reject the server as incompatible.
-- `schema_release` with an immutable OpenEngine repository release or source tag
-  containing that revision. Moving branch names such as `main` are not valid.
+- `schema_release` with the immutable BSR module commit containing that
+  revision. Unpublished builds may use an immutable OpenEngine source commit;
+  moving labels or branch names such as `main` are not valid.
 
 Servers implementing this contract advertise `schema_revision = 1` and
 `minimum_client_revision = 1`.
@@ -106,6 +149,27 @@ Discovery response scalars use proto3 `optional` presence. An absent value means
 the engine cannot report the value; an explicitly present zero or `false` is a
 reported value and must not be replaced with a client default.
 
+Enums grow by appending values. A client encountering an unrecognized enum value
+MUST treat it as the enum's UNSPECIFIED/zero case (or ignore the item), never as
+an error.
+
+Durations and timestamps use explicit integer units (fields suffixed `_ms` /
+`_unix_nanos`) rather than `google.protobuf.Duration`/`Timestamp`, for compact,
+language-neutral encoding.
+
+`decode_context_parallel_size` reports the number of ranks across which decode
+context is sharded. It describes a group within the server's execution topology
+and does not, by itself, imply additional workers beyond the reported tensor,
+pipeline, and data-parallel topology. When present, the value must be at least
+one; one means decode-context parallelism is disabled.
+
+`DeploymentCapacity` reports configured capacity for the deployed server, not
+model identity. `kv_block_size` is the number of tokens in a deployed KV block;
+`total_kv_blocks` is the allocatable block count in the server's reporting
+scope; `max_running_requests` and `max_batched_tokens` are configured scheduler
+ceilings; and `max_loras` is the maximum number of simultaneously resident LoRA
+adapters. Dynamic and per-rank utilization remains in `LoadInfo`.
+
 Role semantics:
 
 - `AGGREGATED`: accepts normal generation requests and returns tokens.  
@@ -116,7 +180,7 @@ Role semantics:
 
 ---
 
-## Model and capacity metadata
+## Model identity and capabilities
 
 ```protobuf
 message GetModelInfoRequest {
@@ -127,12 +191,8 @@ message ModelInfo {
   string model_id = 1;
   string served_model_name = 2;
   repeated string served_model_aliases = 3;
-  optional uint32 max_context_length = 4;
-  optional uint32 max_output_tokens = 5;
-  optional uint32 kv_block_size = 6;
-  optional uint64 total_kv_blocks = 7;
-  optional uint64 max_running_requests = 8;
-  optional uint64 max_batched_tokens = 9;
+  optional uint32 max_context_length = 4; // Effective context-window limit in this deployment.
+  optional uint32 max_output_tokens = 5; // Effective generated-token limit in this deployment.
   repeated string tokenizer_modes = 10;
 
   optional bool supports_text_input = 20;
@@ -143,6 +203,7 @@ message ModelInfo {
 
   string reasoning_parser = 25;
   string tool_call_parser = 26;
+  google.protobuf.Struct extra = 28; // Engine-specific, non-portable; read opportunistically.
 }
 
 message GenerationCapabilities {
@@ -186,15 +247,27 @@ enum GuidedDecodingMode {
 ```
 
 `GetModelInfoRequest.model` is required and selects one of
-`EngineInfo.supported_models`; an unknown model returns gRPC `NOT_FOUND`.
+`ServerInfo.supported_models`; an unknown model returns gRPC `NOT_FOUND`.
+`model_id` is the canonical model and tokenizer source used by the deployment,
+`served_model_name` is the primary name accepted by generation APIs, and
+`served_model_aliases` contains every additional accepted name.
+`tokenizer_modes` lists tokenizer modes the deployment can accept or expose.
+`max_context_length` and `max_output_tokens` are the effective limits for the
+selected model in this deployment. KV layout and scheduler capacity are reported
+once through `ServerInfo.capacity`, not repeated as model identity.
 Capability submessages distinguish unreported support (message absent) from
 reported support or lack of support (`supported = true` or `false`). Candidate
 selection modes and `max_top_n` are reported independently for prompt and
-output logprobs. The remaining generation fields advertise support and limits
-for the corresponding request options.
+output logprobs. `supports_priority` advertises support for the
+`openengine-priority` metadata key. The remaining generation fields advertise
+support and limits for the corresponding request options.
 
 `supports_lora=true` means the engine accepts `GenerateRequest.lora_name` and
-the LoRA lifecycle RPCs on `OpenEngine`.
+the LoRA lifecycle RPCs on `Control`.
+
+`supports_multimodal=true` means the model accepts at least one media modality.
+The server validates the requested modality and engine role before admitting
+the request.
 
 ---
 
@@ -263,8 +336,7 @@ message GenerateRequest {
 
   repeated MediaItem media = 10;
   string lora_name = 11;
-  optional int32 priority = 12;
-  map<string, string> metadata = 13;
+  google.protobuf.Struct extra = 12; // Engine-specific, non-portable; may be ignored.
 }
 
 message TokenIds {
@@ -311,9 +383,8 @@ message AllCandidates {}
 
 message KvOptions {
   KvSessionRef session = 1;
-  optional uint32 data_parallel_rank = 2;
-  optional bool bypass_prefix_cache = 3;
-  optional string cache_salt = 4;
+  optional bool bypass_prefix_cache = 2;
+  optional string cache_salt = 3;
 }
 
 message StopCondition {
@@ -323,8 +394,7 @@ message StopCondition {
   }
 }
 
-// Multimodal modality discriminator. 0 is treated as image for forward
-// compatibility with senders that omit the field.
+// Multimodal modality discriminator. UNSPECIFIED means the sender left it unset.
 enum Modality {
   MODALITY_UNSPECIFIED = 0;
   MODALITY_IMAGE = 1;
@@ -370,8 +440,9 @@ data, and KV/cache behavior remain separate option groups. Guided decoding stays
 top-level as a distinct structured-output mode. Optional scalars preserve the
 distinction between an engine default and explicit zero or `false`.
 
-`priority` uses higher values for higher scheduling priority. `num_sequences`
-defaults to one when omitted and must be greater than zero when present.
+`openengine-priority` uses higher values for higher scheduling priority.
+`num_sequences` defaults to one when omitted and must be greater than zero when
+present.
 `CandidateTokenSelection` requests either the top N candidates, explicit token
 IDs, or the full vocabulary at each prompt or output position. Select all
 candidates with `all {}` and JSON-object guidance with `json_object {}`.
@@ -379,10 +450,23 @@ candidates with `all {}` and JSON-object guidance with `json_object {}`.
 `Generate` is always a server-streaming RPC, so response options do not carry a
 second streaming switch.
 
+`media` order is significant and is preserved independently of modality. Each
+item uses exactly one source. Engines reject unsupported modalities or source
+encodings rather than silently ignoring them.
+
 `include_stop_in_output` controls whether a matched caller-supplied stop token
 or string remains in emitted output. `bypass_prefix_cache = true` skips prefix
 cache reuse but does not prevent newly computed blocks from being cached.
 `cache_salt` namespaces the prefix-cache key.
+
+`GenerateRequest.extra` carries engine-specific parameters that have no
+portable field. It is an intentional escape hatch so an engine can expose a
+native knob without a schema revision, and so a client can adopt OpenEngine
+before every parameter it needs is standardized. It is explicitly outside the
+portable contract: an engine may ignore keys it does not recognize, every
+request must remain valid with `extra` empty, and clients must not depend on
+`extra` for correctness. Parameters that prove broadly useful should be
+promoted to typed fields in a later revision.
 
 ```protobuf
 message GenerateResponse {
@@ -510,22 +594,23 @@ message KvEndpoint {
   uint32 port = 2;
   string protocol = 3; // grpc, nixl, ucx, tcp, shm, etc.
 }
-
 ```
 
 `attributes_struct` requires `import "google/protobuf/struct.proto";` at the
 top of the proto.
 
 `attributes_struct` preserves number, boolean, array, and object types. Struct
-numbers are IEEE-754 doubles, so values above 2^53 should use strings or a
-dedicated field.
+numbers are IEEE-754 doubles, so 64-bit identifiers above 2^53 must use decimal
+strings. Opaque binary values must use base64 strings. Engine-specific transfer
+and rendezvous data belongs in this structure; clients preserve it unchanged
+when forwarding a handoff.
 
 Prefill flow:
 
 1. Client sends `GenerateRequest` to a `PREFILL` engine.
 2. Engine returns a `KvSessionRef` in the terminal `PrefillReady` response when
    decode may attach.
-3. Engine owns KV session lifetime and cleanup, including finish, abort, drain, timeout, and transfer failure paths.  
+3. Engine owns KV session lifetime and cleanup, including finish, abort, shutdown, timeout, and transfer failure paths.
 4. An accepted prefill failure produces one terminal `EngineError` instead.
 
 Decode flow:
@@ -545,9 +630,11 @@ OpenEngine should support two KV-event modes:
 2. **Compatibility source discovery:** `GetKvEventSources` advertises existing
    engine-native sources such as SGLang/vLLM ZMQ publishers.
 
-```protobuf
-message GetKvConnectorInfoRequest {}
+`KvConnectorInfo` describes the disaggregation transfer connector. It is static
+per deployment and is reported once through `ServerInfo.kv_connector`
+(`GetServerInfo`), not a dedicated RPC.
 
+```protobuf
 message KvConnectorInfo {
   optional bool enabled = 1;
   string transfer_backend = 2;
@@ -556,8 +643,7 @@ message KvConnectorInfo {
   optional bool supports_remote_prefill = 5;
   optional bool supports_decode_pull = 6;
   optional bool supports_abort_cleanup = 7;
-  optional bool supports_drain = 8;
-  optional uint32 schema_version = 9;
+  optional uint32 schema_version = 8;
 }
 
 message GetKvEventSourcesRequest {
@@ -670,7 +756,7 @@ server closes the stream with gRPC `OK`.
 
 ---
 
-## Health, abort, and drain
+## Health and abort
 
 ```protobuf
 message HealthRequest {
@@ -696,8 +782,7 @@ enum HealthState {
   HEALTH_STATE_STARTING = 1;
   HEALTH_STATE_READY = 2;
   HEALTH_STATE_DEGRADED = 3;
-  HEALTH_STATE_DRAINING = 4;
-  HEALTH_STATE_NOT_READY = 5;
+  HEALTH_STATE_NOT_READY = 4;
 }
 
 message HealthCheck {
@@ -726,29 +811,6 @@ enum AbortStatus {
   ABORT_STATUS_ABORTED = 1;
   ABORT_STATUS_ALREADY_FINISHED = 2;
 }
-
-message DrainRequest {
-  bool stop_accepting_new_requests = 1;
-  optional uint32 deadline_ms = 2;
-  bool abort_after_deadline = 3;
-}
-
-message DrainResponse {
-  oneof event {
-    DrainState state = 1;
-    EngineError error = 5;
-  }
-  optional uint32 in_flight_requests = 2;
-  optional uint32 open_kv_sessions = 3;
-  string message = 4;
-}
-
-enum DrainState {
-  DRAIN_STATE_UNSPECIFIED = 0;
-  DRAIN_STATE_STARTED = 1;
-  DRAIN_STATE_IN_PROGRESS = 2;
-  DRAIN_STATE_COMPLETE = 3;
-}
 ```
 
 Exactly one abort target must be set. Use `all_requests {}` to abort every
@@ -757,18 +819,14 @@ or KV session target returns gRPC `NOT_FOUND`; an engine that does not support
 abort returns gRPC `UNIMPLEMENTED`. `ALREADY_FINISHED` remains a successful
 idempotent outcome rather than an error.
 
-`STARTED` and `IN_PROGRESS` are progress events; `COMPLETE` is terminal. A
-failure after the drain is accepted is represented by one terminal
-`EngineError`, not by a failed drain state. An absent `deadline_ms` means no
-deadline; an explicit zero means the deadline is immediate. Absent progress
-counts are unknown, while present zero values report that no requests or KV
-sessions remain.
-
 ---
 
-## Runtime observability
+## Load reporting
 
-`GetLoad` returns a structured point-in-time load snapshot for schedulers and admission controllers. It is not a replacement for Prometheus metrics; it is the engine-facing control-plane signal for request routing and overload decisions.
+`GetLoad` returns a structured point-in-time load snapshot for schedulers and
+admission controllers. It is not a replacement for Prometheus metrics; it is
+the engine-facing control-plane signal for request routing and overload
+decisions.
 
 ```protobuf
 message GetLoadRequest {
@@ -788,7 +846,7 @@ message LoadInfo {
   optional uint32 prefill_batch_size = 10;
   optional uint32 decode_batch_size = 11;
   repeated RankLoadInfo ranks = 20;
-  map<string, string> attributes = 30;
+  google.protobuf.Struct attributes = 30;
 }
 
 message RankLoadInfo {
@@ -805,39 +863,10 @@ message RankLoadInfo {
 Every load scalar has explicit presence. Absent means unavailable in that
 engine or snapshot; present zero means the measured load is zero.
 
-Runtime event stream:
-
-```protobuf
-message SubscribeRuntimeEventsRequest {
-  repeated RuntimeEventType types = 1;
-}
-
-message SubscribeRuntimeEventsResponse {
-  oneof event {
-    RuntimeEvent runtime_event = 1;
-    EngineError error = 2;
-  }
-}
-
-enum RuntimeEventType {
-  RUNTIME_EVENT_TYPE_UNSPECIFIED = 0;
-  RUNTIME_EVENT_TYPE_FORWARD_PASS = 1;
-  RUNTIME_EVENT_TYPE_BATCH = 2;
-  RUNTIME_EVENT_TYPE_QUEUE = 3;
-  RUNTIME_EVENT_TYPE_TRANSFER = 4;
-}
-
-message RuntimeEvent {
-  string event_id = 1;
-  uint64 timestamp_unix_nanos = 2;
-  RuntimeEventType type = 3;
-  map<string, string> attributes = 4;
-}
-```
-
-After subscription acceptance, an application failure is the final
-`SubscribeRuntimeEventsResponse` with `error` set. No runtime event may follow
-it, and the server closes the stream with gRPC `OK`.
+`LoadInfo.attributes` carries engine-specific metrics as a
+`google.protobuf.Struct`, so numeric, boolean, and list values keep their JSON
+type on the wire instead of being flattened to strings. `Struct` numbers are
+IEEE-754 doubles (exact only to 2^53); carry larger integers as strings.
 
 ---
 
@@ -848,8 +877,6 @@ message EngineError {
   ErrorCode code = 1;
   string message = 2;
   bool retryable = 3;
-  optional uint64 retry_after_ms = 4;
-  google.protobuf.Struct details = 5;
 }
 
 enum ErrorCode {
@@ -864,8 +891,7 @@ enum ErrorCode {
   ERROR_CODE_KV_SESSION_NOT_FOUND = 8;
   ERROR_CODE_KV_TRANSFER_FAILED = 9;
   ERROR_CODE_CANCELLED = 10;
-  ERROR_CODE_DRAINING = 11;
-  ERROR_CODE_INTERNAL = 12;
+  ERROR_CODE_INTERNAL = 11;
 }
 ```
 
@@ -884,14 +910,8 @@ accepted stream phase and report failures with non-OK gRPC status.
 `GenerationFinished` is terminal for its `output_index`; other output indexes
 may continue. The last `GenerationFinished` ends a successful aggregated or
 decode stream, `PrefillReady` ends a successful prefill stream, and
-`EngineError` ends any failed generation stream. `DrainState.COMPLETE` and
-`EngineError` terminate a drain stream. An `EngineError` also terminates a
-KV-event or runtime-event subscription. No response may follow a terminal
-`EngineError`. Application failure is neither a `GenerationFinished` reason nor
-a failed drain state.
+`EngineError` ends any failed generation stream. An `EngineError` also
+terminates a KV-event subscription. No response may follow a terminal
+`EngineError`. Application failure is not a `GenerationFinished` reason.
 
 `retryable` states whether the unchanged operation can succeed on retry.
-`retry_after_ms` is present only for retryable errors and is the recommended
-minimum delay; an explicit zero permits immediate retry. `details` contains
-machine-readable error context. Stable detail keys are part of this API;
-engine-specific keys should be namespaced to avoid collisions.

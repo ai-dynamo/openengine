@@ -12,30 +12,24 @@ SPDX-License-Identifier: Apache-2.0
 </p>
 
 <p align="center">
-  Keep engine execution native. Connect distributed systems through one typed runtime contract.
-</p>
-
-<p align="center">
   <a href="https://github.com/ai-dynamo/openengine/actions/workflows/buf.yml"><img alt="Buf CI" src="https://github.com/ai-dynamo/openengine/actions/workflows/buf.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/ai-dynamo/openengine/releases/tag/v0.1.0"><img alt="Release: v0.1.0" src="https://img.shields.io/badge/release-v0.1.0-d63384"></a>
   <a href="LICENSE"><img alt="Apache 2.0 License" src="https://img.shields.io/github/license/ai-dynamo/openengine?color=blue"></a>
   <a href="#project-status"><img alt="Status: Experimental" src="https://img.shields.io/badge/status-experimental-f59e0b"></a>
-  <a href="proto/openengine/v1/"><img alt="API: openengine.v1" src="https://img.shields.io/badge/API-openengine.v1-6f42c1"></a>
-  <a href="https://grpc.io/"><img alt="Transport: gRPC" src="https://img.shields.io/badge/transport-gRPC-244c5a"></a>
-  <a href="https://protobuf.dev/"><img alt="Schema: Protocol Buffers" src="https://img.shields.io/badge/schema-Protobuf-4285F4"></a>
+  <a href="https://protobuf.dev/"><img alt="Schema: Protocol Buffers" src="https://img.shields.io/badge/schema-Protobuf-6f42c1"></a>
 </p>
 
 <p align="center">
   <a href="docs/motivation.md">Why OpenEngine?</a>
   · <a href="docs/api.md">API reference</a>
   · <a href="proto/openengine/v1/">Canonical schema</a>
-  · <a href="#generated-packages">Generated packages</a>
+  · <a href="#release-v010">Release v0.1.0</a>
+  · <a href="#consume-from-buf">Consume from Buf</a>
   · <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
 > [!IMPORTANT]
-> OpenEngine is experimental and pre-adoption. The contract is being refined
-> before its first engine implementations and may make direct breaking changes
-> while it remains at schema revision `1`.
+> OpenEngine v0.1.0 is the first experimental release. The contract is being refined before its first engine implementations and may make direct breaking changes while it remains at schema revision `1`.
 
 ## Table of contents
 
@@ -44,7 +38,8 @@ SPDX-License-Identifier: Apache-2.0
 - [Architecture](#architecture)
 - [Capabilities](#capabilities)
 - [Getting started](#getting-started)
-- [Generated packages](#generated-packages)
+- [Release v0.1.0](#release-v010)
+- [Consume from Buf](#consume-from-buf)
 - [Project status](#project-status)
 - [Contributing](#contributing)
 - [Security](#security)
@@ -54,8 +49,9 @@ SPDX-License-Identifier: Apache-2.0
 ## Overview
 
 OpenEngine defines a runtime boundary around an inference engine. An engine
-exposes the `openengine.v1.OpenEngine` gRPC service, which applications can call
-directly or distributed frameworks can use to coordinate engine workers.
+exposes the `openengine.v1.Inference` and `openengine.v1.Control` services.
+Applications can call the inference service directly, while distributed
+frameworks use both services to coordinate engine workers.
 
 Both paths use generated clients and the same typed contract without sharing a
 process, Python environment, dependency tree, or private control API.
@@ -69,7 +65,7 @@ scheduler implementation details.
 
 | Without a shared contract                           | With OpenEngine                                     |
 | --------------------------------------------------- | --------------------------------------------------- |
-| Engine-specific clients and framework integrations  | One generated service contract                      |
+| Engine-specific clients and framework integrations  | One generated protocol contract                     |
 | Configuration duplicated into sidecars              | Engine capabilities discovered over RPC             |
 | Engine upgrades coupled to framework code           | Engine-native execution behind a common endpoint    |
 | Ad hoc cancellation and failure behavior            | Explicit lifecycle and terminal error semantics     |
@@ -106,15 +102,15 @@ The canonical schema is organized by domain under
 
 | Area                  | What the contract provides                                                                                        |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Portable generation   | Text or token input, sampling, stopping, priorities, multiple sequences, and deterministic seeds                  |
+| Portable generation   | Text or token input, sampling, stopping, transport priorities, multiple sequences, and deterministic seeds        |
 | Structured output     | JSON Schema, JSON object, regex, EBNF grammar, structural tags, and fixed choices                                 |
 | Token information     | Prompt and output logprobs, ranks, candidate-token selection, per-token records, and streamed text deltas         |
-| Discovery             | Engine identity, schema revision, role, model limits, topology, parser configuration, and generation capabilities |
-| Lifecycle             | Health checks, targeted or global abort, graceful drain, progress, and terminal failures                          |
-| Disaggregated serving | Prefill/decode roles, KV session handoff, connector discovery, rank affinity, and cache controls                  |
+| Discovery             | Server identity, deployment capacity, model limits, topology, parsers, and inference capabilities                 |
+| Lifecycle             | Health checks and targeted or global abort                                                                        |
+| Disaggregated serving | Prefill/decode roles, decode-context parallel topology, KV handoff, connector discovery, and cache controls       |
 | KV-aware routing      | Typed KV event streams plus discovery of engine-native event sources                                              |
 | Model extensions      | Multimodal inputs and LoRA adapter lifecycle                                                                      |
-| Observability         | Point-in-time load snapshots and structured runtime event streams                                                 |
+| Observability         | Point-in-time load snapshots                                                                                      |
 
 See the [human-readable API reference](docs/api.md) for field-level behavior and
 validation rules.
@@ -129,85 +125,55 @@ Install [Buf](https://buf.build/docs/cli/installation/), then run:
 git clone https://github.com/ai-dynamo/openengine.git
 cd openengine
 
+buf format --diff --exit-code
 buf build
 buf lint
 ```
 
-Buf lint, Markdown lint, and link checks run in GitHub Actions for relevant
-pull requests.
+Markdown lint and link checks run in GitHub Actions for relevant pull requests.
+Run the Buf checks locally before opening a protocol change.
 
-### Regenerate package bindings
+## Release v0.1.0
 
-The repository checks in generated Python and Rust bindings so that package
-users do not need a protobuf compiler. Contributors changing the schema must
-regenerate both packages:
+[OpenEngine v0.1.0](https://github.com/ai-dynamo/openengine/releases/tag/v0.1.0) is available as a signed Git tag and an immutable Buf Schema Registry module commit.
 
-```bash
-python -m pip install grpcio-tools==1.81.1
-./scripts/generate-python.sh
-./scripts/generate-rust.sh
-./scripts/check-generated.sh
-```
+| Artifact | Release identifier |
+| --- | --- |
+| Protobuf package | `openengine.v1` |
+| Schema revision | `1` |
+| Git tag | [`v0.1.0`](https://github.com/ai-dynamo/openengine/tree/v0.1.0) |
+| Git commit | [`b5f2bd93721f7b888d3e2440679e0ae7012939d1`](https://github.com/ai-dynamo/openengine/commit/b5f2bd93721f7b888d3e2440679e0ae7012939d1) |
+| BSR module | [`buf.build/openengine/openengine`](https://buf.build/openengine/openengine) |
+| Immutable BSR commit | `768a93c7b44e40f28c692ad0b471a8f2` |
 
-Other protobuf-supported languages can generate clients and servers from the
-same canonical package.
+Use the immutable BSR commit as the dependency identifier. The `v0.1.0` and `main` BSR labels identify the same published content but are intended for discovery rather than production pinning.
 
-## Generated packages
+## Consume from Buf
 
-Each OpenEngine release publishes Python and Rust bindings from the same schema
-and version tag. The artifacts contain generated code; installing them does not
-run Buf or `protoc`.
+OpenEngine is distributed as the [`buf.build/openengine/openengine`](https://buf.build/openengine/openengine) module. Consumers can use [BSR-generated SDKs](https://buf.build/docs/bsr/generated-sdks/) or generate bindings with their own version-pinned plugins. OpenEngine does not currently maintain first-party language packages.
 
-### Python
+Generate bindings for v0.1.0 from the immutable module input with the consumer's language-specific `buf.gen.yaml`:
 
 ```bash
-pip install openengine-proto
+buf generate buf.build/openengine/openengine:768a93c7b44e40f28c692ad0b471a8f2
 ```
 
-```python
-import grpc
+Consumers that import OpenEngine from their own Protobuf module may instead declare it in `buf.yaml`; commit the resulting `buf.lock` so builds resolve the same content. Keep generator plugins version-pinned in `buf.gen.yaml`.
 
-from openengine.v1.generation_pb2 import GenerateRequest
-from openengine.v1.openengine_pb2_grpc import OpenEngineStub
+Servers implementing this contract advertise schema revision `1`, minimum
+client revision `1`, and the immutable BSR module commit they consumed in
+`ServerInfo.schema_release`. Unpublished local builds may use an immutable
+OpenEngine source commit instead.
 
-channel = grpc.aio.insecure_channel("localhost:50051")
-engine = OpenEngineStub(channel)
-request = GenerateRequest(request_id="example", model="model", prompt="Hello")
-```
-
-### Rust
-
-```bash
-cargo add openengine-proto
-```
-
-```rust
-use openengine_proto::openengine::v1::{
-    open_engine_client::OpenEngineClient,
-    GenerateRequest,
-};
-```
-
-The package version is the immutable `schema_release` identifier. Both packages
-also expose schema revision `1`; a client should still inspect `EngineInfo` to
-determine the revision and compatibility advertised by a running engine.
-
-| Package release | Protobuf package | Schema revision |
-| --------------- | ---------------- | --------------- |
-| `0.1.x`         | `openengine.v1`  | `1`             |
-
-See [`RELEASING.md`](RELEASING.md) for the coordinated release process and
-[`CHANGELOG.md`](CHANGELOG.md) for schema and package changes.
+See [`RELEASING.md`](RELEASING.md) for BSR publication.
 
 ## Project status
 
-OpenEngine is an experimental, pre-adoption API draft. The current focus is
-making the contract coherent across inference engines before implementations
-depend on it. Expect direct schema refinement during this phase.
+OpenEngine v0.1.0 is an experimental, pre-adoption release. The current focus is making the contract coherent across inference engines before implementations depend on it. Expect direct schema refinement during this phase.
 
 The intended adoption path is incremental:
 
-1. Aggregated text generation, discovery, health, abort, and drain.
+1. Aggregated generation, discovery, health, and abort.
 2. Prefill/decode roles, KV handoff, rank affinity, and KV event integration.
 3. Logprobs, guided decoding, LoRA, and multimodal input as needed.
 
@@ -228,8 +194,7 @@ git commit --signoff -m "docs: describe the change"
 
 Please validate protobuf changes with Buf and keep
 [`proto/openengine/v1/`](proto/openengine/v1/) and [`docs/api.md`](docs/api.md)
-synchronized. Changes to the schema must also regenerate and commit both
-language packages.
+synchronized.
 
 ## Security
 

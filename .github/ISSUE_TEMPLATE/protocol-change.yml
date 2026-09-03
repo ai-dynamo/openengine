@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        OpenEngine is a pre-adoption API draft, so direct schema changes are allowed. A proposal should still define portable behavior precisely enough for independent clients and engines to agree.
+        OpenEngine is an experimental, pre-adoption protocol, so direct schema changes are allowed. A proposal should still define portable behavior precisely enough for independent clients and engines to agree.
 
   - type: checkboxes
     id: existing-issues
