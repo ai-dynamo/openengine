@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Releasing OpenEngine
 
-OpenEngine publishes its canonical Protobuf schema as `buf.build/openengine/openengine`. The project does not currently maintain first-party language packages. Consumers may use BSR-generated SDKs or generate bindings with their own version-pinned plugins from an immutable BSR module commit.
+OpenEngine publishes its canonical Protobuf schema as `buf.build/openengine/openengine` and generated Rust bindings as the `openengine` crate on crates.io. Schema releases use `vMAJOR.MINOR.PATCH` tags; crate releases use separate `openengine-vMAJOR.MINOR.PATCH` tags so each crate can identify an already-published immutable BSR commit.
 
 ## Prepare a release
 
@@ -59,3 +59,49 @@ Maintainers may also run the workflow manually from `main`. A manual publication
 8. Update `README.md` and `proto/openengine/v1/README.md` on `main` with the immutable BSR commit assigned during publication.
 
 Consumers may use release labels for discovery, but must not use a moving label as their production dependency.
+
+## Release the Rust crate
+
+### One-time registry configuration
+
+The crate must exist before crates.io allows a Trusted Publisher to be configured. Bootstrap the first release as follows:
+
+1. Create the `release` GitHub environment and protect it with the desired approval policy.
+2. Prepare and merge the crate release commit using the process below.
+3. Create the signed `openengine-vMAJOR.MINOR.PATCH` tag locally, but do not push it yet.
+4. Create a short-lived crates.io token authorized to publish a new crate, install the release workflow's pinned Rust toolchain with `rustup toolchain install 1.98.1 --profile minimal`, publish from the tagged commit with `CARGO_REGISTRY_TOKEN=... cargo +1.98.1 publish --locked --package openengine`, and immediately revoke the token.
+5. Add the project maintainers or an `ai-dynamo` GitHub team as crate owners.
+6. Configure a crates.io Trusted Publisher for GitHub owner `ai-dynamo`, repository `openengine`, workflow `rust-release.yml`, and environment `release`.
+7. Push the signed tag. The workflow verifies that the existing crates.io archive matches the tagged source and skips a duplicate publication.
+
+Subsequent releases use crates.io Trusted Publishing and do not require a stored registry token.
+
+### Prepare a crate release
+
+1. Identify the published schema release for the bindings. If the schema changed, publish and verify it through the BSR process above first.
+2. Update the workspace package version in `Cargo.toml` and set `SCHEMA_RELEASE` in `packages/rust/openengine/src/lib.rs` to the immutable BSR module commit.
+3. Regenerate and validate the package:
+
+   ```bash
+   ./scripts/generate-rust.sh
+   ./scripts/check-generated.sh
+   cargo check --locked --workspace --all-targets
+   cargo clippy --locked --workspace --all-targets -- -D warnings
+   cargo doc --locked --no-deps --package openengine
+   cargo package --locked --package openengine
+   ```
+
+4. Update `CHANGELOG.md`, then open and merge the release-preparation pull request.
+
+### Publish a crate release
+
+Create and push a signed tag from the merged release commit:
+
+```bash
+VERSION=0.2.0
+./scripts/check-release-version.sh "openengine-v${VERSION}"
+git tag --sign "openengine-v${VERSION}" -m "OpenEngine Rust crate ${VERSION}"
+git push origin "openengine-v${VERSION}"
+```
+
+The `Rust crate release` workflow verifies the tag, generated bindings, and packaged archive before obtaining a short-lived crates.io token through OpenID Connect and publishing the crate. Published crate versions cannot be replaced; yank a broken release and prepare a new patch version.

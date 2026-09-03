@@ -30,7 +30,26 @@ sending a PR.
 - **Bugs / feedback / design questions**: open a [GitHub issue](https://github.com/ai-dynamo/openengine/issues).
 - **Pull requests**: open against `main`. Keep changes focused (one logical change per PR).
 
-## Signing Your Work
+## Development checks
+
+The schema under `proto/openengine/v1/` is the source of truth. Generated Rust bindings are checked in for crate consumers and must be updated in the same pull request as a schema change.
+
+```bash
+buf build
+buf lint
+
+./scripts/generate-rust.sh
+./scripts/check-generated.sh
+
+cargo check --locked --workspace --all-targets
+cargo clippy --locked --workspace --all-targets -- -D warnings
+cargo doc --locked --no-deps --package openengine
+cargo package --locked --package openengine
+```
+
+The Rust code-generation toolchain is pinned. Do not edit generated files by hand; update the schema or generator and regenerate them.
+
+## Signing your work
 
 We require that all contributors "sign off" on their commits. This certifies that
 you wrote the contribution, or otherwise have the right to submit it under the

@@ -1,0 +1,97 @@
+name: Rust
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "proto/**"
+      - "packages/rust/**"
+      - "tools/rust-codegen/**"
+      - "scripts/check-generated.sh"
+      - "scripts/check-release-version.sh"
+      - "scripts/generate-rust.sh"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/rust.yml"
+      - ".github/workflows/rust-release.yml"
+  pull_request:
+    paths:
+      - "proto/**"
+      - "packages/rust/**"
+      - "tools/rust-codegen/**"
+      - "scripts/check-generated.sh"
+      - "scripts/check-release-version.sh"
+      - "scripts/generate-rust.sh"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/rust.yml"
+      - ".github/workflows/rust-release.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  generated:
+    name: Generated bindings
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Check generated bindings
+        run: ./scripts/check-generated.sh
+
+  check:
+    name: Rust ${{ matrix.toolchain }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: ["1.88.0", "stable"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+
+      - name: Check workspace
+        run: cargo check --locked --workspace --all-targets
+
+  quality:
+    name: Rust quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: clippy,rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Run Clippy
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+
+      - name: Build documentation
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: cargo doc --locked --no-deps --package openengine
+
+      - name: Build publishable crate
+        run: cargo package --locked --package openengine
+
+      - name: List packaged files
+        run: cargo package --locked --package openengine --list
