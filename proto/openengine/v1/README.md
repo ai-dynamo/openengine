@@ -23,3 +23,5 @@ The current contract is [OpenEngine v0.1.0](https://github.com/ai-dynamo/openeng
 
 Generate bindings from every `.proto` file in this directory. Compiling only
 `openengine.proto` does not generate bindings for its imported message files.
+
+OpenEngine publishes pre-generated Rust bindings from this package in the [`openengine`](../../../packages/rust/openengine/) crate. The generation entry point is [`scripts/generate-rust.sh`](../../../scripts/generate-rust.sh).
