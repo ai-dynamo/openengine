@@ -79,12 +79,13 @@ Subsequent releases use crates.io Trusted Publishing and do not require a stored
 ### Prepare a crate release
 
 1. Identify the published schema release for the bindings. If the schema changed, publish and verify it through the BSR process above first.
-2. Update the workspace package version in `Cargo.toml` and set `SCHEMA_RELEASE` in `packages/rust/openengine/src/lib.rs` to the immutable BSR module commit.
+2. Update the workspace package version in `Cargo.toml` and the crate version, schema revision, immutable BSR module commit, Git tag, and Git commit in `packages/rust/openengine/schema-release.json`. Update the pinned schema link in `packages/rust/openengine/README.md`.
 3. Regenerate and validate the package:
 
    ```bash
    ./scripts/generate-rust.sh
    ./scripts/check-generated.sh
+   ./scripts/check-schema-release.sh --verify-registry
    cargo check --locked --workspace --all-targets
    cargo clippy --locked --workspace --all-targets -- -D warnings
    cargo doc --locked --no-deps --package openengine

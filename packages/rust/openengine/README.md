@@ -6,7 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 # OpenEngine Rust bindings
 
 Generated Prost messages and Tonic client/server bindings for the
-[`openengine.v1`](https://github.com/ai-dynamo/openengine/tree/main/proto/openengine/v1)
+[`openengine.v1`](https://github.com/ai-dynamo/openengine/tree/v0.1.0/proto/openengine/v1)
 protocol.
 
 ```bash

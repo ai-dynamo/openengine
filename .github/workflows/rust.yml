@@ -10,6 +10,7 @@ on:
       - "tools/rust-codegen/**"
       - "scripts/check-generated.sh"
       - "scripts/check-release-version.sh"
+      - "scripts/check-schema-release.sh"
       - "scripts/generate-rust.sh"
       - "Cargo.toml"
       - "Cargo.lock"
@@ -22,6 +23,7 @@ on:
       - "tools/rust-codegen/**"
       - "scripts/check-generated.sh"
       - "scripts/check-release-version.sh"
+      - "scripts/check-schema-release.sh"
       - "scripts/generate-rust.sh"
       - "Cargo.toml"
       - "Cargo.lock"
@@ -38,11 +40,16 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          fetch-depth: 0
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
+
+      - name: Check schema release metadata
+        run: ./scripts/check-schema-release.sh
 
       - name: Check generated bindings
         run: ./scripts/check-generated.sh

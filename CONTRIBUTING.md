@@ -40,6 +40,7 @@ buf lint
 
 ./scripts/generate-rust.sh
 ./scripts/check-generated.sh
+./scripts/check-schema-release.sh
 
 cargo check --locked --workspace --all-targets
 cargo clippy --locked --workspace --all-targets -- -D warnings

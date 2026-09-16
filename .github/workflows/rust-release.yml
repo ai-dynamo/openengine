@@ -38,6 +38,9 @@ jobs:
       - name: Check release version
         run: ./scripts/check-release-version.sh "${GITHUB_REF_NAME}"
 
+      - name: Check schema release metadata
+        run: ./scripts/check-schema-release.sh --verify-registry
+
       - name: Check generated bindings
         run: ./scripts/check-generated.sh
 
