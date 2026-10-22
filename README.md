@@ -25,6 +25,7 @@ SPDX-License-Identifier: Apache-2.0
   · <a href="proto/openengine/v1/">Canonical schema</a>
   · <a href="#release-v010">Release v0.1.0</a>
   · <a href="#consume-from-buf">Consume from Buf</a>
+  · <a href="#rust-crate">Rust crate</a>
   · <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -40,6 +41,7 @@ SPDX-License-Identifier: Apache-2.0
 - [Getting started](#getting-started)
 - [Release v0.1.0](#release-v010)
 - [Consume from Buf](#consume-from-buf)
+- [Rust crate](#rust-crate)
 - [Project status](#project-status)
 - [Contributing](#contributing)
 - [Security](#security)
@@ -150,7 +152,7 @@ Use the immutable BSR commit as the dependency identifier. The `v0.1.0` and `mai
 
 ## Consume from Buf
 
-OpenEngine is distributed as the [`buf.build/openengine/openengine`](https://buf.build/openengine/openengine) module. Consumers can use [BSR-generated SDKs](https://buf.build/docs/bsr/generated-sdks/) or generate bindings with their own version-pinned plugins. OpenEngine does not currently maintain first-party language packages.
+OpenEngine is distributed as the [`buf.build/openengine/openengine`](https://buf.build/openengine/openengine) module. Consumers can use [BSR-generated SDKs](https://buf.build/docs/bsr/generated-sdks/) or generate bindings with their own version-pinned plugins. Rust users can instead install the first-party crate described below.
 
 Generate bindings for v0.1.0 from the immutable module input with the consumer's language-specific `buf.gen.yaml`:
 
@@ -166,6 +168,20 @@ client revision `1`, and the immutable BSR module commit they consumed in
 OpenEngine source commit instead.
 
 See [`RELEASING.md`](RELEASING.md) for BSR publication.
+
+## Rust crate
+
+The `openengine` crate provides generated Prost messages and Tonic client/server bindings for `openengine.v1`:
+
+```bash
+cargo add openengine
+```
+
+```rust
+use openengine::v1::{control_client::ControlClient, inference_client::InferenceClient};
+```
+
+The crate contains checked-in generated source and a complete protobuf descriptor set. Consumer builds do not run Buf or `protoc`. The crate also exposes the schema revision and immutable BSR commit corresponding to its bindings.
 
 ## Project status
 
@@ -194,7 +210,7 @@ git commit --signoff -m "docs: describe the change"
 
 Please validate protobuf changes with Buf and keep
 [`proto/openengine/v1/`](proto/openengine/v1/) and [`docs/api.md`](docs/api.md)
-synchronized.
+synchronized. Schema changes must also regenerate and commit the Rust bindings.
 
 ## Security
 
