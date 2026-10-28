@@ -34,6 +34,7 @@ service Control {
   // Health and lifecycle.
   rpc Health(HealthRequest) returns (HealthResponse);
   rpc Abort(AbortRequest) returns (AbortResponse);
+  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 
   // LoRA lifecycle.
   rpc LoadLora(LoadLoraRequest) returns (LoadLoraResponse);
@@ -756,7 +757,7 @@ server closes the stream with gRPC `OK`.
 
 ---
 
-## Health and abort
+## Health, abort, and shutdown
 
 ```protobuf
 message HealthRequest {
@@ -818,6 +819,49 @@ request; omitting the target returns gRPC `INVALID_ARGUMENT`. An unknown request
 or KV session target returns gRPC `NOT_FOUND`; an engine that does not support
 abort returns gRPC `UNIMPLEMENTED`. `ALREADY_FINISHED` remains a successful
 idempotent outcome rather than an error.
+
+### Engine shutdown
+
+```protobuf
+message ShutdownRequest {
+  string expected_instance_id = 1;
+}
+
+message ShutdownResponse {
+  ShutdownStatus status = 1;
+  string instance_id = 2;
+}
+
+enum ShutdownStatus {
+  SHUTDOWN_STATUS_UNSPECIFIED = 0;
+  SHUTDOWN_STATUS_ACCEPTED = 1;
+  SHUTDOWN_STATUS_ALREADY_STOPPING = 2;
+}
+```
+
+`Shutdown` stops the entire serving group for one engine lifetime, including
+attached frontends and required engine workers. `expected_instance_id` must
+equal the intended engine's `ServerInfo.instance_id`. An empty ID returns gRPC
+`INVALID_ARGUMENT`; a different ID returns `FAILED_PRECONDITION`. Rejections
+must leave admission, health, and lifecycle state unchanged, including when
+forwarded through an attached frontend. Check identity before checking whether
+the engine is already stopping.
+
+`ACCEPTED` means the lifecycle owner has committed to shutdown and closed new
+inference and inference-probe admission. Existing admitted work follows the
+implementation's documented shutdown grace policy. `ALREADY_STOPPING` is a
+successful repeat for the same lifetime and does not start cleanup again.
+The response echoes that lifetime's ID. Neither status promises that cleanup
+has completed or that the process has exited. Accepted shutdown continues if
+the caller cancels or loses its connection. A lost response is an uncertain
+outcome: reconnect and check identity, and retry only with the original ID.
+Servers without shutdown support return `UNIMPLEMENTED`.
+
+During orderly shutdown, standard gRPC inference health becomes `NOT_SERVING`;
+healthy liveness remains `SERVING` until listener closure, and an existing fatal
+status remains fatal. `Control.Health` reports not-ready and must not launch new
+inference probes. Implementations must prevent late health results from
+restoring readiness and document their grace and cleanup limits.
 
 ---
 
