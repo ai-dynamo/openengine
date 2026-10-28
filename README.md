@@ -113,7 +113,7 @@ The canonical schema is organized by domain under
 | Observability         | Point-in-time load snapshots                                                                                      |
 
 See the [human-readable API reference](docs/api.md) for field-level behavior and
-validation rules.
+validation rules, including [standard gRPC health checks and watches](docs/api.md#standard-grpc-health).
 
 ## Getting started
 

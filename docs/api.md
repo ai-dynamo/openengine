@@ -759,6 +759,27 @@ server closes the stream with gRPC `OK`.
 
 ## Health, abort, and shutdown
 
+### Standard gRPC health
+
+OpenEngine servers expose the standard `grpc.health.v1.Health` service on the same gRPC endpoint as Inference and Control. Use `Health.Check` for point-in-time probes and `Health.Watch` for an initial status followed by changes. These RPCs are defined by the standard gRPC health protocol; they do not use the OpenEngine `HealthRequest` or `HealthResponse` messages below.
+
+The named `liveness` service reports whether the engine can continue operating or recover without a process restart. The named `inference` service reports whether the model and all required workers can accept and process new inference requests. The empty service name reports the same status as `inference`. Implementations expose these names consistently to clients and probes.
+
+| Engine condition | `liveness` | `inference` |
+| --- | --- | --- |
+| Listener unavailable or process exited | Unavailable | Unavailable |
+| Initialization, resume, or recoverable operation prevents inference | `SERVING` while recovery proceeds normally | `NOT_SERVING` |
+| Ready for inference | `SERVING` | `SERVING` |
+| Intentional pause, sleep, or inference-blocking update | `SERVING` absent an independent failure | `NOT_SERVING` |
+| Fatal engine or required-worker failure requiring restart | `NOT_SERVING` | `NOT_SERVING` |
+| Orderly shutdown without an independent fatal failure | `SERVING` while the listener remains available | `NOT_SERVING` |
+
+Before the listener binds, health is unavailable. Once bound, it must remain responsive during initialization and supported blocking operations. The engine determines when initialization or recovery has exhausted its budget and a restart is required. A deliberate pause alone does not fail liveness. Normal queuing, invalid requests, and other errors that do not prevent inference leave health unchanged. The first `Check` or `Watch` response may already be `SERVING`.
+
+For a known service, `Check` and `Watch` report the same current status. `Watch` sends the current status first, then reports subsequent changes; rapid transitions may be coalesced. For an unknown service, `Check` returns `NOT_FOUND` and `Watch` reports `SERVICE_UNKNOWN` as specified by the standard health protocol. A client watching inference readiness treats `NOT_SERVING`, unknown status, stream failure, and stream closure as unavailable, and re-establishes health and engine identity before routing again. Stream silence alone does not imply a broken connection; use bounded transport checks.
+
+`Control.Health` is a separate OpenEngine RPC for detailed checks and optional inference probing. Its result can lead or lag the published standard health status while the engine refreshes it. Implementations document their refresh and failure policy; standard health probes should not require inference work.
+
 ```protobuf
 message HealthRequest {
   // False means a lightweight readiness/liveness check. True asks the engine to
