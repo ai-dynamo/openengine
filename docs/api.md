@@ -763,9 +763,9 @@ server closes the stream with gRPC `OK`.
 
 OpenEngine servers expose the standard `grpc.health.v1.Health` service on the same gRPC endpoint as Inference and Control. Use `Health.Check` for point-in-time probes and `Health.Watch` for an initial status followed by changes. These RPCs are defined by the standard gRPC health protocol; they do not use the OpenEngine `HealthRequest` or `HealthResponse` messages below.
 
-The named `liveness` service reports whether the engine can continue operating or recover without a process restart. The named `inference` service reports whether the model and all required workers can accept and process new inference requests. The empty service name reports the same status as `inference`. Implementations expose these names consistently to clients and probes.
+The named `liveness` service reports whether the engine can continue operating or recover without a process restart. The named `readiness` service reports whether the model and all required workers can accept and process new inference requests. The empty service name reports the same status as `readiness`. Implementations expose these names consistently to clients and probes.
 
-| Engine condition | `liveness` | `inference` |
+| Engine condition | `liveness` | `readiness` |
 | --- | --- | --- |
 | Listener unavailable or process exited | Unavailable | Unavailable |
 | Initialization, resume, or recoverable operation prevents inference | `SERVING` while recovery proceeds normally | `NOT_SERVING` |
@@ -776,7 +776,7 @@ The named `liveness` service reports whether the engine can continue operating o
 
 Before the listener binds, health is unavailable. Once bound, it must remain responsive during initialization and supported blocking operations. The engine determines when initialization or recovery has exhausted its budget and a restart is required. A deliberate pause alone does not fail liveness. Normal queuing, invalid requests, and other errors that do not prevent inference leave health unchanged. The first `Check` or `Watch` response may already be `SERVING`.
 
-For a known service, `Check` and `Watch` report the same current status. `Watch` sends the current status first, then reports subsequent changes; rapid transitions may be coalesced. For an unknown service, `Check` returns `NOT_FOUND` and `Watch` reports `SERVICE_UNKNOWN` as specified by the standard health protocol. A client watching inference readiness treats `NOT_SERVING`, unknown status, stream failure, and stream closure as unavailable, and re-establishes health and engine identity before routing again. Stream silence alone does not imply a broken connection; use bounded transport checks.
+For a known service, `Check` and `Watch` report the same current status. `Watch` sends the current status first, then reports subsequent changes; rapid transitions may be coalesced. For an unknown service, `Check` returns `NOT_FOUND` and `Watch` reports `SERVICE_UNKNOWN` as specified by the standard health protocol. A client watching `readiness` treats `NOT_SERVING`, unknown status, stream failure, and stream closure as unavailable, and re-establishes health and engine identity before routing again. Stream silence alone does not imply a broken connection; use bounded transport checks.
 
 `Control.Health` is a separate OpenEngine RPC for detailed checks and optional inference probing. Its result can lead or lag the published standard health status while the engine refreshes it. Implementations document their refresh and failure policy; standard health probes should not require inference work.
 
@@ -878,7 +878,7 @@ the caller cancels or loses its connection. A lost response is an uncertain
 outcome: reconnect and check identity, and retry only with the original ID.
 Servers without shutdown support return `UNIMPLEMENTED`.
 
-During orderly shutdown, standard gRPC inference health becomes `NOT_SERVING`;
+During orderly shutdown, standard gRPC `readiness` becomes `NOT_SERVING`;
 healthy liveness remains `SERVING` until listener closure, and an existing fatal
 status remains fatal. `Control.Health` reports not-ready and must not launch new
 inference probes. Implementations must prevent late health results from
