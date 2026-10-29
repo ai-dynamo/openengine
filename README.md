@@ -106,14 +106,14 @@ The canonical schema is organized by domain under
 | Structured output     | JSON Schema, JSON object, regex, EBNF grammar, structural tags, and fixed choices                                 |
 | Token information     | Prompt and output logprobs, ranks, candidate-token selection, per-token records, and streamed text deltas         |
 | Discovery             | Server identity, deployment capacity, model limits, topology, parsers, and inference capabilities                 |
-| Lifecycle             | Health checks and targeted or global abort                                                                        |
+| Lifecycle             | Health checks, targeted or global abort, and identity-fenced engine shutdown                                      |
 | Disaggregated serving | Prefill/decode roles, decode-context parallel topology, KV handoff, connector discovery, and cache controls       |
 | KV-aware routing      | Typed KV event streams plus discovery of engine-native event sources                                              |
 | Model extensions      | Multimodal inputs and LoRA adapter lifecycle                                                                      |
 | Observability         | Point-in-time load snapshots                                                                                      |
 
 See the [human-readable API reference](docs/api.md) for field-level behavior and
-validation rules.
+validation rules, including [standard gRPC health checks and watches](docs/api.md#standard-grpc-health).
 
 ## Getting started
 
