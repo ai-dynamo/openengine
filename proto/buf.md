@@ -12,7 +12,7 @@ OpenEngine is a vendor-neutral gRPC protocol for coordinating inference engines 
 
 ## Consume the schema
 
-The canonical module is `buf.build/openengine/openengine`. Consumers can use [BSR-generated SDKs](https://buf.build/docs/bsr/generated-sdks/) or generate bindings with their own version-pinned plugins. OpenEngine does not currently maintain first-party language packages.
+The canonical module is `buf.build/openengine/openengine`. Consumers can use [BSR-generated SDKs](https://buf.build/docs/bsr/generated-sdks/) or generate bindings with their own version-pinned plugins. Rust users can install the first-party `openengine` crate.
 
 Generate bindings from the immutable BSR commit recorded in the [v0.1.0 release](https://github.com/ai-dynamo/openengine/releases/tag/v0.1.0):
 
