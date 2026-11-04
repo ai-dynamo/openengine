@@ -41,6 +41,9 @@ service Control {
   rpc UnloadLora(UnloadLoraRequest) returns (UnloadLoraResponse);
   rpc ListLoras(ListLorasRequest) returns (ListLorasResponse);
 
+  // Engine-to-engine encoder-output transfer.
+  rpc TransferEncoderCache(TransferEncoderCacheRequest) returns (TransferEncoderCacheResponse);
+
   // Disaggregated serving / KV transfer. Connector info: ServerInfo.kv_connector.
   rpc GetKvEventSources(GetKvEventSourcesRequest) returns (GetKvEventSourcesResponse);
   rpc SubscribeKvEvents(SubscribeKvEventsRequest) returns (stream SubscribeKvEventsResponse);
@@ -205,6 +208,14 @@ message ModelInfo {
   string reasoning_parser = 25;
   string tool_call_parser = 26;
   google.protobuf.Struct extra = 28; // Engine-specific, non-portable; read opportunistically.
+  EncoderCapabilities encoder = 29;
+}
+
+message EncoderCapabilities {
+  uint32 schema_version = 1;
+  bool encoder_only = 2;
+  bool accepts_cache = 3;
+  repeated string transfer_backends = 4;
 }
 
 message GenerationCapabilities {
@@ -338,6 +349,7 @@ message GenerateRequest {
   repeated MediaItem media = 10;
   string lora_name = 11;
   google.protobuf.Struct extra = 12; // Engine-specific, non-portable; may be ignored.
+  EncoderOptions encoder = 13;
 }
 
 message TokenIds {
@@ -479,6 +491,7 @@ message GenerateResponse {
     PrefillReady prefill_ready = 4;
     GenerationFinished finished = 5;
     EngineError error = 6;
+    EncoderReady encoder_ready = 7;
   }
 
   Usage usage = 10;
@@ -544,7 +557,7 @@ message Usage {
 }
 ```
 
-`PromptOutput` and `PrefillReady` are request-scoped. `TokenOutput` and
+`PromptOutput`, `PrefillReady`, and `EncoderReady` are request-scoped. `TokenOutput` and
 `GenerationFinished` are output-scoped and must carry `output_index`, including
 index zero. An index is stable for the request and ranges from `0` through
 `num_sequences - 1`.
@@ -561,17 +574,95 @@ text; neither field is cumulative. After `GenerationFinished` for an index, the
 engine must not emit another token or terminal event for that index. A
 successful aggregated or decode request emits exactly one
 `GenerationFinished` for each requested output. `PrefillReady` is the terminal
-success event for a prefill-only request.
+success event for a prefill-only request. `EncoderReady` is the terminal success
+event for an encoder-only request; it does not also emit `GenerationFinished`
+or language tokens.
 
 `EngineError` is request-scoped and terminal. It terminates all outputs and may
 replace `GenerationFinished` for outputs that had not completed. No event may
 follow it. `Usage` is cumulative across every output in the request and is set
 only on the final response, which is the last `GenerationFinished`,
-`PrefillReady`, or the terminal `EngineError`.
+`PrefillReady`, `EncoderReady`, or the terminal `EngineError`.
 
 When `FinishReason` is `STOP`, `stop_match` identifies the matched caller stop
 token, stop string, or model EOS token. `cached_prompt_tokens` is a subset of
 `prompt_tokens`; `reasoning_tokens` is a subset of `completion_tokens`.
+
+---
+
+## Encoder execution and output handoff
+
+An encoder-only engine prepares multimodal model inputs without running language
+generation. A consuming engine uses those inputs for generation. Encoder-output
+handoff and prefill/decode KV handoff are separate operations; support for one
+does not imply support for the other or for their composition.
+
+```protobuf
+message EncoderCacheRef {
+  string transfer_backend = 1;
+  bytes opaque_state = 2;
+}
+
+message EncoderOptions {
+  bool encode_only = 1;
+  EncoderCacheRef cache = 2;
+}
+
+message EncoderReady {
+  EncoderCacheRef cache = 1;
+}
+
+message TransferEncoderCacheRequest {
+  EncoderCacheRef cache = 1;
+  bytes destination = 2;
+}
+
+message TransferEncoderCacheResponse {}
+```
+
+### Capability negotiation and validation
+
+`ModelInfo.encoder.schema_version = 1` identifies this encoder contract.
+An absent capability, zero version, or version the client does not understand
+does not authorize encoder requests. `encoder_only` advertises encoder-only
+execution; `accepts_cache` advertises consumption. Both roles list their
+supported backend names in `transfer_backends`. Clients select a common backend
+before dispatch; an empty list offers no compatible transport.
+
+Omitting `GenerateRequest.encoder` preserves ordinary generation behavior on
+generation engines. An encoder-only engine requires `encoder.encode_only = true`.
+When `encoder` is present, exactly one of `encode_only = true` or `cache` being
+present is required. Empty options and simultaneous encoding/consumption are
+invalid. A cache reference requires nonempty `transfer_backend` and
+`opaque_state`, and the consumer must advertise that backend. Servers reject
+invalid or unsupported combinations before acceptance rather than silently
+ignoring the encoder option. Ordinary model/input and modality checks still
+apply; encoder capability alone does not enable every modality or topology.
+
+### Encoding, transfer, and ownership
+
+1. The client sends the prompt and media to an encoder-only engine using
+   `Generate` with `encoder.encode_only = true`.
+2. Successful encoding emits one request-scoped terminal `EncoderReady` holding
+   an engine-owned cache reference. An accepted failure emits `EngineError`.
+3. The client forwards that reference unchanged in `encoder.cache` to a
+   compatible generation engine. Tensor contents remain outside the inference
+   RPC payload; the backend owns transfer and validation of the reference.
+4. A backend that needs receiver coordination prepares its destination buffers
+   and calls `Control.TransferEncoderCache` on the encoder engine. `destination`
+   is a nonempty backend-specific descriptor, not a portable tensor layout.
+   The backend validates the descriptor and request/model identity before
+   starting the transfer. A successful unary response means the data transfer
+   has completed, not merely that it was queued.
+
+Cache references are single-use and backend-versioned. The backend owns their
+expiration, quotas, and cleanup on consumption, cancellation, timeout, and
+shutdown. Callers cannot assume a reference survives indefinitely. Cancellation
+or a lost transfer response does not prove that transfer stopped or that the
+reference remains unused: never replay that handoff after an uncertain outcome.
+Implementations retain buffers while transfer may still access them and reclaim
+them only after the backend establishes completion or failure. These ownership
+rules apply even when the waiting RPC is cancelled.
 
 ---
 
@@ -974,7 +1065,8 @@ accepted stream phase and report failures with non-OK gRPC status.
 
 `GenerationFinished` is terminal for its `output_index`; other output indexes
 may continue. The last `GenerationFinished` ends a successful aggregated or
-decode stream, `PrefillReady` ends a successful prefill stream, and
+decode stream, `PrefillReady` ends a successful prefill stream,
+`EncoderReady` ends a successful encoder-only stream, and
 `EngineError` ends any failed generation stream. An `EngineError` also
 terminates a KV-event subscription. No response may follow a terminal
 `EngineError`. Application failure is not a `GenerationFinished` reason.
