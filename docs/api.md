@@ -655,6 +655,16 @@ apply; encoder capability alone does not enable every modality or topology.
    starting the transfer. A successful unary response means the data transfer
    has completed, not merely that it was queued.
 
+If a completed encoder result will not be dispatched, the caller releases it
+at the producer using `Control.Abort` with `encoder_cache`. `ABORTED` means the
+unclaimed export was removed. `ALREADY_FINISHED` means it was absent, consumed,
+or already claimed; a claimed transfer retains ownership until settlement.
+Release is idempotent and must not interrupt a transfer or free its buffers.
+If release races a claimed transfer that later fails preflight, the backend
+must reclaim the export after settlement rather than restore it for reuse.
+Malformed references return `INVALID_ARGUMENT`; unsupported release returns
+`UNIMPLEMENTED`. A lost release response can be retried with the same reference.
+
 Cache references are single-use and backend-versioned. The backend owns their
 expiration, quotas, and cleanup on consumption, cancellation, timeout, and
 shutdown. Callers cannot assume a reference survives indefinitely. Cancellation
@@ -662,7 +672,10 @@ or a lost transfer response does not prove that transfer stopped or that the
 reference remains unused: never replay that handoff after an uncertain outcome.
 Implementations retain buffers while transfer may still access them and reclaim
 them only after the backend establishes completion or failure. These ownership
-rules apply even when the waiting RPC is cancelled.
+rules apply even when the waiting RPC is cancelled. If `EncoderReady` may
+have been delivered but the caller never learned its reference, cancellation
+cannot safely revoke that reference: this uncertain-delivery case remains
+bounded by the backend's expiration, quotas, and producer shutdown cleanup.
 
 ---
 
@@ -909,6 +922,7 @@ message AbortRequest {
     string request_id = 1;
     KvSessionRef kv_session = 2;
     AllRequests all_requests = 3;
+    EncoderCacheRef encoder_cache = 4;
   }
 }
 
