@@ -209,12 +209,19 @@ message ModelInfo {
 }
 
 message EncoderCapabilities {
-  uint32 schema_version = 1;
-  bool encoder_only = 2;
-  bool accepts_cache = 3;
-  repeated string transfer_backends = 4;
-  bool supports_abort_cleanup = 5;
-  bool requires_cache = 6;
+  // Changes only for incompatible contract semantics, not compatible additions.
+  optional uint32 schema_version = 1;
+  optional bool encoder_only = 2;
+  optional bool accepts_handoff = 3;
+  // Consumer: reference formats this engine accepts.
+  repeated string supported_transfer_backends = 4;
+  // The producer can release unclaimed references through Abort.encoder_handoff.
+  optional bool supports_abort_cleanup = 5;
+  // Media generation requires encoder.handoff; text-only and KV-session decode
+  // requests do not require a handoff. Requires accepts_handoff.
+  optional bool requires_handoff = 6;
+  // Producer: the single reference format its handoffs use.
+  optional string transfer_backend = 7;
 }
 
 message GenerationCapabilities {
@@ -490,7 +497,7 @@ message GenerateResponse {
     PrefillReady prefill_ready = 4;
     GenerationFinished finished = 5;
     EngineError error = 6;
-    EncoderReady encoder_ready = 7;
+    EncodeReady encode_ready = 7;
   }
 
   Usage usage = 10;
@@ -556,7 +563,7 @@ message Usage {
 }
 ```
 
-`PromptOutput`, `PrefillReady`, and `EncoderReady` are request-scoped. `TokenOutput` and
+`PromptOutput`, `PrefillReady`, and `EncodeReady` are request-scoped. `TokenOutput` and
 `GenerationFinished` are output-scoped and must carry `output_index`, including
 index zero. An index is stable for the request and ranges from `0` through
 `num_sequences - 1`.
@@ -573,7 +580,7 @@ text; neither field is cumulative. After `GenerationFinished` for an index, the
 engine must not emit another token or terminal event for that index. A
 successful aggregated or decode request emits exactly one
 `GenerationFinished` for each requested output. `PrefillReady` is the terminal
-success event for a prefill-only request. `EncoderReady` is the terminal success
+success event for a prefill-only request. `EncodeReady` is the terminal success
 event for an encoder-only request; it does not also emit `GenerationFinished`
 or language tokens.
 
@@ -581,7 +588,7 @@ or language tokens.
 replace `GenerationFinished` for outputs that had not completed. No event may
 follow it. `Usage` is cumulative across every output in the request and is set
 only on the final response, which is the last `GenerationFinished`,
-`PrefillReady`, `EncoderReady`, or the terminal `EngineError`.
+`PrefillReady`, or the terminal `EngineError`. `EncodeReady` omits `Usage`.
 
 When `FinishReason` is `STOP`, `stop_match` identifies the matched caller stop
 token, stop string, or model EOS token. `cached_prompt_tokens` is a subset of
@@ -597,76 +604,133 @@ handoff and prefill/decode KV handoff are separate operations; support for one
 does not imply support for the other or for their composition.
 
 ```protobuf
-message EncoderCacheRef {
+message EncoderHandoffRef {
+  // Engine-owned reference format, including owner and incompatible format version.
   string transfer_backend = 1;
+  // Versioned, engine-specific reference. Tensor contents remain engine-owned.
   bytes opaque_state = 2;
 }
 
 message EncoderOptions {
-  bool encode_only = 1;
-  EncoderCacheRef cache = 2;
+  oneof mode {
+    // Produce EncodeReady without generating language tokens.
+    EncodeOnly encode_only = 1;
+    // Consume a previous encoder result.
+    EncoderHandoffRef handoff = 2;
+  }
 }
 
-message EncoderReady {
-  EncoderCacheRef cache = 1;
+message EncodeOnly {}
+
+message EncodeReady {
+  EncoderHandoffRef handoff = 1;
 }
 
 message EncoderCapabilities {
-  uint32 schema_version = 1;
-  bool encoder_only = 2;
-  bool accepts_cache = 3;
-  repeated string transfer_backends = 4;
-  bool supports_abort_cleanup = 5;
-  bool requires_cache = 6;
+  // Changes only for incompatible contract semantics, not compatible additions.
+  optional uint32 schema_version = 1;
+  optional bool encoder_only = 2;
+  optional bool accepts_handoff = 3;
+  // Consumer: reference formats this engine accepts.
+  repeated string supported_transfer_backends = 4;
+  // The producer can release unclaimed references through Abort.encoder_handoff.
+  optional bool supports_abort_cleanup = 5;
+  // Media generation requires encoder.handoff; text-only and KV-session decode
+  // requests do not require a handoff. Requires accepts_handoff.
+  optional bool requires_handoff = 6;
+  // Producer: the single reference format its handoffs use.
+  optional string transfer_backend = 7;
 }
 ```
 
 ### Capability negotiation and validation
 
 `ModelInfo.encoder.schema_version = 1` identifies this encoder contract.
-An absent capability, zero version, or version the client does not understand
-does not authorize encoder requests. `encoder_only` advertises encoder-only
-execution; `accepts_cache` advertises consumption. An encoder-only producer lists
-exactly one backend in `transfer_backends`; consumers list the backends they
-accept. Before encoding, clients verify that the producer's backend is supported
-by the consumer. An empty list offers no compatible transport. This revision
-does not select between multiple producer backends in an encode request.
+An absent capability, absent or zero version, or version the client does not
+understand does not authorize encoder requests. `encoder_only` advertises
+encoder-only execution; `accepts_handoff` advertises consumption. An engine may
+set at most one of these flags to true. An encoder-only server reports
+`ServerInfo.engine_role = ENGINE_ROLE_UNSPECIFIED`; clients discover encoder
+roles through `ModelInfo.encoder`, not `ServerInfo.engine_role` alone.
+
+A producer reports exactly one nonempty `transfer_backend`; its
+`supported_transfer_backends` list is empty. A consumer lists accepted formats
+in `supported_transfer_backends` and leaves the producer `transfer_backend`
+unset. Before encoding, clients compare the producer's identifier exactly
+against the consumer's list. Absent producer identifiers and empty consumer
+lists offer no compatible format. This revision does not select between
+multiple producer formats in an encode request.
+
+The identifier names an engine-owned, versioned **reference format**, including
+its owner and incompatible format version, rather than just a transport.
+For example, `trtllm-nixl-encoder-v1` and `trtllm-shared-safetensors-v1` identify
+distinct formats. A generic label such as `nixl` is insufficient: two engines
+using NIXL need not understand each other's opaque references. Incompatible
+reference-format changes require a distinct identifier; clients do not infer
+compatibility from a shared prefix or transport name.
+
+`EncoderCapabilities.schema_version` and `KvConnectorInfo.schema_version`
+change only for incompatible contract semantics. Compatible additive fields
+and capabilities retain the current version; older clients ignore fields they
+do not understand and continue using their negotiated capabilities. Adding
+video or audio does not itself require a version bump if existing semantics
+remain valid. A new requirement that old clients cannot safely ignore is not a
+compatible addition and must be negotiated or use a new contract version.
+These versions are separate from backend reference-format identifiers and the
+server-wide schema revision/release metadata.
 
 `supports_abort_cleanup` advertises producer support for releasing unclaimed
-references through `Abort.encoder_cache`. Absent or false means clients cannot
+handoffs through `Abort.encoder_handoff`. Absent or false means clients cannot
 assume explicit release is supported. Clients that require explicit cleanup
 must verify this capability before encoding.
 
-`requires_cache` requires `accepts_cache = true` and must be false on an
+`requires_handoff` requires `accepts_handoff = true` and must not be true on an
 encoder-only engine. When true, media generation requests require
-`encoder.cache`; omission is rejected before acceptance. Text-only requests and
-decode requests with `kv.session` do not require an encoder reference. When false,
-encoder-cache consumption is optional; ordinary input/modality checks still apply.
+`encoder.handoff`; omission is rejected before acceptance. Text-only requests
+and decode requests with `kv.session` do not require an encoder handoff. An
+absent value does not report whether handoffs are mandatory; clients must not
+infer that ordinary media generation is supported. An explicitly false value
+makes handoff consumption optional; ordinary input/modality checks still apply.
 
 Omitting `GenerateRequest.encoder` preserves ordinary generation behavior unless
-`requires_cache` requires a reference for the request's media. An encoder-only
-engine requires `encoder.encode_only = true`.
-When `encoder` is present, exactly one of `encode_only = true` or `cache` being
-present is required. Empty options and simultaneous encoding/consumption are
-invalid. A cache reference requires nonempty `transfer_backend` and
-`opaque_state`, and the consumer must advertise that backend. Servers reject
+`requires_handoff` requires a handoff for the request's media. An encoder-only
+engine requires the `encoder.encode_only` message to be present.
+When `encoder` is present, its `mode` oneof must select `encode_only` or `handoff`;
+empty options are invalid. Protobuf parsing retains the last member if both
+appear on the wire. Servers validate the resulting selected mode; clients must
+not encode both. A handoff requires nonempty `transfer_backend` and
+`opaque_state`, and the consumer must advertise that format. Servers reject
 invalid or unsupported combinations before acceptance rather than silently
 ignoring the encoder option. Ordinary model/input and modality checks still
 apply; encoder capability alone does not enable every modality or topology.
 Encoder options and `kv.session` are mutually exclusive.
 
+Encode-only requests must omit generation options: nonempty `sampling`,
+`stopping`, `guided`, or `response` messages and nonempty `lora_name` are rejected
+before acceptance. Empty submessages are equivalent to omission. Clients send
+sampling and output options on the consuming generation request instead.
+
 ### Encoding, transfer, and ownership
 
 1. The client sends the prompt and media to an encoder-only engine using
-   `Generate` with `encoder.encode_only = true`.
-2. Successful encoding emits one request-scoped terminal `EncoderReady` holding
-   an engine-owned cache reference. An accepted failure emits `EngineError`.
-3. The client forwards that reference unchanged in `encoder.cache` to a
-   compatible generation engine. The request repeats the encode request's prompt
-   or token IDs and its `media` items in the same order; the consumer does not
-   fetch that media again. A decode request with `kv.session` does not carry
-   `encoder.cache`. Tensor contents remain outside the inference RPC payload;
-   the backend owns transfer and validation of the reference.
+   `Generate` with `encoder.encode_only = {}`.
+2. Successful encoding emits one request-scoped terminal `EncodeReady` holding
+   an engine-owned handoff reference. An accepted failure emits `EngineError`.
+   `EncodeReady` omits `Usage`: encoding is not language generation. The consumer
+   reports the usual expanded `prompt_tokens` and generated-token usage for its
+   phase; clients do not add a second prompt count for encoding.
+3. The client forwards that reference unchanged in `encoder.handoff` to a
+   compatible generation engine. It repeats the original input alternative
+   (prompt or token IDs), its value, and ordered media items. Equality means
+   equality of the defined input fields, not equality of protobuf serialization:
+   token order, modality, selected source and its exact value, MIME type, and
+   caller UUID must match. Unknown protobuf fields and wire-field ordering do
+   not change that identity. URLs and data URIs are not normalized, and changing
+   the source spelling, bytes, or input alternative is not permitted even if it
+   might denote equivalent content. The consumer does not fetch that media
+   again. A decode request with `kv.session` does not carry `encoder.handoff`.
+   Tensor contents remain outside the inference RPC payload; the backend owns
+   transfer and validation of the reference.
 4. The engines coordinate through their backend's transfer mechanism. The
    backend validates receiver descriptors and request/model identity before
    transfer, establishes completion before the consumer uses the outputs, and
@@ -675,7 +739,7 @@ Encoder options and `kv.session` are mutually exclusive.
 
 If a completed encoder result will not be dispatched and the producer advertises
 `supports_abort_cleanup`, the caller releases it at the producer using
-`Control.Abort` with `encoder_cache`. `ABORTED` means the
+`Control.Abort` with `encoder_handoff`. `ABORTED` means the
 unclaimed export was removed. `ALREADY_FINISHED` means it was absent, consumed,
 or already claimed; a claimed transfer retains ownership until settlement.
 Release is idempotent and must not interrupt a transfer or free its buffers.
@@ -684,14 +748,14 @@ must reclaim the export after settlement rather than restore it for reuse.
 Malformed references return `INVALID_ARGUMENT`; unsupported release returns
 `UNIMPLEMENTED`. A lost release response can be retried with the same reference.
 
-Cache references are single-use and backend-versioned. The backend owns their
+Handoff references are single-use and backend-versioned. The backend owns their
 expiration, quotas, and cleanup on consumption, cancellation, timeout, and
 shutdown. Callers cannot assume a reference survives indefinitely. Cancellation
 or a lost transfer response does not prove that transfer stopped or that the
 reference remains unused: never replay that handoff after an uncertain outcome.
 Implementations retain buffers while transfer may still access them and reclaim
 them only after the backend establishes completion or failure. These ownership
-rules apply even when the waiting RPC is cancelled. If `EncoderReady` may
+rules apply even when the waiting RPC is cancelled. If `EncodeReady` may
 have been delivered but the caller never learned its reference, cancellation
 cannot safely revoke that reference: this uncertain-delivery case remains
 bounded by the backend's expiration, quotas, and producer shutdown cleanup.
@@ -941,7 +1005,7 @@ message AbortRequest {
     string request_id = 1;
     KvSessionRef kv_session = 2;
     AllRequests all_requests = 3;
-    EncoderCacheRef encoder_cache = 4;
+    EncoderHandoffRef encoder_handoff = 4;
   }
 }
 
@@ -1099,7 +1163,7 @@ accepted stream phase and report failures with non-OK gRPC status.
 `GenerationFinished` is terminal for its `output_index`; other output indexes
 may continue. The last `GenerationFinished` ends a successful aggregated or
 decode stream, `PrefillReady` ends a successful prefill stream,
-`EncoderReady` ends a successful encoder-only stream, and
+`EncodeReady` ends a successful encoder-only stream, and
 `EngineError` ends any failed generation stream. An `EngineError` also
 terminates a KV-event subscription. No response may follow a terminal
 `EngineError`. Application failure is not a `GenerationFinished` reason.

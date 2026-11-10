@@ -42,19 +42,25 @@ class EncoderAbortContract(unittest.TestCase):
         cls.capabilities = message_factory.GetMessageClass(
             pool.FindMessageTypeByName("openengine.v1.EncoderCapabilities")
         )
+        cls.kv_connector = message_factory.GetMessageClass(
+            pool.FindMessageTypeByName("openengine.v1.KvConnectorInfo")
+        )
+        cls.options = message_factory.GetMessageClass(
+            pool.FindMessageTypeByName("openengine.v1.EncoderOptions")
+        )
         cls.control = pool.FindServiceByName("openengine.v1.Control")
 
     def test_existing_targets_and_encoder_reference_roundtrip(self):
         fields = self.request.DESCRIPTOR.fields_by_name
         self.assertEqual(
             {name: field.number for name, field in fields.items()},
-            {"request_id": 1, "kv_session": 2, "all_requests": 3, "encoder_cache": 4},
+            {"request_id": 1, "kv_session": 2, "all_requests": 3, "encoder_handoff": 4},
         )
         for name, value in (
             ("request_id", "request"),
             ("kv_session", {"session_id": "session"}),
             ("all_requests", {}),
-            ("encoder_cache", {"transfer_backend": "test", "opaque_state": b"opaque"}),
+            ("encoder_handoff", {"transfer_backend": "test", "opaque_state": b"opaque"}),
         ):
             with self.subTest(target=name):
                 request = self.request(**{name: value})
@@ -62,37 +68,80 @@ class EncoderAbortContract(unittest.TestCase):
                 self.assertEqual(decoded, request)
                 self.assertEqual(decoded.WhichOneof("target"), name)
         self.assertEqual(
-            fields["encoder_cache"].message_type.full_name,
-            "openengine.v1.EncoderCacheRef",
+            fields["encoder_handoff"].message_type.full_name,
+            "openengine.v1.EncoderHandoffRef",
         )
-        request.encoder_cache.SetInParent()
+        request.encoder_handoff.SetInParent()
         request.request_id = "replacement"
-        self.assertFalse(request.HasField("encoder_cache"))
+        self.assertFalse(request.HasField("encoder_handoff"))
 
-    def test_typed_capabilities_preserve_tags_and_default_to_false(self):
+    def test_discovery_preserves_absent_and_explicit_defaults(self):
         fields = self.capabilities.DESCRIPTOR.fields_by_name
         self.assertEqual(
             {name: field.number for name, field in fields.items()},
             {
                 "schema_version": 1,
                 "encoder_only": 2,
-                "accepts_cache": 3,
-                "transfer_backends": 4,
+                "accepts_handoff": 3,
+                "supported_transfer_backends": 4,
                 "supports_abort_cleanup": 5,
-                "requires_cache": 6,
+                "requires_handoff": 6,
+                "transfer_backend": 7,
             },
         )
-        for name in ("supports_abort_cleanup", "requires_cache"):
-            self.assertEqual(fields[name].type, descriptor_pb2.FieldDescriptorProto.TYPE_BOOL)
-            self.assertFalse(getattr(self.capabilities(), name))
+        for name, value in (
+            ("schema_version", 0),
+            ("encoder_only", False),
+            ("accepts_handoff", False),
+            ("supports_abort_cleanup", False),
+            ("requires_handoff", False),
+            ("transfer_backend", ""),
+        ):
+            with self.subTest(field=name):
+                message = self.capabilities()
+                self.assertFalse(message.HasField(name))
+                setattr(message, name, value)
+                decoded = self.capabilities.FromString(message.SerializeToString())
+                self.assertTrue(decoded.HasField(name))
+                self.assertEqual(getattr(decoded, name), value)
         for values in (
             {"encoder_only": True, "supports_abort_cleanup": True},
-            {"accepts_cache": True, "requires_cache": True},
+            {"accepts_handoff": True, "requires_handoff": True},
         ):
             message = self.capabilities(schema_version=1, **values)
             self.assertEqual(
                 self.capabilities.FromString(message.SerializeToString()), message
             )
+
+    def test_encoder_mode_has_presence_and_is_exclusive(self):
+        options = self.options()
+        self.assertIsNone(options.WhichOneof("mode"))
+        options.encode_only.SetInParent()
+        encoded = options.SerializeToString()
+        self.assertEqual(options.WhichOneof("mode"), "encode_only")
+        options.handoff.CopyFrom(
+            type(options.handoff)(transfer_backend="engine-format-v1", opaque_state=b"ref")
+        )
+        consumed = options.SerializeToString()
+        self.assertFalse(options.HasField("encode_only"))
+        self.assertEqual(options.WhichOneof("mode"), "handoff")
+        self.assertEqual(
+            self.options.FromString(encoded + consumed).WhichOneof("mode"), "handoff"
+        )
+        self.assertEqual(
+            self.options.FromString(consumed + encoded).WhichOneof("mode"), "encode_only"
+        )
+        # The old draft bool is not a valid mode in the revised contract.
+        self.assertIsNone(self.options.FromString(b"\x08\x01").WhichOneof("mode"))
+
+    def test_additive_unknown_fields_preserve_capability_version(self):
+        for message_type in (self.capabilities, self.kv_connector):
+            with self.subTest(message=message_type.DESCRIPTOR.full_name):
+                message = message_type(schema_version=1)
+                # A future optional field 100 does not change known semantics.
+                decoded = message_type.FromString(message.SerializeToString() + b"\xa0\x06\x01")
+                self.assertEqual(decoded.schema_version, 1)
+                self.assertTrue(decoded.HasField("schema_version"))
 
     def test_backend_transfer_is_outside_portable_control(self):
         self.assertNotIn("TransferEncoderCache", self.control.methods_by_name)
