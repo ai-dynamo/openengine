@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Wire compatibility for the additive encoder-cache abort target."""
+"""Wire compatibility for encoder capabilities and reference cleanup."""
 
 import tempfile
 import unittest
@@ -25,7 +25,7 @@ class EncoderAbortContract(unittest.TestCase):
                     f"-I{Path(grpc_tools.__file__).parent / '_proto'}",
                     f"--descriptor_set_out={output}",
                     "--include_imports",
-                    str(root / "proto/openengine/v1/lifecycle.proto"),
+                    str(root / "proto/openengine/v1/openengine.proto"),
                 ]
             )
             if result:
@@ -39,6 +39,10 @@ class EncoderAbortContract(unittest.TestCase):
         cls.request = message_factory.GetMessageClass(
             pool.FindMessageTypeByName("openengine.v1.AbortRequest")
         )
+        cls.capabilities = message_factory.GetMessageClass(
+            pool.FindMessageTypeByName("openengine.v1.EncoderCapabilities")
+        )
+        cls.control = pool.FindServiceByName("openengine.v1.Control")
 
     def test_existing_targets_and_encoder_reference_roundtrip(self):
         fields = self.request.DESCRIPTOR.fields_by_name
@@ -64,6 +68,35 @@ class EncoderAbortContract(unittest.TestCase):
         request.encoder_cache.SetInParent()
         request.request_id = "replacement"
         self.assertFalse(request.HasField("encoder_cache"))
+
+    def test_typed_capabilities_preserve_tags_and_default_to_false(self):
+        fields = self.capabilities.DESCRIPTOR.fields_by_name
+        self.assertEqual(
+            {name: field.number for name, field in fields.items()},
+            {
+                "schema_version": 1,
+                "encoder_only": 2,
+                "accepts_cache": 3,
+                "transfer_backends": 4,
+                "supports_abort_cleanup": 5,
+                "requires_cache": 6,
+            },
+        )
+        for name in ("supports_abort_cleanup", "requires_cache"):
+            self.assertEqual(fields[name].type, descriptor_pb2.FieldDescriptorProto.TYPE_BOOL)
+            self.assertFalse(getattr(self.capabilities(), name))
+        for values in (
+            {"encoder_only": True, "supports_abort_cleanup": True},
+            {"accepts_cache": True, "requires_cache": True},
+        ):
+            message = self.capabilities(schema_version=1, **values)
+            self.assertEqual(
+                self.capabilities.FromString(message.SerializeToString()), message
+            )
+
+    def test_backend_transfer_is_outside_portable_control(self):
+        self.assertNotIn("TransferEncoderCache", self.control.methods_by_name)
+        self.assertIn("Abort", self.control.methods_by_name)
 
 
 if __name__ == "__main__":

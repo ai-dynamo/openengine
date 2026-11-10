@@ -41,9 +41,6 @@ service Control {
   rpc UnloadLora(UnloadLoraRequest) returns (UnloadLoraResponse);
   rpc ListLoras(ListLorasRequest) returns (ListLorasResponse);
 
-  // Engine-to-engine encoder-output transfer.
-  rpc TransferEncoderCache(TransferEncoderCacheRequest) returns (TransferEncoderCacheResponse);
-
   // Disaggregated serving / KV transfer. Connector info: ServerInfo.kv_connector.
   rpc GetKvEventSources(GetKvEventSourcesRequest) returns (GetKvEventSourcesResponse);
   rpc SubscribeKvEvents(SubscribeKvEventsRequest) returns (stream SubscribeKvEventsResponse);
@@ -216,6 +213,8 @@ message EncoderCapabilities {
   bool encoder_only = 2;
   bool accepts_cache = 3;
   repeated string transfer_backends = 4;
+  bool supports_abort_cleanup = 5;
+  bool requires_cache = 6;
 }
 
 message GenerationCapabilities {
@@ -612,12 +611,14 @@ message EncoderReady {
   EncoderCacheRef cache = 1;
 }
 
-message TransferEncoderCacheRequest {
-  EncoderCacheRef cache = 1;
-  bytes destination = 2;
+message EncoderCapabilities {
+  uint32 schema_version = 1;
+  bool encoder_only = 2;
+  bool accepts_cache = 3;
+  repeated string transfer_backends = 4;
+  bool supports_abort_cleanup = 5;
+  bool requires_cache = 6;
 }
-
-message TransferEncoderCacheResponse {}
 ```
 
 ### Capability negotiation and validation
@@ -625,12 +626,26 @@ message TransferEncoderCacheResponse {}
 `ModelInfo.encoder.schema_version = 1` identifies this encoder contract.
 An absent capability, zero version, or version the client does not understand
 does not authorize encoder requests. `encoder_only` advertises encoder-only
-execution; `accepts_cache` advertises consumption. Both roles list their
-supported backend names in `transfer_backends`. Clients select a common backend
-before dispatch; an empty list offers no compatible transport.
+execution; `accepts_cache` advertises consumption. An encoder-only producer lists
+exactly one backend in `transfer_backends`; consumers list the backends they
+accept. Before encoding, clients verify that the producer's backend is supported
+by the consumer. An empty list offers no compatible transport. This revision
+does not select between multiple producer backends in an encode request.
 
-Omitting `GenerateRequest.encoder` preserves ordinary generation behavior on
-generation engines. An encoder-only engine requires `encoder.encode_only = true`.
+`supports_abort_cleanup` advertises producer support for releasing unclaimed
+references through `Abort.encoder_cache`. Absent or false means clients cannot
+assume explicit release is supported. Clients that require explicit cleanup
+must verify this capability before encoding.
+
+`requires_cache` requires `accepts_cache = true` and must be false on an
+encoder-only engine. When true, media generation requests require
+`encoder.cache`; omission is rejected before acceptance. Text-only requests and
+decode requests with `kv.session` do not require an encoder reference. When false,
+encoder-cache consumption is optional; ordinary input/modality checks still apply.
+
+Omitting `GenerateRequest.encoder` preserves ordinary generation behavior unless
+`requires_cache` requires a reference for the request's media. An encoder-only
+engine requires `encoder.encode_only = true`.
 When `encoder` is present, exactly one of `encode_only = true` or `cache` being
 present is required. Empty options and simultaneous encoding/consumption are
 invalid. A cache reference requires nonempty `transfer_backend` and
@@ -638,6 +653,7 @@ invalid. A cache reference requires nonempty `transfer_backend` and
 invalid or unsupported combinations before acceptance rather than silently
 ignoring the encoder option. Ordinary model/input and modality checks still
 apply; encoder capability alone does not enable every modality or topology.
+Encoder options and `kv.session` are mutually exclusive.
 
 ### Encoding, transfer, and ownership
 
@@ -646,17 +662,20 @@ apply; encoder capability alone does not enable every modality or topology.
 2. Successful encoding emits one request-scoped terminal `EncoderReady` holding
    an engine-owned cache reference. An accepted failure emits `EngineError`.
 3. The client forwards that reference unchanged in `encoder.cache` to a
-   compatible generation engine. Tensor contents remain outside the inference
-   RPC payload; the backend owns transfer and validation of the reference.
-4. A backend that needs receiver coordination prepares its destination buffers
-   and calls `Control.TransferEncoderCache` on the encoder engine. `destination`
-   is a nonempty backend-specific descriptor, not a portable tensor layout.
-   The backend validates the descriptor and request/model identity before
-   starting the transfer. A successful unary response means the data transfer
-   has completed, not merely that it was queued.
+   compatible generation engine. The request repeats the encode request's prompt
+   or token IDs and its `media` items in the same order; the consumer does not
+   fetch that media again. A decode request with `kv.session` does not carry
+   `encoder.cache`. Tensor contents remain outside the inference RPC payload;
+   the backend owns transfer and validation of the reference.
+4. The engines coordinate through their backend's transfer mechanism. The
+   backend validates receiver descriptors and request/model identity before
+   transfer, establishes completion before the consumer uses the outputs, and
+   retains buffer ownership until settlement. OpenEngine does not define the
+   engine-to-engine transfer RPC or a portable destination descriptor.
 
-If a completed encoder result will not be dispatched, the caller releases it
-at the producer using `Control.Abort` with `encoder_cache`. `ABORTED` means the
+If a completed encoder result will not be dispatched and the producer advertises
+`supports_abort_cleanup`, the caller releases it at the producer using
+`Control.Abort` with `encoder_cache`. `ABORTED` means the
 unclaimed export was removed. `ALREADY_FINISHED` means it was absent, consumed,
 or already claimed; a claimed transfer retains ownership until settlement.
 Release is idempotent and must not interrupt a transfer or free its buffers.
