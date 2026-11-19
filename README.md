@@ -107,7 +107,7 @@ The canonical schema is organized by domain under
 | Token information     | Prompt and output logprobs, ranks, candidate-token selection, per-token records, and streamed text deltas         |
 | Discovery             | Server identity, deployment capacity, model limits, topology, parsers, and inference capabilities                 |
 | Lifecycle             | Health checks, targeted or global abort, and identity-fenced engine shutdown                                      |
-| Disaggregated serving | Prefill/decode roles, decode-context parallel topology, KV handoff, connector discovery, and cache controls       |
+| Disaggregated serving | Encoder and prefill/decode roles, media-output references, KV handoff, connector discovery, and cache controls    |
 | KV-aware routing      | Typed KV event streams plus discovery of engine-native event sources                                              |
 | Model extensions      | Multimodal inputs and LoRA adapter lifecycle                                                                      |
 | Observability         | Point-in-time load snapshots                                                                                      |
