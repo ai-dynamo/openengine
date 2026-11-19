@@ -592,9 +592,11 @@ position metadata and others do not.
 
 ```protobuf
 message EncodedMediaRef {
-  // Versioned reference format, including its owning engine implementation.
-  string reference_format = 1;
-  // Engine-specific locator and validation metadata; tensor contents stay external.
+  reserved 1;
+  reserved "reference_format";
+
+  // Engine-serialized reference, including any format/version and validation
+  // metadata. Clients forward these bytes unchanged; tensor contents stay external.
   bytes opaque_state = 2;
 }
 
@@ -648,14 +650,14 @@ schema/release range and test the configured E/P combination. An older Generate
 handler might ignore the unknown encoded_media field, so a working Generate
 RPC or the old schema revision alone is insufficient proof of support.
 
-A reference format identifies an engine-owned layout and incompatible format
-version, rather than only a transport name. A generic value such as `nixl` is
-insufficient: engines using the same transport need not understand each other's
-references. Both `reference_format` and `opaque_state` must be nonempty. The
-opaque state carries the locator and validation metadata, not tensor contents
-or process-local pointers. The native consumer also validates model revision,
-processor configuration and any bound inputs. Dynamo forwards that state
-unchanged and does not decode its model or transport metadata.
+`opaque_state` must be nonempty. The producing engine serializes the complete
+reference, including any format/version identifier, locator and validation
+metadata. The native consumer interprets it and rejects incompatible references;
+sharing a transport such as NIXL does not establish compatibility. The reference
+does not carry tensor contents or process-local pointers. The native consumer
+also validates model revision, processor configuration and any bound inputs.
+Clients, including Dynamo, forward the bytes unchanged without interpreting
+their format, model or transport metadata.
 
 Encoding and KV handoff are separate operations. A deployment must validate
 that its backend supports composing them into E/P/D; working Encode and KV
