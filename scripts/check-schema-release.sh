@@ -14,6 +14,7 @@ repository=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 manifest="${repository}/packages/rust/openengine/schema-release.json"
 
 crate_version=$(jq --exit-status --raw-output '.crate_version' "${manifest}")
+schema_revision=$(jq --exit-status --raw-output '.schema_revision' "${manifest}")
 schema_release=$(jq --exit-status --raw-output '.schema_release' "${manifest}")
 schema_tag=$(jq --exit-status --raw-output '.schema_git_tag' "${manifest}")
 schema_commit=$(jq --exit-status --raw-output '.schema_git_commit' "${manifest}")
@@ -45,6 +46,17 @@ if [[ ${tag_commit} != "${schema_commit}" ]]; then
   exit 1
 fi
 
+check_revision() {
+  local source=$1 declaration
+  if ! declaration=$(grep -oE '`schema_revision = [0-9]+`') ||
+     [[ ${declaration} != "\`schema_revision = ${schema_revision}\`" ]]; then
+    echo "Expected schema revision ${schema_revision} in ${source}. Found: ${declaration:-no declaration}" >&2
+    return 1
+  fi
+}
+
+git -C "${repository}" show "${schema_commit}:proto/buf.md" | check_revision "${schema_tag}:proto/buf.md"
+
 if [[ ${1:-} == "--verify-registry" ]]; then
   archive=$(mktemp)
   local_protos="${archive}.local"
@@ -57,6 +69,8 @@ if [[ ${1:-} == "--verify-registry" ]]; then
     --retry 3 \
     "https://buf.build/openengine/openengine/archive/${schema_release}.tar.gz" \
     --output "${archive}"
+
+  tar -xOzf "${archive}" buf.md | check_revision "BSR commit ${schema_release}"
 
   git -C "${repository}" ls-tree -r --name-only "${schema_commit}:proto" \
     | sed -n '/\.proto$/p' \

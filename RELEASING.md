@@ -9,7 +9,7 @@ Schema releases use `vMAJOR.MINOR.PATCH` tags and publish to the Buf Schema Regi
 
 ## Prepare a release
 
-1. Confirm the schema revision documented in `proto/openengine/v1/README.md` and `docs/api.md`. The first valid revision is `1`; zero is invalid.
+1. Set the advertised revision in `proto/buf.md` using the inline declaration `schema_revision = N`. Confirm that `proto/openengine/v1/README.md` and `docs/api.md` agree. The first valid revision is `1`.
 2. Update the release tag and status in `README.md`, `proto/buf.md`, and `proto/openengine/v1/README.md`. Keep the BSR commit as a placeholder until publication assigns it.
 3. Validate the schema:
 
@@ -68,7 +68,7 @@ The crate must exist before crates.io allows a Trusted Publisher to be configure
 
 1. Create the `release` GitHub environment and protect it with the desired approval policy.
 2. Prepare and merge the crate release commit using the process below.
-3. Create the signed `openengine-vMAJOR.MINOR.PATCH` tag locally, but do not push it yet.
+3. Create the signed `openengine-vMAJOR.MINOR.PATCH` tag locally. Run `git verify-tag <tag>` and confirm that the signer is a trusted release maintainer before the manual publication in step 4. Push the tag in step 7.
 4. Create a short-lived crates.io token authorized to publish a new crate, install the release workflow's pinned Rust toolchain with `rustup toolchain install 1.98.1 --profile minimal`, publish from the tagged commit with `CARGO_REGISTRY_TOKEN=... cargo +1.98.1 publish --locked --package openengine`, and immediately revoke the token.
 5. Add the project maintainers or an `ai-dynamo` GitHub team as crate owners.
 6. Configure a crates.io Trusted Publisher for GitHub owner `ai-dynamo`, repository `openengine`, workflow `rust-release.yml`, and environment `release`.
@@ -80,10 +80,16 @@ Subsequent releases use crates.io Trusted Publishing and do not require a stored
 
 1. Choose the published schema for the bindings and fetch its Git tag. Generation reads the proto files from the commit recorded in the crate manifest. To ship bindings for a newer schema, publish and verify that schema in the BSR first.
 2. Update the workspace package version in `Cargo.toml` and the crate version, schema revision, immutable BSR module commit, Git tag, and Git commit in `packages/rust/openengine/schema-release.json`. Update the pinned schema link in `packages/rust/openengine/README.md`.
-3. Regenerate and validate the package:
+3. Refresh the workspace lockfile and regenerate the bindings.
 
    ```bash
+   cargo metadata --format-version 1 > /dev/null
    ./scripts/generate-rust.sh
+   ```
+
+4. Update `CHANGELOG.md`, review the lockfile and generated changes, and commit the release preparation. From the clean checkout, verify the package.
+
+   ```bash
    ./scripts/check-generated.sh
    ./scripts/check-schema-release.sh --verify-registry
    cargo check --locked --workspace --all-targets
@@ -92,17 +98,23 @@ Subsequent releases use crates.io Trusted Publishing and do not require a stored
    cargo package --locked --package openengine
    ```
 
-4. Update `CHANGELOG.md`, then open and merge the release-preparation pull request.
+5. Open and merge the release-preparation pull request.
 
 ### Publish a crate release
 
-Create and push a signed tag from the merged release commit:
+From the merged release commit, create the signed tag and verify its signature using your trusted release signing keys.
 
 ```bash
 VERSION=0.2.0
 ./scripts/check-release-version.sh "openengine-v${VERSION}"
 git tag --sign "openengine-v${VERSION}" -m "OpenEngine Rust crate ${VERSION}"
+git verify-tag "openengine-v${VERSION}"
+```
+
+Confirm that the reported signer is a trusted release maintainer before pushing the tag.
+
+```bash
 git push origin "openengine-v${VERSION}"
 ```
 
-The `Rust crate release` workflow verifies the tag, generated bindings, and packaged archive before obtaining a short-lived crates.io token through OpenID Connect and publishing the crate. Published crate versions cannot be replaced; yank a broken release and prepare a new patch version.
+The maintainer owns signature verification. The `Rust crate release` workflow checks that the tagged commit is on `main`, matches the tag version to the crate, verifies the schema and generated bindings, and builds the archive before publishing through crates.io Trusted Publishing. To correct a published release, yank it and prepare a new patch version.

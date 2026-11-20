@@ -32,13 +32,16 @@ sending a PR.
 
 ## Development checks
 
-Buf checks the schema under `proto/openengine/v1/`. The Rust crate uses the Git commit recorded in `packages/rust/openengine/schema-release.json`. Fetch that commit and its tag before regenerating the bindings.
+Run Buf when editing the schema under `proto/openengine/v1/`.
 
 ```bash
 buf build
 buf lint
+```
 
-./scripts/generate-rust.sh
+The Rust crate uses the Git commit recorded in `packages/rust/openengine/schema-release.json`. When adopting a published schema, fetch its commit and tag, update the manifest, run `./scripts/generate-rust.sh`, and commit the generated files. Run the following checks from the clean checkout.
+
+```bash
 ./scripts/check-generated.sh
 ./scripts/check-schema-release.sh
 
@@ -47,8 +50,6 @@ cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo doc --locked --no-deps --package openengine
 cargo package --locked --package openengine
 ```
-
-When adopting a published schema in the Rust crate, update the release manifest and regenerate the bindings in the same change.
 
 ## Signing your work
 

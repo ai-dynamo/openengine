@@ -29,7 +29,6 @@ jobs:
         with:
           filters: |
             rust:
-              - 'proto/**'
               - 'packages/rust/**'
               - 'tools/rust-codegen/**'
               - 'scripts/check-generated.sh'

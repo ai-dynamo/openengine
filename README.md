@@ -210,7 +210,8 @@ git commit --signoff -m "docs: describe the change"
 
 Please validate protobuf changes with Buf and keep
 [`proto/openengine/v1/`](proto/openengine/v1/) and [`docs/api.md`](docs/api.md)
-synchronized. Schema changes must also regenerate and commit the Rust bindings.
+synchronized. Regenerate and commit the Rust bindings when the crate adopts a
+new published schema.
 
 ## Security
 
