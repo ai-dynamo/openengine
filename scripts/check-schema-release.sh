@@ -45,12 +45,6 @@ if [[ ${tag_commit} != "${schema_commit}" ]]; then
   exit 1
 fi
 
-if ! git -C "${repository}" diff --quiet "${schema_commit}" HEAD -- 'proto/openengine/v1/*.proto'; then
-  git -C "${repository}" diff "${schema_commit}" HEAD -- 'proto/openengine/v1/*.proto'
-  echo "Packaged schema differs from declared schema commit ${schema_commit}." >&2
-  exit 1
-fi
-
 if [[ ${1:-} == "--verify-registry" ]]; then
   archive=$(mktemp)
   local_protos="${archive}.local"
@@ -64,8 +58,8 @@ if [[ ${1:-} == "--verify-registry" ]]; then
     "https://buf.build/openengine/openengine/archive/${schema_release}.tar.gz" \
     --output "${archive}"
 
-  git -C "${repository}" ls-files 'proto/openengine/v1/*.proto' \
-    | sed 's#^proto/##' \
+  git -C "${repository}" ls-tree -r --name-only "${schema_commit}:proto" \
+    | sed -n '/\.proto$/p' \
     | sort \
     > "${local_protos}"
   tar -tzf "${archive}" \
@@ -82,8 +76,9 @@ if [[ ${1:-} == "--verify-registry" ]]; then
   fi
 
   while IFS= read -r proto; do
-    if ! tar -xOzf "${archive}" "${proto}" \
-      | cmp -s "${repository}/proto/${proto}" -; then
+    published_blob=$(tar -xOzf "${archive}" "${proto}" | git -C "${repository}" hash-object --stdin)
+    pinned_blob=$(git -C "${repository}" rev-parse "${schema_commit}:proto/${proto}")
+    if [[ ${published_blob} != "${pinned_blob}" ]]; then
       echo "Published schema differs from the packaged schema: ${proto}" >&2
       exit 1
     fi

@@ -32,7 +32,7 @@ sending a PR.
 
 ## Development checks
 
-The schema under `proto/openengine/v1/` is the source of truth. Generated Rust bindings are checked in for crate consumers and must be updated in the same pull request as a schema change.
+Buf checks the schema under `proto/openengine/v1/`. The Rust crate uses the Git commit recorded in `packages/rust/openengine/schema-release.json`. Fetch that commit and its tag before regenerating the bindings.
 
 ```bash
 buf build
@@ -48,7 +48,7 @@ cargo doc --locked --no-deps --package openengine
 cargo package --locked --package openengine
 ```
 
-The Rust code-generation toolchain is pinned. Do not edit generated files by hand; update the schema or generator and regenerate them.
+When adopting a published schema in the Rust crate, update the release manifest and regenerate the bindings in the same change.
 
 ## Signing your work
 

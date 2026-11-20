@@ -152,7 +152,7 @@ Use the immutable BSR commit as the dependency identifier. The `v0.1.0` and `mai
 
 ## Consume from Buf
 
-OpenEngine is distributed as the [`buf.build/openengine/openengine`](https://buf.build/openengine/openengine) module. Consumers can use [BSR-generated SDKs](https://buf.build/docs/bsr/generated-sdks/) or generate bindings with their own version-pinned plugins. Rust users can instead install the first-party crate described below.
+OpenEngine is distributed as the [`buf.build/openengine/openengine`](https://buf.build/openengine/openengine) module. Consumers can use [BSR-generated SDKs](https://buf.build/docs/bsr/generated-sdks/) or generate bindings with their own version-pinned plugins. The Rust bindings are described below.
 
 Generate bindings for v0.1.0 from the immutable module input with the consumer's language-specific `buf.gen.yaml`:
 
@@ -171,7 +171,7 @@ See [`RELEASING.md`](RELEASING.md) for BSR publication.
 
 ## Rust crate
 
-The `openengine` crate provides generated Prost messages and Tonic client/server bindings for `openengine.v1`:
+The `openengine` crate provides generated Prost messages and Tonic client/server bindings for `openengine.v1`. After the first crates.io publication, add it to your project with Cargo.
 
 ```bash
 cargo add openengine

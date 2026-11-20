@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Releasing OpenEngine
 
-OpenEngine publishes its canonical Protobuf schema as `buf.build/openengine/openengine` and generated Rust bindings as the `openengine` crate on crates.io. Schema releases use `vMAJOR.MINOR.PATCH` tags; crate releases use separate `openengine-vMAJOR.MINOR.PATCH` tags so each crate can identify an already-published immutable BSR commit.
+Schema releases use `vMAJOR.MINOR.PATCH` tags and publish to the Buf Schema Registry (BSR) as `buf.build/openengine/openengine`. Rust crate releases use `openengine-vMAJOR.MINOR.PATCH` tags and package bindings for a published BSR commit.
 
 ## Prepare a release
 
@@ -78,7 +78,7 @@ Subsequent releases use crates.io Trusted Publishing and do not require a stored
 
 ### Prepare a crate release
 
-1. Identify the published schema release for the bindings. If the schema changed, publish and verify it through the BSR process above first.
+1. Choose the published schema for the bindings and fetch its Git tag. Generation reads the proto files from the commit recorded in the crate manifest. To ship bindings for a newer schema, publish and verify that schema in the BSR first.
 2. Update the workspace package version in `Cargo.toml` and the crate version, schema revision, immutable BSR module commit, Git tag, and Git commit in `packages/rust/openengine/schema-release.json`. Update the pinned schema link in `packages/rust/openengine/README.md`.
 3. Regenerate and validate the package:
 

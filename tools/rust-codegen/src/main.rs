@@ -15,11 +15,9 @@ struct SchemaRelease {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let repository = env::args_os()
-        .nth(1)
-        .map(PathBuf::from)
-        .unwrap_or(env::current_dir()?);
-    let proto_root = repository.join("proto");
+    let mut args = env::args_os().skip(1).map(PathBuf::from);
+    let repository = args.next().ok_or("missing repository directory")?;
+    let proto_root = args.next().ok_or("missing pinned schema directory")?;
     let package_root = proto_root.join("openengine/v1");
     let crate_root = repository.join("packages/rust/openengine");
     let release_manifest = crate_root.join("schema-release.json");
