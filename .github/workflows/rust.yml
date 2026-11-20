@@ -4,38 +4,47 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "proto/**"
-      - "packages/rust/**"
-      - "tools/rust-codegen/**"
-      - "scripts/check-generated.sh"
-      - "scripts/check-release-version.sh"
-      - "scripts/check-schema-release.sh"
-      - "scripts/generate-rust.sh"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - ".github/workflows/rust.yml"
-      - ".github/workflows/rust-release.yml"
   pull_request:
-    paths:
-      - "proto/**"
-      - "packages/rust/**"
-      - "tools/rust-codegen/**"
-      - "scripts/check-generated.sh"
-      - "scripts/check-release-version.sh"
-      - "scripts/check-schema-release.sh"
-      - "scripts/generate-rust.sh"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - ".github/workflows/rust.yml"
-      - ".github/workflows/rust-release.yml"
 
 permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Detect Rust changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+    steps:
+      - name: Check out repository for push comparison
+        if: github.event_name == 'push'
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+
+      - name: Check changed paths
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            rust:
+              - 'proto/**'
+              - 'packages/rust/**'
+              - 'tools/rust-codegen/**'
+              - 'scripts/check-generated.sh'
+              - 'scripts/check-release-version.sh'
+              - 'scripts/check-schema-release.sh'
+              - 'scripts/generate-rust.sh'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - '.github/workflows/rust.yml'
+              - '.github/workflows/rust-release.yml'
+
   generated:
     name: Generated bindings
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -56,6 +65,8 @@ jobs:
 
   check:
     name: Rust ${{ matrix.toolchain }}
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -75,6 +86,8 @@ jobs:
 
   quality:
     name: Rust quality
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -102,3 +115,22 @@ jobs:
 
       - name: List packaged files
         run: cargo package --locked --package openengine --list
+
+  rust-ci:
+    name: Rust CI
+    needs: [changes, generated, check, quality]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Rust job results
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          jq -e '
+            .changes.result == "success" and
+            (if .changes.outputs.rust == "true" then
+               all(.generated, .check, .quality; .result == "success")
+             elif .changes.outputs.rust == "false" then
+               all(.generated, .check, .quality; .result == "skipped")
+             else false end)
+          ' <<< "$NEEDS"
