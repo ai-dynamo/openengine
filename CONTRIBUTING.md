@@ -30,7 +30,28 @@ sending a PR.
 - **Bugs / feedback / design questions**: open a [GitHub issue](https://github.com/ai-dynamo/openengine/issues).
 - **Pull requests**: open against `main`. Keep changes focused (one logical change per PR).
 
-## Signing Your Work
+## Development checks
+
+Run Buf when editing the schema under `proto/openengine/v1/`.
+
+```bash
+buf build
+buf lint
+```
+
+The Rust crate uses the Git commit recorded in `packages/rust/openengine/schema-release.json`. When adopting a published schema, fetch its commit and tag, update the manifest, run `./scripts/generate-rust.sh`, and commit the generated files. Run the following checks from the clean checkout.
+
+```bash
+./scripts/check-generated.sh
+./scripts/check-schema-release.sh
+
+cargo check --locked --workspace --all-targets
+cargo clippy --locked --workspace --all-targets -- -D warnings
+cargo doc --locked --no-deps --package openengine
+cargo package --locked --package openengine
+```
+
+## Signing your work
 
 We require that all contributors "sign off" on their commits. This certifies that
 you wrote the contribution, or otherwise have the right to submit it under the
