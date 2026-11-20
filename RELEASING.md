@@ -10,7 +10,7 @@ Schema releases use `vMAJOR.MINOR.PATCH` tags and publish to the Buf Schema Regi
 ## Prepare a release
 
 1. Set the advertised revision in `proto/buf.md` using the inline declaration `schema_revision = N`. Confirm that `proto/openengine/v1/README.md` and `docs/api.md` agree. The first valid revision is `1`.
-2. Update the release tag and status in `README.md`, `proto/buf.md`, and `proto/openengine/v1/README.md`. Keep the BSR commit as a placeholder until publication assigns it.
+2. Update the release tag and status in `README.md`, `proto/buf.md`, and `proto/openengine/v1/README.md`. Until publication assigns the BSR commit, use `pending` in the release table and `${OPENENGINE_BSR_COMMIT}` in the Buf command.
 3. Validate the schema:
 
    ```bash
@@ -54,9 +54,9 @@ Maintainers may also run the workflow manually from `main`. A manual publication
 
 4. Inspect the BSR module landing page, generated schema documentation, source backlink, and Apache-2.0 license.
 5. Generate bindings from the immutable commit with at least one representative consumer configuration.
-6. Create the GitHub release for the signed tag. The release notes must record the Git commit, immutable BSR module commit, schema revision, compatibility status, and links to the BSR module and canonical schema.
+6. Create the GitHub release for the signed tag. Record the Git commit, schema revision, compatibility status, and links to the BSR module and canonical schema. Label the registry identifier **Immutable BSR commit** and put its value in backticks, as in the [v0.1.0 release notes](https://github.com/ai-dynamo/openengine/releases/tag/v0.1.0).
 7. Update downstream consumers to pin the immutable BSR module commit directly or through `buf.lock`. Engine implementations advertise that commit in `ServerInfo.schema_release`.
-8. Update `README.md` and `proto/openengine/v1/README.md` on `main` with the immutable BSR commit assigned during publication.
+8. Put the published BSR commit in the `README.md` release table and Buf command. Docs CI checks both against the release notes for the table's Git tag. The Rust crate is checked against the release notes for its own schema tag.
 
 Consumers may use release labels for discovery, but must not use a moving label as their production dependency.
 

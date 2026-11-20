@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 use serde::Deserialize;
 use std::env;
 use std::error::Error;
@@ -49,16 +52,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         .collect::<Vec<_>>();
     protos.sort();
 
-    let protoc = protoc_bin_vendored::protoc_bin_path()?;
+    let mut prost = tonic_prost_build::Config::new();
+    prost.protoc_executable(protoc_bin_vendored::protoc_bin_path()?);
     let protobuf_include = protoc_bin_vendored::include_path()?;
-    env::set_var("PROTOC", protoc);
 
     tonic_prost_build::configure()
         .build_client(true)
         .build_server(true)
         .file_descriptor_set_path(output.join("openengine_descriptor.bin"))
         .out_dir(&output)
-        .compile_protos(&protos, &[proto_root, protobuf_include])?;
+        .compile_with_config(prost, &protos, &[proto_root, protobuf_include])?;
 
     Ok(())
 }

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 //! Generated Prost messages and Tonic services for OpenEngine.
 
 // Protobuf comments may contain angle-bracket metavariables that rustdoc

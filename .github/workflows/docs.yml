@@ -6,12 +6,16 @@ on:
       - main
     paths:
       - "**/*.md"
+      - "packages/rust/openengine/schema-release.json"
+      - "scripts/check-release-docs.py"
       - ".markdownlint-cli2.yaml"
       - ".lychee.toml"
       - ".github/workflows/docs.yml"
   pull_request:
     paths:
       - "**/*.md"
+      - "packages/rust/openengine/schema-release.json"
+      - "scripts/check-release-docs.py"
       - ".markdownlint-cli2.yaml"
       - ".lychee.toml"
       - ".github/workflows/docs.yml"
@@ -34,6 +38,11 @@ jobs:
 
       - name: Lint Markdown
         run: npx --yes markdownlint-cli2@0.23.0 "**/*.md"
+
+      - name: Check documented schema releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/check-release-docs.py
 
   links:
     name: Links
