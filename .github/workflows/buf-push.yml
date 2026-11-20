@@ -32,7 +32,7 @@ concurrency:
 
 jobs:
   push:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Only the canonical repo publishes, and a manual run is allowed only from
     # `main`; a tag push carries its own ref. Prevents a writer from dispatching
     # a publish of unreviewed schema off an arbitrary branch. Protect release

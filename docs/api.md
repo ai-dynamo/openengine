@@ -34,6 +34,7 @@ service Control {
   // Health and lifecycle.
   rpc Health(HealthRequest) returns (HealthResponse);
   rpc Abort(AbortRequest) returns (AbortResponse);
+  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 
   // LoRA lifecycle.
   rpc LoadLora(LoadLoraRequest) returns (LoadLoraResponse);
@@ -756,7 +757,28 @@ server closes the stream with gRPC `OK`.
 
 ---
 
-## Health and abort
+## Health, abort, and shutdown
+
+### Standard gRPC health
+
+OpenEngine servers expose the standard `grpc.health.v1.Health` service on the same gRPC endpoint as Inference and Control. Use `Health.Check` for point-in-time probes and `Health.Watch` for an initial status followed by changes. These RPCs are defined by the standard gRPC health protocol; they do not use the OpenEngine `HealthRequest` or `HealthResponse` messages below.
+
+The named `liveness` service reports whether the engine can continue operating or recover without a process restart. The named `readiness` service reports whether the model and all required workers can accept and process new inference requests. The empty service name reports the same status as `readiness`. Implementations expose these names consistently to clients and probes.
+
+| Engine condition | `liveness` | `readiness` |
+| --- | --- | --- |
+| Listener unavailable or process exited | Unavailable | Unavailable |
+| Initialization, resume, or recoverable operation prevents inference | `SERVING` while recovery proceeds normally | `NOT_SERVING` |
+| Ready for inference | `SERVING` | `SERVING` |
+| Intentional pause, sleep, or inference-blocking update | `SERVING` absent an independent failure | `NOT_SERVING` |
+| Fatal engine or required-worker failure requiring restart | `NOT_SERVING` | `NOT_SERVING` |
+| Orderly shutdown without an independent fatal failure | `SERVING` while the listener remains available | `NOT_SERVING` |
+
+Before the listener binds, health is unavailable. Once bound, it must remain responsive during initialization and supported blocking operations. The engine determines when initialization or recovery has exhausted its budget and a restart is required. A deliberate pause alone does not fail liveness. Normal queuing, invalid requests, and other errors that do not prevent inference leave health unchanged. The first `Check` or `Watch` response may already be `SERVING`.
+
+For a known service, `Check` and `Watch` report the same current status. `Watch` sends the current status first, then reports subsequent changes; rapid transitions may be coalesced. For an unknown service, `Check` returns `NOT_FOUND` and `Watch` reports `SERVICE_UNKNOWN` as specified by the standard health protocol. A client watching `readiness` treats `NOT_SERVING`, unknown status, stream failure, and stream closure as unavailable, and re-establishes health and engine identity before routing again. Stream silence alone does not imply a broken connection; use bounded transport checks.
+
+`Control.Health` is a separate OpenEngine RPC for detailed checks and optional inference probing. Its result can lead or lag the published standard health status while the engine refreshes it. Implementations document their refresh and failure policy; standard health probes should not require inference work.
 
 ```protobuf
 message HealthRequest {
@@ -818,6 +840,49 @@ request; omitting the target returns gRPC `INVALID_ARGUMENT`. An unknown request
 or KV session target returns gRPC `NOT_FOUND`; an engine that does not support
 abort returns gRPC `UNIMPLEMENTED`. `ALREADY_FINISHED` remains a successful
 idempotent outcome rather than an error.
+
+### Engine shutdown
+
+```protobuf
+message ShutdownRequest {
+  string expected_instance_id = 1;
+}
+
+message ShutdownResponse {
+  ShutdownStatus status = 1;
+  string instance_id = 2;
+}
+
+enum ShutdownStatus {
+  SHUTDOWN_STATUS_UNSPECIFIED = 0;
+  SHUTDOWN_STATUS_ACCEPTED = 1;
+  SHUTDOWN_STATUS_ALREADY_STOPPING = 2;
+}
+```
+
+`Shutdown` stops the entire serving group for one engine lifetime, including
+attached frontends and required engine workers. `expected_instance_id` must
+equal the intended engine's `ServerInfo.instance_id`. An empty ID returns gRPC
+`INVALID_ARGUMENT`; a different ID returns `FAILED_PRECONDITION`. Rejections
+must leave admission, health, and lifecycle state unchanged, including when
+forwarded through an attached frontend. Check identity before checking whether
+the engine is already stopping.
+
+`ACCEPTED` means the lifecycle owner has committed to shutdown and closed new
+inference and inference-probe admission. Existing admitted work follows the
+implementation's documented shutdown grace policy. `ALREADY_STOPPING` is a
+successful repeat for the same lifetime and does not start cleanup again.
+The response echoes that lifetime's ID. Neither status promises that cleanup
+has completed or that the process has exited. Accepted shutdown continues if
+the caller cancels or loses its connection. A lost response is an uncertain
+outcome: reconnect and check identity, and retry only with the original ID.
+Servers without shutdown support return `UNIMPLEMENTED`.
+
+During orderly shutdown, standard gRPC `readiness` becomes `NOT_SERVING`;
+healthy liveness remains `SERVING` until listener closure, and an existing fatal
+status remains fatal. `Control.Health` reports not-ready and must not launch new
+inference probes. Implementations must prevent late health results from
+restoring readiness and document their grace and cleanup limits.
 
 ---
 
