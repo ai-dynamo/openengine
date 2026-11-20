@@ -5,11 +5,10 @@
 // vLLM, SGLang, TensorRT-LLM) and clients, including direct applications and
 // distributed frameworks (e.g. Dynamo).
 //
-// The files in this package are the canonical contract and single source of
-// truth for the wire shape. Implementations should generate client and server
-// bindings from the complete openengine/v1 package at a known revision.
+// These files define the wire contract. Generate client and server bindings
+// from the complete openengine/v1 package at a known revision.
 //
-// Human-readable reference:
+// API reference:
 // https://github.com/ai-dynamo/openengine/blob/main/docs/api.md
 
 syntax = "proto3";
@@ -49,7 +48,7 @@ service Control {
   // Health and lifecycle.
   rpc Health(HealthRequest) returns (HealthResponse);
   rpc Abort(AbortRequest) returns (AbortResponse);
-  // Identity-fenced, idempotent shutdown of the entire engine serving group.
+  // Idempotent shutdown of the serving group, guarded by engine instance ID.
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 
   // LoRA lifecycle.

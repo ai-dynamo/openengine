@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        OpenEngine is an experimental, pre-adoption protocol, so direct schema changes are allowed. A proposal should still define portable behavior precisely enough for independent clients and engines to agree.
+        OpenEngine has existing consumers, including Dynamo's TensorRT-LLM sidecar. Proposals within openengine.v1 must preserve compatibility and pass buf breaking; removals, renumbering, or type changes require a separately reviewed versioned migration. Define portable behavior precisely enough for independent clients and engines to agree.
 
   - type: checkboxes
     id: existing-issues

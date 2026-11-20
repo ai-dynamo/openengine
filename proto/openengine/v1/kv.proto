@@ -10,6 +10,7 @@ package openengine.v1;
 import "google/protobuf/struct.proto";
 import "openengine/v1/error.proto";
 
+// Forward a handed-off session intact; routers must preserve its engine-owned state.
 message KvSessionRef {
   string session_id = 1;
   string transfer_backend = 2;
@@ -39,6 +40,8 @@ message KvConnectorInfo {
   optional uint32 schema_version = 8;
 }
 
+// Native-source discovery and the typed subscription below are complementary:
+// an engine can expose its existing publisher without translating every event.
 message GetKvEventSourcesRequest {
   repeated uint32 data_parallel_ranks = 1;
 }

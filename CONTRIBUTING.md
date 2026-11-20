@@ -20,12 +20,9 @@ limitations under the License.
 Thank you for your interest in OpenEngine. We welcome bug reports, feedback on
 the API design, and pull requests.
 
-OpenEngine is an experimental, pre-adoption protocol. The files under
-`proto/openengine/v1/` are the canonical wire contract and the single source of
-truth. Until an external consumer adopts it, the schema may remove or renumber
-fields to stay minimal. After external adoption, changes within `openengine.v1`
-will be additive. Please open an issue to discuss protocol changes before
-sending a PR.
+The wire contract is defined in `proto/openengine/v1/`. Changes to `openengine.v1` must preserve existing fields, field numbers, names, types, enum values, messages, RPCs, and generated module locations. Additions must be compatible. Breaking changes require a separately reviewed, versioned migration. Open an issue to discuss protocol changes before sending a PR.
+
+CI checks compatibility against the pull-request base or previous pushed commit using the full Buf `FILE` rules. Publication also checks the immutable release baseline in the Buf Push workflow. Advance that baseline after each release to protect the newly published additions. Run compatibility checks alongside format, lint, and build checks. Keep the [quickstart](docs/QUICKSTART.md) focused on ordinary use, and update the [API reference](docs/api.md) with each schema change.
 
 - **Bugs / feedback / design questions**: open a [GitHub issue](https://github.com/ai-dynamo/openengine/issues).
 - **Pull requests**: open against `main`. Keep changes focused (one logical change per PR).
