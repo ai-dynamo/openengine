@@ -21,15 +21,13 @@ SPDX-License-Identifier: Apache-2.0
 
 <p align="center">
   <a href="docs/motivation.md">Why OpenEngine?</a>
+  · <a href="docs/QUICKSTART.md">Start here</a>
   · <a href="docs/api.md">API reference</a>
-  · <a href="proto/openengine/v1/">Canonical schema</a>
+  · <a href="proto/openengine/v1/">Protobuf schema</a>
   · <a href="#release-v010">Release v0.1.0</a>
   · <a href="#consume-from-buf">Consume from Buf</a>
   · <a href="CONTRIBUTING.md">Contributing</a>
 </p>
-
-> [!IMPORTANT]
-> OpenEngine v0.1.0 is the first experimental release. The contract is being refined before its first engine implementations and may make direct breaking changes while it remains at schema revision `1`.
 
 ## Table of contents
 
@@ -96,24 +94,23 @@ exist alongside OpenEngine.
 
 ## Capabilities
 
-The canonical schema is organized by domain under
-[`proto/openengine/v1/`](proto/openengine/v1/), with the service definition in
-[`openengine.proto`](proto/openengine/v1/openengine.proto).
+The schema files are grouped by domain under [`proto/openengine/v1/`](proto/openengine/v1/), with the services defined in [`openengine.proto`](proto/openengine/v1/openengine.proto).
 
 | Area                  | What the contract provides                                                                                        |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Portable generation   | Text or token input, sampling, stopping, transport priorities, multiple sequences, and deterministic seeds        |
+| Portable generation   | Text or token input, sampling, stopping, gRPC admission priority, multiple sequences, and seeded sampling         |
 | Structured output     | JSON Schema, JSON object, regex, EBNF grammar, structural tags, and fixed choices                                 |
 | Token information     | Prompt and output logprobs, ranks, candidate-token selection, per-token records, and streamed text deltas         |
 | Discovery             | Server identity, deployment capacity, model limits, topology, parsers, and inference capabilities                 |
-| Lifecycle             | Health checks, targeted or global abort, and identity-fenced engine shutdown                                      |
-| Disaggregated serving | Prefill/decode roles, decode-context parallel topology, KV handoff, connector discovery, and cache controls       |
+| Lifecycle             | Health checks, targeted or global abort, and shutdown guarded by engine instance ID                               |
+| Disaggregated serving | Prefill/decode, decode-context parallelism, KV handoff, connector discovery, cache salt, and prefix-cache bypass  |
 | KV-aware routing      | Typed KV event streams plus discovery of engine-native event sources                                              |
 | Model extensions      | Multimodal inputs and LoRA adapter lifecycle                                                                      |
 | Observability         | Point-in-time load snapshots                                                                                      |
 
-See the [human-readable API reference](docs/api.md) for field-level behavior and
-validation rules, including [standard gRPC health checks and watches](docs/api.md#standard-grpc-health).
+See the [API reference](docs/api.md) for field behavior and validation rules, including [standard gRPC health checks and watches](docs/api.md#standard-grpc-health).
+
+The [short request guide](docs/QUICKSTART.md) covers text and multimodal requests and the optional controls.
 
 ## Getting started
 
@@ -146,7 +143,7 @@ Run the Buf checks locally before opening a protocol change.
 | BSR module | [`buf.build/openengine/openengine`](https://buf.build/openengine/openengine) |
 | Immutable BSR commit | `768a93c7b44e40f28c692ad0b471a8f2` |
 
-Use the immutable BSR commit as the dependency identifier. The `v0.1.0` and `main` BSR labels identify the same published content but are intended for discovery rather than production pinning.
+Pin production dependencies to the immutable BSR commit. Use release and `main` labels for discovery.
 
 ## Consume from Buf
 
@@ -169,7 +166,9 @@ See [`RELEASING.md`](RELEASING.md) for BSR publication.
 
 ## Project status
 
-OpenEngine v0.1.0 is an experimental, pre-adoption release. The current focus is making the contract coherent across inference engines before implementations depend on it. Expect direct schema refinement during this phase.
+OpenEngine has existing consumers. Changes to `openengine.v1` must pass compatibility checks and preserve existing capabilities and field numbers.
+
+OpenEngine has been validated with [Dynamo's TensorRT-LLM sidecar](https://github.com/ai-dynamo/dynamo/tree/fa8621a5a808b878913732f6ce28ba5ad0399ca9/lib/sidecar/trtllm) for aggregated and disaggregated serving. Use model discovery to check optional feature support, and handle unsupported-feature responses from the engine.
 
 The intended adoption path is incremental:
 
@@ -177,9 +176,7 @@ The intended adoption path is incremental:
 2. Prefill/decode roles, KV handoff, rank affinity, and KV event integration.
 3. Logprobs, guided decoding, LoRA, and multimodal input as needed.
 
-Have an engine or distributed framework use case that the contract does not
-represent? Start a
-[design discussion or issue](https://github.com/ai-dynamo/openengine/issues).
+To propose support for a use case the contract does not cover, open a [design discussion or issue](https://github.com/ai-dynamo/openengine/issues).
 
 ## Contributing
 

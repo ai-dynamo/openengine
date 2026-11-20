@@ -61,7 +61,7 @@ request and control data needed across the process boundary.
 | --- | --- |
 | Generation | Streaming tokens, usage, finish state, and errors |
 | Discovery | Server, model, engine role, topology, limits, and capabilities |
-| Lifecycle | Health and abort |
+| Lifecycle | Health, abort, and shutdown |
 | Scheduling | Load data, data-parallel rank affinity, and decode-context parallel topology |
 | Disaggregation | Prefill readiness, KV-session handoff, and connector data |
 | KV routing | Event streams and native event-source discovery |
@@ -102,7 +102,7 @@ continue exposing their existing client APIs alongside OpenEngine.
 - One server contract can support direct clients and multiple distributed
   frameworks.
 - The engine keeps its launch path, dependencies, and scheduler.
-- Framework-side clients can run in small CPU-only processes.
+- Framework-side clients can run in CPU-only processes.
 - Engine and client releases can move independently within the protocol's
   compatibility rules.
 - Disaggregated serving uses a common handoff shape without requiring a common
@@ -114,9 +114,6 @@ There are costs:
 - Standard enums can be less detailed than native state.
 - Each engine still needs a translation layer.
 - Wire compatibility limits how existing fields can change.
-
-These constraints are explicit. They replace hidden coupling in per-engine
-integrations.
 
 ## Adoption path
 
@@ -131,10 +128,6 @@ workers.
 
 ## Implementation status
 
-OpenEngine is pre-adoption and has no production engine implementations today.
-The contract is designed for engines such as vLLM, SGLang, and TensorRT-LLM and
-for both direct clients and distributed frameworks such as Dynamo.
+OpenEngine has been validated with [Dynamo's TensorRT-LLM sidecar](https://github.com/ai-dynamo/dynamo/tree/fa8621a5a808b878913732f6ce28ba5ad0399ca9/lib/sidecar/trtllm) for aggregated and disaggregated serving. Each engine owns its adapter, supported features, scheduling, request conversion, and KV transfer. Clients use discovery and unsupported-feature responses to determine what a deployment supports.
 
-These are intended integration targets, not claims that those projects
-currently implement OpenEngine. Scheduling, request conversion, and KV transfer
-remain engine-owned in any future adapter.
+See the [quickstart](QUICKSTART.md) for basic and multimodal requests.

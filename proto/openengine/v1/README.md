@@ -5,10 +5,15 @@ SPDX-License-Identifier: Apache-2.0
 
 # OpenEngine v1 schema
 
-This directory is the canonical `openengine.v1` wire contract. All proto files
-share the same package and together define the API.
+The files in this directory share the `openengine.v1` package and define its API.
 
-The current contract is [OpenEngine v0.1.0](https://github.com/ai-dynamo/openengine/releases/tag/v0.1.0), schema revision 1, published as immutable BSR commit `768a93c7b44e40f28c692ad0b471a8f2`. It remains compatible with clients at revision 1. Published servers advertise the immutable BSR module commit in `ServerInfo.schema_release`; unpublished builds may use a source commit.
+The schema on `main` includes `Control.Shutdown`, which was added after v0.1.0. To call it, generate bindings from a commit that defines the RPC. Servers without shutdown support return gRPC `UNIMPLEMENTED`.
+
+Both v0.1.0 and the schema on `main` advertise schema revision `1` and minimum client revision `1`. Before routing traffic using the named `readiness` or `liveness` probes, call `grpc.health.v1.Health/Check` for each name your deployment uses and verify that the engine recognizes it. See the [health status and error rules](../../../docs/api.md#standard-grpc-health).
+
+Set `ServerInfo.schema_release` to the immutable BSR commit used for the server bindings, or the exact source commit for an unpublished build.
+
+The [short request guide](../../../docs/QUICKSTART.md) has text and multimodal examples. The [API reference](../../../docs/api.md) defines each field and its validation rules.
 
 | File | Area |
 | --- | --- |
@@ -18,7 +23,7 @@ The current contract is [OpenEngine v0.1.0](https://github.com/ai-dynamo/openeng
 | [`generation.proto`](generation.proto) | Generation inputs, requests, parameters, streamed events, and usage |
 | [`lora.proto`](lora.proto) | LoRA adapter lifecycle |
 | [`kv.proto`](kv.proto) | KV sessions, connector discovery, and cache events |
-| [`lifecycle.proto`](lifecycle.proto) | Health and abort operations |
+| [`lifecycle.proto`](lifecycle.proto) | Detailed health, abort, and shutdown operations |
 | [`error.proto`](error.proto) | Terminal errors for accepted streaming requests |
 
 Generate bindings from every `.proto` file in this directory. Compiling only

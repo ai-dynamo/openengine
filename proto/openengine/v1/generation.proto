@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Generation inputs, requests, streamed events, and usage.
+// GenerateRequest accepts one text or token-ID input and optional controls.
+// See docs/QUICKSTART.md for text and multimodal examples.
 
 syntax = "proto3";
 
@@ -11,6 +13,7 @@ import "google/protobuf/struct.proto";
 import "openengine/v1/error.proto";
 import "openengine/v1/kv.proto";
 
+// Input types. Preserve media ordering and identity.
 message TokenIds {
   repeated uint32 ids = 1;
 }
@@ -23,7 +26,7 @@ enum Modality {
   MODALITY_AUDIO = 3;
 }
 
-// A single multimodal input. Exactly one `source` should be set. The engine
+// A single multimodal input. Set exactly one `source`. The engine
 // owns fetch, decode, and preprocessing, so pre-decoded or RDMA media
 // descriptors are not represented here.
 message MediaItem {
@@ -38,6 +41,7 @@ message MediaItem {
 }
 
 message GenerateRequest {
+  // Identity and input.
   string request_id = 1;
   string model = 2;
 
@@ -46,6 +50,8 @@ message GenerateRequest {
     TokenIds token_ids = 4;
   }
 
+  // Optional controls. Unset scalars use engine/model defaults;
+  // preserve explicit zero and false.
   SamplingParams sampling = 5;
   StoppingOptions stopping = 6;
   ResponseOptions response = 7;
@@ -64,13 +70,14 @@ message GenerateRequest {
   string lora_name = 11;
 
   // Engine-specific request parameters that have no portable field above (e.g.
-  // an experimental sampler knob). NOT part of the portable contract: an engine
+  // an experimental sampling parameter). NOT part of the portable contract: an engine
   // MAY ignore keys it does not recognize, and a request MUST remain valid with
   // this field empty. Clients treat it as best-effort and never depend on it
   // for correctness. Carried as a Struct so JSON types survive the wire.
   google.protobuf.Struct extra = 12;
 }
 
+// num_sequences defaults to one; other omitted values use engine defaults.
 message SamplingParams {
   optional double temperature = 1;
   optional double top_p = 2;
@@ -91,6 +98,7 @@ message StoppingOptions {
   optional bool include_stop_in_output = 5;
 }
 
+// Set return_*_logprobs explicitly; candidate selectors alone do not enable scoring.
 message ResponseOptions {
   optional bool return_prompt_logprobs = 1;
   CandidateTokenSelection prompt_candidates = 2;
@@ -109,6 +117,7 @@ message CandidateTokenSelection {
 
 message AllCandidates {}
 
+// KV handoff and prefix-cache options.
 message KvOptions {
   KvSessionRef session = 1;
   optional bool bypass_prefix_cache = 2;
@@ -124,7 +133,7 @@ message StopCondition {
 
 // Constrained / guided decoding spec. At most one of `guide` should be set.
 // The engine enforces the constraint during sampling via its grammar backend
-// (xgrammar / outlines / llguidance); clients cannot apply it post-hoc.
+// (xgrammar / outlines / llguidance); clients cannot apply it after generation.
 message GuidedDecoding {
   oneof guide {
     string json_schema = 1; // output conforms to this JSON schema
@@ -145,6 +154,7 @@ message ChoiceConstraint {
 
 message JsonObjectConstraint {}
 
+// Request-level events and per-output completion.
 message GenerateResponse {
   string request_id = 1;
 

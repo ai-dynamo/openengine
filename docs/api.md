@@ -5,9 +5,18 @@ SPDX-License-Identifier: Apache-2.0
 
 # OpenEngine API v1
 
-This is the human-readable reference for the
-[`openengine.v1` schema](../proto/openengine/v1/). The proto package is the
-source of truth.
+This reference describes the [`openengine.v1` schema](../proto/openengine/v1/). The proto files define the wire contract.
+
+The [quickstart](QUICKSTART.md) covers text and multimodal requests. Use this reference for field definitions and validation rules.
+
+| Task | Reference section |
+| --- | --- |
+| Basic request and optional controls | [Generation](#generation-api) |
+| Model limits and feature discovery | [Model information](#model-identity-and-capabilities) |
+| Media sources and placeholder ordering | [Generation and media](#generation-api) |
+| Multiple outputs and terminal failures | [Stream/error rules](#standard-errors) |
+| Handoff, cache behavior, and event sources | [KV sessions](#disaggregated-serving-and-kv-api) and [KV events](#kv-connector-and-kv-events) |
+| Readiness, cancellation, and shutdown | [Lifecycle](#health-abort-and-shutdown) |
 
 ---
 
@@ -54,9 +63,7 @@ changing the protocol contract.
 
 ### gRPC request metadata
 
-Routing, admission, and tracing context belongs in
-[gRPC request metadata](https://grpc.io/docs/guides/metadata/) rather than
-protobuf request payloads. OpenEngine defines these lowercase ASCII keys:
+Send routing, admission, and tracing context as [gRPC request metadata](https://grpc.io/docs/guides/metadata/). OpenEngine defines these lowercase ASCII keys:
 
 | Key | Value | Scope |
 | --- | --- | --- |
@@ -154,9 +161,7 @@ Enums grow by appending values. A client encountering an unrecognized enum value
 MUST treat it as the enum's UNSPECIFIED/zero case (or ignore the item), never as
 an error.
 
-Durations and timestamps use explicit integer units (fields suffixed `_ms` /
-`_unix_nanos`) rather than `google.protobuf.Duration`/`Timestamp`, for compact,
-language-neutral encoding.
+Timestamp fields use integer Unix nanoseconds, with names ending in `_unix_nanos`.
 
 `decode_context_parallel_size` reports the number of ranks across which decode
 context is sharded. It describes a group within the server's execution topology
@@ -249,7 +254,7 @@ enum GuidedDecodingMode {
 
 `GetModelInfoRequest.model` is required and selects one of
 `ServerInfo.supported_models`; an unknown model returns gRPC `NOT_FOUND`.
-`model_id` is the canonical model and tokenizer source used by the deployment,
+`model_id` identifies the model and tokenizer source used by the deployment,
 `served_model_name` is the primary name accepted by generation APIs, and
 `served_model_aliases` contains every additional accepted name.
 `tokenizer_modes` lists tokenizer modes the deployment can accept or expose.
@@ -317,7 +322,7 @@ message ListLorasResponse {
 
 ## Generation API
 
-Generation is the core runtime completion primitive. Frontends or gateways may lower OpenAI chat-completion requests into this shape after applying chat templates and tokenization.
+Generate accepts text or token IDs. Frontends or gateways can convert OpenAI chat-completion requests by applying a chat template and tokenizing the prompt when sending token IDs.
 
 ```protobuf
 message GenerateRequest {
@@ -436,10 +441,7 @@ message ChoiceConstraint {
 message JsonObjectConstraint {}
 ```
 
-`SamplingParams` follows native engine sampling APIs, while stopping, returned
-data, and KV/cache behavior remain separate option groups. Guided decoding stays
-top-level as a distinct structured-output mode. Optional scalars preserve the
-distinction between an engine default and explicit zero or `false`.
+`SamplingParams` contains sampling controls. Stopping, returned data, KV/cache behavior, and guided decoding use separate option groups. Optional scalars distinguish an engine default from explicit zero or `false`.
 
 `openengine-priority` uses higher values for higher scheduling priority.
 `num_sequences` defaults to one when omitted and must be greater than zero when
@@ -448,26 +450,17 @@ present.
 IDs, or the full vocabulary at each prompt or output position. Select all
 candidates with `all {}` and JSON-object guidance with `json_object {}`.
 
-`Generate` is always a server-streaming RPC, so response options do not carry a
-second streaming switch.
+`Generate` is always a server-streaming RPC.
 
 `media` order is significant and is preserved independently of modality. Each
-item uses exactly one source. Engines reject unsupported modalities or source
-encodings rather than silently ignoring them.
+item uses exactly one source. Engines reject unsupported modalities and source encodings.
 
 `include_stop_in_output` controls whether a matched caller-supplied stop token
 or string remains in emitted output. `bypass_prefix_cache = true` skips prefix
 cache reuse but does not prevent newly computed blocks from being cached.
 `cache_salt` namespaces the prefix-cache key.
 
-`GenerateRequest.extra` carries engine-specific parameters that have no
-portable field. It is an intentional escape hatch so an engine can expose a
-native knob without a schema revision, and so a client can adopt OpenEngine
-before every parameter it needs is standardized. It is explicitly outside the
-portable contract: an engine may ignore keys it does not recognize, every
-request must remain valid with `extra` empty, and clients must not depend on
-`extra` for correctness. Parameters that prove broadly useful should be
-promoted to typed fields in a later revision.
+`GenerateRequest.extra` carries engine-specific parameters without a portable field. It lets engines expose parameters before standardization without changing the schema revision. These parameters are outside the portable contract: engines may ignore unrecognized keys. Every request must remain valid with `extra` empty, and clients must not depend on `extra` for correctness. Parameters that prove broadly useful should be promoted to typed fields in a later revision.
 
 ```protobuf
 message GenerateResponse {
@@ -577,9 +570,7 @@ token, stop string, or model EOS token. `cached_prompt_tokens` is a subset of
 
 ## Disaggregated serving and KV API
 
-The core API makes prefill/decode handoff explicit through
-`GenerateRequest.kv.session` and `PrefillReady`, while engines own KV transfer
-mechanics and session lifetime.
+`GenerateRequest.kv.session` and `PrefillReady` carry prefill/decode handoff data. Engines own KV transfer and session lifetime.
 
 ```protobuf
 message KvSessionRef {
@@ -597,9 +588,6 @@ message KvEndpoint {
 }
 ```
 
-`attributes_struct` requires `import "google/protobuf/struct.proto";` at the
-top of the proto.
-
 `attributes_struct` preserves number, boolean, array, and object types. Struct
 numbers are IEEE-754 doubles, so 64-bit identifiers above 2^53 must use decimal
 strings. Opaque binary values must use base64 strings. Engine-specific transfer
@@ -611,8 +599,8 @@ Prefill flow:
 1. Client sends `GenerateRequest` to a `PREFILL` engine.
 2. Engine returns a `KvSessionRef` in the terminal `PrefillReady` response when
    decode may attach.
-3. Engine owns KV session lifetime and cleanup, including finish, abort, shutdown, timeout, and transfer failure paths.
-4. An accepted prefill failure produces one terminal `EngineError` instead.
+
+The engine owns KV session lifetime and cleanup, including finish, abort, shutdown, timeout, and transfer failure. An accepted prefill failure produces one terminal `EngineError`.
 
 Decode flow:
 
@@ -624,7 +612,7 @@ Decode flow:
 
 ## KV connector and KV events
 
-OpenEngine should support two KV-event modes:
+The KV-event APIs provide two paths:
 
 1. **Native OpenEngine stream:** `SubscribeKvEvents` returns envelopes containing
    typed protobuf batches.
@@ -743,7 +731,7 @@ enum StorageMedium {
 
 Compatibility notes:
 
-- SGLang/vLLM-style `BlockStored`, `BlockRemoved`, and `AllBlocksCleared` are first-class OpenEngine events.  
+- OpenEngine defines SGLang/vLLM-style `BlockStored`, `BlockRemoved`, and `AllBlocksCleared` events.
 - OpenEngine preserves batch timestamp, DP-rank attribution, monotonic sequence numbers, replay start sequence, topic, endpoint, replay endpoint, buffer size, HWM, and queue-size metadata.  
 - Native OpenEngine streams should use protobuf. Existing ZMQ/msgpack publishers can be exposed through `GetKvEventSources` during migration.  
 - Clients should prefer `SubscribeKvEvents` when available and fall back to
@@ -763,12 +751,12 @@ server closes the stream with gRPC `OK`.
 
 OpenEngine servers expose the standard `grpc.health.v1.Health` service on the same gRPC endpoint as Inference and Control. Use `Health.Check` for point-in-time probes and `Health.Watch` for an initial status followed by changes. These RPCs are defined by the standard gRPC health protocol; they do not use the OpenEngine `HealthRequest` or `HealthResponse` messages below.
 
-The named `liveness` service reports whether the engine can continue operating or recover without a process restart. The named `readiness` service reports whether the model and all required workers can accept and process new inference requests. The empty service name reports the same status as `readiness`. Implementations expose these names consistently to clients and probes.
+The named `liveness` service reports whether the engine can continue operating or recover without a process restart. The named `readiness` service reports whether the model and all required workers can accept and process new inference requests. The empty service name reports the same status as `readiness`.
 
 | Engine condition | `liveness` | `readiness` |
 | --- | --- | --- |
 | Listener unavailable or process exited | Unavailable | Unavailable |
-| Initialization, resume, or recoverable operation prevents inference | `SERVING` while recovery proceeds normally | `NOT_SERVING` |
+| Initialization, resume, or recoverable operation prevents inference | `SERVING` unless the engine determines a restart is required | `NOT_SERVING` |
 | Ready for inference | `SERVING` | `SERVING` |
 | Intentional pause, sleep, or inference-blocking update | `SERVING` absent an independent failure | `NOT_SERVING` |
 | Fatal engine or required-worker failure requiring restart | `NOT_SERVING` | `NOT_SERVING` |
@@ -838,8 +826,7 @@ enum AbortStatus {
 Exactly one abort target must be set. Use `all_requests {}` to abort every
 request; omitting the target returns gRPC `INVALID_ARGUMENT`. An unknown request
 or KV session target returns gRPC `NOT_FOUND`; an engine that does not support
-abort returns gRPC `UNIMPLEMENTED`. `ALREADY_FINISHED` remains a successful
-idempotent outcome rather than an error.
+abort returns gRPC `UNIMPLEMENTED`. `ALREADY_FINISHED` is a successful, idempotent result.
 
 ### Engine shutdown
 
@@ -888,10 +875,7 @@ restoring readiness and document their grace and cleanup limits.
 
 ## Load reporting
 
-`GetLoad` returns a structured point-in-time load snapshot for schedulers and
-admission controllers. It is not a replacement for Prometheus metrics; it is
-the engine-facing control-plane signal for request routing and overload
-decisions.
+`GetLoad` returns a point-in-time load snapshot for schedulers and admission controllers. Use it for request routing and overload decisions. It does not replace Prometheus metrics.
 
 ```protobuf
 message GetLoadRequest {

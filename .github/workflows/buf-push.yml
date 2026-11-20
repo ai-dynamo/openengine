@@ -65,7 +65,9 @@ jobs:
           push: true
           lint: true
           format: true
-          breaking: false
+          breaking: true
+          # Published v0.1.0. Advance to the new immutable commit after release.
+          breaking_against: ".git#ref=b5f2bd93721f7b888d3e2440679e0ae7012939d1"
           archive: false
           pr_comment: false
           push_disable_create: true
