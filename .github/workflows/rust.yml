@@ -37,6 +37,7 @@ jobs:
               - 'scripts/generate-rust.sh'
               - 'Cargo.toml'
               - 'Cargo.lock'
+              - '.gitattributes'
               - '.github/workflows/rust.yml'
               - '.github/workflows/rust-release.yml'
 

@@ -39,7 +39,11 @@ if ! git -C "${repository}" cat-file -e "${schema_commit}^{commit}"; then
   exit 1
 fi
 
-tag_commit=$(git -C "${repository}" rev-parse --verify "${schema_tag}^{commit}")
+if ! tag_object=$(git -C "${repository}" show-ref --verify --hash "refs/tags/${schema_tag}"); then
+  echo "Schema Git tag not found: ${schema_tag}. Fetch the schema release tag." >&2
+  exit 1
+fi
+tag_commit=$(git -C "${repository}" rev-parse --verify "${tag_object}^{commit}")
 if [[ ${tag_commit} != "${schema_commit}" ]]; then
   echo "Schema Git tag ${schema_tag}: ${tag_commit}" >&2
   echo "Schema Git commit: ${schema_commit}" >&2
