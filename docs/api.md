@@ -645,10 +645,13 @@ unsupported reference formats instead of silently ignoring encoded outputs.
 Missing context or unsupported media fails Encode; incompatible references fail
 Generate. Whether a consumer can encode locally is deployment configuration.
 
-Clients must pin and validate compatible engine builds using their supported
-schema/release range and test the configured E/P combination. An older Generate
+Clients must pin and validate compatible engine builds using a known supported
+`schema_release` and test the configured E/P combination. An older Generate
 handler might ignore the unknown encoded_media field, so a working Generate
 RPC or the old schema revision alone is insufficient proof of support.
+
+Encoder endpoints use the existing model capabilities and load fields. They
+advertise only operations they implement and leave unavailable load values absent.
 
 `opaque_state` must be nonempty. The producing engine serializes the complete
 reference, including any format/version identifier, locator and validation
@@ -692,6 +695,23 @@ RPCs individually do not prove composition.
    are mutually exclusive. Engines own any additional decode-preparation state
    required by their implementation.
 
+Unary `Encode` failures use gRPC status, including after execution starts:
+
+| Failure | Status |
+| --- | --- |
+| Invalid media/input or missing context required by the native encoder | `INVALID_ARGUMENT` |
+| Unsupported modality, operation, or endpoint role | `UNIMPLEMENTED` |
+| Request ID already active in Encode or Generate | `ALREADY_EXISTS` |
+| Encoder-output capacity exhausted | `RESOURCE_EXHAUSTED` |
+| Temporarily unavailable engine, transport, or media fetch | `UNAVAILABLE` |
+| Active encoding aborted | `CANCELLED` |
+| RPC deadline exceeded | `DEADLINE_EXCEEDED` |
+| Unexpected engine failure | `INTERNAL` |
+
+Generate-side reference failures follow the [standard error transport rules](#standard-errors):
+non-OK gRPC status before acceptance, or one terminal `EngineError` after acceptance.
+A retry of a consuming request requires a new Encode result, not the old reference.
+
 ### Consumer recovery policy
 
 In a configured EPD flow, an encoder-stage failure stops that attempt before
@@ -727,6 +747,8 @@ endpoint serving that request. Active IDs are unique across both operations at
 an endpoint, and `Abort(all_requests)` includes both. RPC cancellation and
 explicit abort request that execution stop; neither proves native GPU work or
 transfer has completed. They do not release a previously returned reference.
+If Encode has already completed, Abort follows its normal already-finished
+semantics; the returned reference still needs consumption or release.
 
 After learning a reference, the client is responsible for dispatching it to a
 consumer or releasing it at its original producer. If delivery to the consumer
@@ -766,16 +788,6 @@ cleanup must survive the caller disconnecting. Health inference probes that
 create encoded outputs must release them. The protocol requires these safety
 properties, not a particular task, timer, or cancellation implementation.
 
-### Draft migration
-
-This replaces the earlier unmerged Generate-based encoding proposal. Remove
-`EncoderOptions`, `EncodeOnly`, `EncodeReady`, and `Abort.encoder_handoff`;
-encoding clients call `Encode`, and generation clients set `encoded_media`.
-The reference and capability messages also change. Clients generated from that
-draft must regenerate bindings and update their pinned source revision together
-with the servers. Existing main/released Generate and Abort fields retain their
-numbers and meanings; compatibility with the superseded draft is not promised.
-
 ---
 
 ## Disaggregated serving and KV API
@@ -811,7 +823,8 @@ when forwarding a handoff.
 
 Prefill flow:
 
-1. Client sends `GenerateRequest` to a `PREFILL` engine.
+1. Client sends `GenerateRequest` to a `PREFILL` engine, optionally with
+   [`encoded_media`](#encode-and-consume) from a separate encoder.
 2. Engine returns a `KvSessionRef` in the terminal `PrefillReady` response when
    decode may attach.
 3. Engine owns KV session lifetime and cleanup, including finish, abort, shutdown, timeout, and transfer failure paths.
