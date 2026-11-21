@@ -25,6 +25,11 @@ service Inference {
   rpc Generate(GenerateRequest) returns (stream GenerateResponse);
 }
 
+service Encoder {
+  rpc Encode(EncodeRequest) returns (EncodeResponse);
+  rpc ReleaseEncodedMedia(ReleaseEncodedMediaRequest) returns (ReleaseEncodedMediaResponse);
+}
+
 service Control {
   // Runtime metadata and scheduling state.
   rpc GetServerInfo(GetServerInfoRequest) returns (ServerInfo);
@@ -47,9 +52,12 @@ service Control {
 }
 ```
 
-`Inference` is the inference data plane. `Control` is the discovery, lifecycle,
-and coordination control plane. Implementations may expose both services on the
-same listener, or isolate them on separate listeners and access policies without
+`Inference` is the generation data plane. `Encoder` is an optional service for
+producing and releasing encoded-media outputs. Engines that do not implement
+media encoding need not register it. `Control` is the discovery, lifecycle, and
+coordination control plane; its existing `Abort` RPC also cancels active Encode
+requests. Implementations may expose these services on the same listener, or
+isolate them on separate listeners and access policies without
 changing the protocol contract.
 
 ### gRPC request metadata
@@ -79,7 +87,7 @@ task advertise priority support.
 
 All RPCs accept `traceparent` and `tracestate` and propagate them on downstream
 RPCs according to [W3C Trace Context](https://www.w3.org/TR/trace-context/).
-Routing and admission keys apply only to `Inference` RPCs.
+Routing and admission keys apply to `Inference.Generate` and `Encoder.Encode`.
 
 ---
 
@@ -91,6 +99,7 @@ enum EngineRole {
   ENGINE_ROLE_AGGREGATED = 1;
   ENGINE_ROLE_PREFILL = 2;
   ENGINE_ROLE_DECODE = 3;
+  ENGINE_ROLE_ENCODER = 4;
 }
 
 message GetServerInfoRequest {}
@@ -176,6 +185,7 @@ Role semantics:
 - `AGGREGATED`: accepts normal generation requests and returns tokens.  
 - `PREFILL`: accepts prefill requests, builds KV state, emits handoff/session readiness, and does not perform normal decode generation.  
 - `DECODE`: accepts decode requests with KV session/handoff metadata and returns generated tokens.  
+- `ENCODER`: accepts `Encode` and produces encoded-media references; rejects `Generate`.
 - Engines must validate role/request compatibility before acceptance and return a
   non-OK gRPC status on mismatch.
 
@@ -206,6 +216,7 @@ message ModelInfo {
   string tool_call_parser = 26;
   google.protobuf.Struct extra = 28; // Engine-specific, non-portable; read opportunistically.
 }
+
 
 message GenerationCapabilities {
   LogprobCapabilities prompt_logprobs = 1;
@@ -338,6 +349,7 @@ message GenerateRequest {
   repeated MediaItem media = 10;
   string lora_name = 11;
   google.protobuf.Struct extra = 12; // Engine-specific, non-portable; may be ignored.
+  EncodedMediaRef encoded_media = 13;
 }
 
 message TokenIds {
@@ -561,7 +573,8 @@ text; neither field is cumulative. After `GenerationFinished` for an index, the
 engine must not emit another token or terminal event for that index. A
 successful aggregated or decode request emits exactly one
 `GenerationFinished` for each requested output. `PrefillReady` is the terminal
-success event for a prefill-only request.
+success event for a prefill-only request. Encoding uses the separate unary
+`Encode` RPC and does not emit generation events.
 
 `EngineError` is request-scoped and terminal. It terminates all outputs and may
 replace `GenerationFinished` for outputs that had not completed. No event may
@@ -572,6 +585,214 @@ only on the final response, which is the last `GenerationFinished`,
 When `FinishReason` is `STOP`, `stop_match` identifies the matched caller stop
 token, stop string, or model EOS token. `cached_prompt_tokens` is a subset of
 `prompt_tokens`; `reasoning_tokens` is a subset of `completion_tokens`.
+
+---
+
+## Media encoding and output ownership
+
+Encoding is a separate unary operation. It prepares engine-owned multimodal
+outputs without generating language tokens. The engine's startup configuration
+selects its role; no per-request encode-only flag is needed. Prompt context is
+optional in the protocol because some outputs depend on prompt placement or
+position metadata and others do not.
+
+```protobuf
+message EncodedMediaRef {
+  reserved 1;
+  reserved "reference_format";
+
+  // Engine-serialized reference, including any format/version and validation
+  // metadata. Clients forward these bytes unchanged; tensor contents stay external.
+  bytes opaque_state = 2;
+}
+
+message EncodeRequest {
+  string request_id = 1;
+  string model = 2;
+
+  // Optional context for prompt-dependent model-input preparation. Each native
+  // framework validates whether its configured encoder requires this context.
+  oneof input {
+    string prompt = 3;
+    TokenIds token_ids = 4;
+  }
+
+  // Nonempty, ordered media inputs. Context placeholders follow Generate rules.
+  repeated MediaItem media = 5;
+}
+
+message EncodeResponse {
+  string request_id = 1;
+  EncodedMediaRef encoded_media = 2;
+}
+
+message ReleaseEncodedMediaRequest {
+  // Sent to the original producer; never forwarded to an arbitrary encoder.
+  EncodedMediaRef encoded_media = 1;
+}
+
+// Success acknowledges idempotent release. An active transfer retains its
+// buffers until settlement; acknowledgment does not imply immediate reclamation.
+message ReleaseEncodedMediaResponse {}
+```
+
+### Deployment and compatibility
+
+The initial contract uses explicitly configured, tested encoder and consumer
+combinations. Existing discovery reports model identity, health, deployment
+role and schema/version information. An encoder-only deployment reports
+`ServerInfo.engine_role = ENGINE_ROLE_ENCODER` and rejects `Generate`. There
+is no additional encoder-capabilities message or fallback-selection field.
+
+Each native framework validates accepted media, required context, model/input
+identity and reference compatibility. Prompt/token context is optional in
+OpenEngine; an encoder requiring it rejects its absence. Consumers reject
+unsupported reference formats instead of silently ignoring encoded outputs.
+Missing context or unsupported media fails Encode; incompatible references fail
+Generate. Whether a consumer can encode locally is deployment configuration.
+
+Clients must pin and validate compatible engine builds using a known supported
+`schema_release` and test the configured E/P combination. An older Generate
+handler might ignore the unknown encoded_media field, so a working Generate
+RPC or the old schema revision alone is insufficient proof of support.
+
+Encoder endpoints use the existing model capabilities and load fields. They
+advertise only operations they implement and leave unavailable load values absent.
+
+`opaque_state` must be nonempty. The producing engine serializes the complete
+reference, including any format/version identifier, locator and validation
+metadata. The native consumer interprets it and rejects incompatible references;
+sharing a transport such as NIXL does not establish compatibility. The reference
+does not carry tensor contents or process-local pointers. The native consumer
+also validates model revision, processor configuration and any bound inputs.
+Clients, including Dynamo, forward the bytes unchanged without interpreting
+their format, model or transport metadata.
+
+Encoding and KV handoff are separate operations. A deployment must validate
+that its backend supports composing them into E/P/D; working Encode and KV
+RPCs individually do not prove composition.
+
+### Encode and consume
+
+1. Send `EncodeRequest` with a nonempty request ID and model and at least one
+   media item. The native encoder validates supported modalities. Prompt and
+   token context are mutually exclusive. When context is supplied, ordered media
+   follows the same placeholder alignment rules as `Generate`.
+2. A successful unary `Encode` returns exactly one `EncodeResponse`, echoing
+   the request ID and containing one nonempty `encoded_media` reference. A
+   failed operation returns a non-OK gRPC status. There are no generation
+   tokens, generation usage, or application-error stream events. The consumer
+   reports expanded prompt and generation usage for its own phase.
+3. Forward the reference unchanged in `GenerateRequest.encoded_media`. Repeat
+   the ordered media and, if supplied to `Encode`, the same input alternative
+   and value. If encoding was context-free, the generation prompt may be chosen
+   independently. Repeated media equality means equality of modality, selected
+   source and its exact value, MIME type, and caller UUID; unknown fields and
+   protobuf field order do not affect identity. URLs are not normalized. The
+   consumer must validate the reference and bound inputs. Successful consumption
+   uses the encoded outputs without fetching or re-encoding the original media.
+4. A reference admits at most one atomic consumer claim. Once claimed, it is
+   never restored for reuse, even if transfer or inference fails. Validation
+   failures before a claim need not consume it. After submitting a consuming
+   request, the client must not retry an uncertain outcome with the same
+   reference; a new attempt must encode again.
+5. In E+PD the combined worker consumes the reference. In E/P/D, P consumes
+   it and passes the existing KV handoff to D. `encoded_media` and `kv.session`
+   are mutually exclusive. Engines own any additional decode-preparation state
+   required by their implementation.
+
+Unary `Encode` failures use gRPC status, including after execution starts:
+
+| Failure | Status |
+| --- | --- |
+| Invalid media/input or missing context required by the native encoder | `INVALID_ARGUMENT` |
+| Unsupported modality, operation, or endpoint role | `UNIMPLEMENTED` |
+| Request ID already active in Encode or Generate | `ALREADY_EXISTS` |
+| Encoder-output capacity exhausted | `RESOURCE_EXHAUSTED` |
+| Temporarily unavailable engine, transport, or media fetch | `UNAVAILABLE` |
+| Active encoding aborted | `CANCELLED` |
+| RPC deadline exceeded | `DEADLINE_EXCEEDED` |
+| Unexpected engine failure | `INTERNAL` |
+
+Generate-side reference failures follow the [standard error transport rules](#standard-errors):
+non-OK gRPC status before acceptance, or one terminal `EngineError` after acceptance.
+A retry of a consuming request requires a new Encode result, not the old reference.
+
+### Consumer recovery policy
+
+In a configured EPD flow, an encoder-stage failure stops that attempt before
+dispatch to P/PD; clients must not forward partially prepared media inputs.
+Consumer-side recovery is a separate decision after a successful `Encode`.
+
+If the remote outputs become unavailable, a consumer may recover using valid
+local media or embeddings when its engine configuration supports that path.
+Media URLs alone do not guarantee recovery: fetching may fail or yield changed
+content, and the worker may have no encoder loaded. Any fallback must preserve
+the validated model and input identity, including agreement between actual
+media and any prompt-dependent preparation metadata. If that identity cannot
+be established, local recovery must fail. Malformed, incompatible, or
+wrong-input references must be rejected rather than hidden by fallback.
+Cancellation is not a reason to start local recovery.
+
+A consumer configured without local encoding, or holding only metadata with
+no usable local input, fails the affected request when remote outputs cannot
+be obtained. It must not fabricate embeddings or attempt unsupported encoding.
+Other requests may continue when the backend remains healthy. Implementations
+must document their remote-wait limits and recovery policy; OpenEngine does not
+require a particular timeout or add a per-request fallback flag.
+
+Fallback does not settle the failed transfer. Engines must continue to retain
+and account for any buffers that an uncertain transfer could still access,
+even if local recovery succeeds. Such memory must not be reused as fallback
+output storage until safe quiescence is established.
+
+### Cancellation, release, and transfer settlement
+
+`Control.Abort(request_id)` cancels active `Encode` or `Generate` work at the
+endpoint serving that request. Active IDs are unique across both operations at
+an endpoint, and `Abort(all_requests)` includes both. RPC cancellation and
+explicit abort request that execution stop; neither proves native GPU work or
+transfer has completed. They do not release a previously returned reference.
+If Encode has already completed, Abort follows its normal already-finished
+semantics; the returned reference still needs consumption or release.
+
+After learning a reference, the client is responsible for dispatching it to a
+consumer or releasing it at its original producer. If delivery to the consumer
+fails or is uncertain, the client may release it: release is safe even when it
+races a claim. After a successful claim, the backend owns transfer settlement
+and reclamation; the client never owns or frees transfer buffers.
+
+`ReleaseEncodedMedia` is mandatory for a producer implementing `Encode`.
+It is idempotent. Success prevents any new claim and acknowledges release of
+an unclaimed export, or a release request for an already claimed export.
+An absent, consumed, expired, or already released reference is also a successful
+outcome. A claimed export is never restored, and release never interrupts its
+transfer or frees memory still accessible to that transfer. A successful reply
+does not promise immediate physical reclamation. Lost release replies may be
+retried with the same reference. Malformed or wrong-producer references return
+`INVALID_ARGUMENT`; a producer unable to commit release returns a non-OK status.
+
+Before transfer submission, failures can reclaim allocations after proving
+that no transfer can access them. After submission, engines must retain source
+and destination tensors and registrations until completion or safe quiescence
+is established. Cancellation, deadline expiry, transport failure, and lost
+success replies are not such proof. An implementation that cannot establish
+settlement must retain affected resources and bound further admissions, or
+withdraw the worker, until safe teardown. OpenEngine does not prescribe the
+engine-to-engine RPC, transfer transport, or a quarantine implementation.
+
+If encoding completes but the client never learns its reference, explicit
+release is impossible. Producers must bound outstanding exports and reclaim
+unclaimed outputs through documented expiration and shutdown behavior.
+Expiration must not free a claimed output during transfer. Cancelling an
+`Encode` after its response might have been delivered must not revoke a
+reference that a consumer could already be claiming.
+
+Orderly shutdown closes admission, aborts or drains active work, and settles
+transfers before destroying the memory they can access. Already accepted
+cleanup must survive the caller disconnecting. Health inference probes that
+create encoded outputs must release them. The protocol requires these safety
+properties, not a particular task, timer, or cancellation implementation.
 
 ---
 
@@ -608,7 +829,8 @@ when forwarding a handoff.
 
 Prefill flow:
 
-1. Client sends `GenerateRequest` to a `PREFILL` engine.
+1. Client sends `GenerateRequest` to a `PREFILL` engine, optionally with
+   [`encoded_media`](#encode-and-consume) from a separate encoder.
 2. Engine returns a `KvSessionRef` in the terminal `PrefillReady` response when
    decode may attach.
 3. Engine owns KV session lifetime and cleanup, including finish, abort, shutdown, timeout, and transfer failure paths.
@@ -761,7 +983,7 @@ server closes the stream with gRPC `OK`.
 
 ### Standard gRPC health
 
-OpenEngine servers expose the standard `grpc.health.v1.Health` service on the same gRPC endpoint as Inference and Control. Use `Health.Check` for point-in-time probes and `Health.Watch` for an initial status followed by changes. These RPCs are defined by the standard gRPC health protocol; they do not use the OpenEngine `HealthRequest` or `HealthResponse` messages below.
+OpenEngine servers expose the standard `grpc.health.v1.Health` service on the same gRPC endpoint as the OpenEngine services. Use `Health.Check` for point-in-time probes and `Health.Watch` for an initial status followed by changes. These RPCs are defined by the standard gRPC health protocol; they do not use the OpenEngine `HealthRequest` or `HealthResponse` messages below.
 
 The named `liveness` service reports whether the engine can continue operating or recover without a process restart. The named `readiness` service reports whether the model and all required workers can accept and process new inference requests. The empty service name reports the same status as `readiness`. Implementations expose these names consistently to clients and probes.
 
@@ -835,7 +1057,8 @@ enum AbortStatus {
 }
 ```
 
-Exactly one abort target must be set. Use `all_requests {}` to abort every
+Abort applies to active requests; use `ReleaseEncodedMedia` for completed
+encoder outputs. Exactly one abort target must be set. Use `all_requests {}` to abort every
 request; omitting the target returns gRPC `INVALID_ARGUMENT`. An unknown request
 or KV session target returns gRPC `NOT_FOUND`; an engine that does not support
 abort returns gRPC `UNIMPLEMENTED`. `ALREADY_FINISHED` remains a successful
@@ -869,7 +1092,7 @@ forwarded through an attached frontend. Check identity before checking whether
 the engine is already stopping.
 
 `ACCEPTED` means the lifecycle owner has committed to shutdown and closed new
-inference and inference-probe admission. Existing admitted work follows the
+inference and inference-probe admission. Existing admitted work, including encoding, follows the
 implementation's documented shutdown grace policy. `ALREADY_STOPPING` is a
 successful repeat for the same lifetime and does not start cleanup again.
 The response echoes that lifetime's ID. Neither status promises that cleanup

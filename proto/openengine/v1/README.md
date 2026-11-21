@@ -16,6 +16,8 @@ The current contract is [OpenEngine v0.1.0](https://github.com/ai-dynamo/openeng
 | [`server.proto`](server.proto) | Server identity, deployment capacity, engine roles, parallelism, and load |
 | [`model.proto`](model.proto) | Model metadata and inference capabilities |
 | [`generation.proto`](generation.proto) | Generation inputs, requests, parameters, streamed events, and usage |
+| [`encoding.proto`](encoding.proto) | Media encoding requests, responses, and output release |
+| [`encoded_media.proto`](encoded_media.proto) | Engine-owned encoded-media references |
 | [`lora.proto`](lora.proto) | LoRA adapter lifecycle |
 | [`kv.proto`](kv.proto) | KV sessions, connector discovery, and cache events |
 | [`lifecycle.proto`](lifecycle.proto) | Health and abort operations |
