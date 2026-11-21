@@ -23,7 +23,11 @@ import "google/protobuf/struct.proto";
 service Inference {
   // Core inference path.
   rpc Generate(GenerateRequest) returns (stream GenerateResponse);
+}
+
+service Encoder {
   rpc Encode(EncodeRequest) returns (EncodeResponse);
+  rpc ReleaseEncodedMedia(ReleaseEncodedMediaRequest) returns (ReleaseEncodedMediaResponse);
 }
 
 service Control {
@@ -35,7 +39,6 @@ service Control {
   // Health and lifecycle.
   rpc Health(HealthRequest) returns (HealthResponse);
   rpc Abort(AbortRequest) returns (AbortResponse);
-  rpc ReleaseEncodedMedia(ReleaseEncodedMediaRequest) returns (ReleaseEncodedMediaResponse);
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 
   // LoRA lifecycle.
@@ -49,9 +52,12 @@ service Control {
 }
 ```
 
-`Inference` is the inference data plane. `Control` is the discovery, lifecycle,
-and coordination control plane. Implementations may expose both services on the
-same listener, or isolate them on separate listeners and access policies without
+`Inference` is the generation data plane. `Encoder` is an optional service for
+producing and releasing encoded-media outputs. Engines that do not implement
+media encoding need not register it. `Control` is the discovery, lifecycle, and
+coordination control plane; its existing `Abort` RPC also cancels active Encode
+requests. Implementations may expose these services on the same listener, or
+isolate them on separate listeners and access policies without
 changing the protocol contract.
 
 ### gRPC request metadata
@@ -81,7 +87,7 @@ task advertise priority support.
 
 All RPCs accept `traceparent` and `tracestate` and propagate them on downstream
 RPCs according to [W3C Trace Context](https://www.w3.org/TR/trace-context/).
-Routing and admission keys apply only to `Inference` RPCs.
+Routing and admission keys apply to `Inference.Generate` and `Encoder.Encode`.
 
 ---
 
@@ -977,7 +983,7 @@ server closes the stream with gRPC `OK`.
 
 ### Standard gRPC health
 
-OpenEngine servers expose the standard `grpc.health.v1.Health` service on the same gRPC endpoint as Inference and Control. Use `Health.Check` for point-in-time probes and `Health.Watch` for an initial status followed by changes. These RPCs are defined by the standard gRPC health protocol; they do not use the OpenEngine `HealthRequest` or `HealthResponse` messages below.
+OpenEngine servers expose the standard `grpc.health.v1.Health` service on the same gRPC endpoint as the OpenEngine services. Use `Health.Check` for point-in-time probes and `Health.Watch` for an initial status followed by changes. These RPCs are defined by the standard gRPC health protocol; they do not use the OpenEngine `HealthRequest` or `HealthResponse` messages below.
 
 The named `liveness` service reports whether the engine can continue operating or recover without a process restart. The named `readiness` service reports whether the model and all required workers can accept and process new inference requests. The empty service name reports the same status as `readiness`. Implementations expose these names consistently to clients and probes.
 
