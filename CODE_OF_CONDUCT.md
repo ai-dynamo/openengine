@@ -1,3 +1,7 @@
+<!--
+SPDX-FileCopyrightText: Contributor Covenant contributors
+SPDX-License-Identifier: CC-BY-4.0
+-->
 
 # Contributor Covenant Code of Conduct
 
