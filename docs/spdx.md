@@ -29,7 +29,7 @@ The canonical `LICENSE` and `LICENSES/CC-BY-4.0.txt` are standard license texts 
 
 ## Third-party attribution
 
-`CODE_OF_CONDUCT.md` retains its Contributor Covenant attribution and uses `SPDX-FileCopyrightText: Contributor Covenant contributors` and `SPDX-License-Identifier: CC-BY-4.0`. Its source identifies Contributor Covenant version 2.1. The [upstream license before the version 3 site redesign](https://github.com/ContributorCovenant/contributor_covenant/blob/91532d80ea5f39b6685aff4892bc6854bf2f6d6f/LICENSE.md) is CC-BY-4.0; the license text is included under `LICENSES/`. This document is not relabeled as NVIDIA-authored Apache-2.0 source. New third-party files need their applicable attribution and an explicit checker rule.
+`CODE_OF_CONDUCT.md` retains its Contributor Covenant attribution and uses `SPDX-FileCopyrightText: Contributor Covenant contributors` and `SPDX-License-Identifier: CC-BY-4.0`. Its source identifies Contributor Covenant version 2.1. The [upstream license before the version 3 site redesign](https://raw.githubusercontent.com/ContributorCovenant/contributor_covenant/91532d80ea5f39b6685aff4892bc6854bf2f6d6f/LICENSE.md) is CC-BY-4.0; the license text is included under `LICENSES/`. This document is not relabeled as NVIDIA-authored Apache-2.0 source. New third-party files need their applicable attribution and an explicit checker rule.
 
 ## Run the check
 
@@ -44,4 +44,4 @@ The scan enumerates `git ls-files`, including hidden files and sidecars. Stage n
 
 The `SPDX headers` GitHub Actions job runs for every pull request, pushes to `main`, and merge groups, without path filters. It is intended to be a required GitHub Actions check on `main`, alongside DCO.
 
-The workflow, checker, and initial tests are adapted from [ai-dynamo/governance at 0f5dbdb](https://github.com/ai-dynamo/governance/tree/0f5dbdb). OpenEngine adds Rust/Protobuf/shell support, existing Markdown block support, reviewed sidecars, and the Contributor Covenant attribution rule. This check validates source attribution; it does not replace dependency license review or release approval.
+The workflow, checker, and initial tests are adapted from `ai-dynamo/governance` at commit `0f5dbdbf1c5f49a7a4265ab15a822301628e5bbd`. OpenEngine adds Rust/Protobuf/shell support, existing Markdown block support, reviewed sidecars, and the Contributor Covenant attribution rule. This check validates source attribution; it does not replace dependency license review or release approval.

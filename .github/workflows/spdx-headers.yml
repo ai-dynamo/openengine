@@ -29,6 +29,7 @@ jobs:
         with:
           python-version: "3.12"
           activate-environment: true
+          enable-cache: false
 
       - name: Test the SPDX checker
         run: python -m unittest discover -s tests -p test_spdx_headers.py
