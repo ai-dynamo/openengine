@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[licenses]
+confidence-threshold = 0.8
+allow = ["MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Zlib", "Apache-2.0"]
+
+# unicode-ident requires Unicode-3.0 alongside MIT or Apache-2.0.
+# Review this exception again when upgrading the dependency.
+[[licenses.exceptions]]
+name = "unicode-ident"
+version = "=1.0.24"
+allow = ["Unicode-3.0"]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
