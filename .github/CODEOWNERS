@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 # CODEOWNERS for ai-dynamo/openengine
 #
 # Any one of the maintainers below must approve a pull request before it can

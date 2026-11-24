@@ -53,7 +53,8 @@ SPDX-License-Identifier: Apache-2.0
 OpenEngine defines a runtime boundary around an inference engine. An engine
 exposes the `openengine.v1.Inference` and `openengine.v1.Control` services.
 Applications can call the inference service directly, while distributed
-frameworks use both services to coordinate engine workers.
+frameworks use both services to coordinate engine workers. Engines that produce
+encoded-media outputs also expose the optional `openengine.v1.Encoder` service.
 
 Both paths use generated clients and the same typed contract without sharing a
 process, Python environment, dependency tree, or private control API.
@@ -102,17 +103,17 @@ The canonical schema is organized by domain under
 [`proto/openengine/v1/`](proto/openengine/v1/), with the service definition in
 [`openengine.proto`](proto/openengine/v1/openengine.proto).
 
-| Area                  | What the contract provides                                                                                        |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Portable generation   | Text or token input, sampling, stopping, transport priorities, multiple sequences, and deterministic seeds        |
-| Structured output     | JSON Schema, JSON object, regex, EBNF grammar, structural tags, and fixed choices                                 |
-| Token information     | Prompt and output logprobs, ranks, candidate-token selection, per-token records, and streamed text deltas         |
-| Discovery             | Server identity, deployment capacity, model limits, topology, parsers, and inference capabilities                 |
-| Lifecycle             | Health checks, targeted or global abort, and identity-fenced engine shutdown                                      |
-| Disaggregated serving | Prefill/decode roles, decode-context parallel topology, KV handoff, connector discovery, and cache controls       |
-| KV-aware routing      | Typed KV event streams plus discovery of engine-native event sources                                              |
-| Model extensions      | Multimodal inputs and LoRA adapter lifecycle                                                                      |
-| Observability         | Point-in-time load snapshots                                                                                      |
+| Area                  | What the contract provides                                                                                                              |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Portable generation   | Text or token input, sampling, stopping, transport priorities, multiple sequences, and deterministic seeds                              |
+| Structured output     | JSON Schema, JSON object, regex, EBNF grammar, structural tags, and fixed choices                                                       |
+| Token information     | Prompt and output logprobs, ranks, candidate-token selection, per-token records, and streamed text deltas                               |
+| Discovery             | Server identity, deployment capacity, model limits, topology, parsers, and inference capabilities                                       |
+| Lifecycle             | Health checks, targeted or global abort, and identity-fenced engine shutdown                                                            |
+| Disaggregated serving | Encoder and prefill/decode roles, media-output references, KV handoff, decode-context topology, connector discovery, and cache controls |
+| KV-aware routing      | Typed KV event streams plus discovery of engine-native event sources                                                                    |
+| Model extensions      | Multimodal inputs and LoRA adapter lifecycle                                                                                            |
+| Observability         | Point-in-time load snapshots                                                                                                            |
 
 See the [human-readable API reference](docs/api.md) for field-level behavior and
 validation rules, including [standard gRPC health checks and watches](docs/api.md#standard-grpc-health).
