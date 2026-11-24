@@ -93,6 +93,7 @@ Subsequent releases use crates.io Trusted Publishing and do not require a stored
    ./scripts/check-generated.sh
    ./scripts/check-schema-release.sh --verify-registry
    cargo check --locked --workspace --all-targets
+   cargo test --locked --package openengine
    cargo clippy --locked --workspace --all-targets -- -D warnings
    cargo doc --locked --no-deps --package openengine
    cargo package --locked --package openengine

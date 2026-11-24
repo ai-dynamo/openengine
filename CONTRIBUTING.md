@@ -46,6 +46,7 @@ The Rust crate uses the Git commit recorded in `packages/rust/openengine/schema-
 ./scripts/check-schema-release.sh
 
 cargo check --locked --workspace --all-targets
+cargo test --locked --package openengine
 cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo doc --locked --no-deps --package openengine
 cargo package --locked --package openengine
