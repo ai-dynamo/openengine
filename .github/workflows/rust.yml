@@ -49,6 +49,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
@@ -56,9 +58,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc
-        with:
-          toolchain: stable
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
 
       - name: Check schema release metadata
         run: ./scripts/check-schema-release.sh
@@ -75,14 +75,14 @@ jobs:
       fail-fast: false
       matrix:
         toolchain: ["1.88.0", "stable"]
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc
-        with:
-          toolchain: ${{ matrix.toolchain }}
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
 
       - name: Check workspace
         run: cargo check --locked --workspace --all-targets
@@ -92,15 +92,14 @@ jobs:
     needs: changes
     if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: "1.98.1" # Match the crate release workflow.
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc
-        with:
-          toolchain: "1.98.1" # Match the crate release workflow.
-          components: clippy,rustfmt
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update --component clippy,rustfmt
 
       - name: Check formatting
         run: cargo fmt --all --check
