@@ -1,0 +1,141 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+name: Rust
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect Rust changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+    steps:
+      - name: Check out repository for push comparison
+        if: github.event_name == 'push'
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+
+      - name: Check changed paths
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            rust:
+              - 'packages/rust/**'
+              - 'tools/rust-codegen/**'
+              - 'scripts/check-generated.sh'
+              - 'scripts/check-release-version.sh'
+              - 'scripts/check-schema-release.sh'
+              - 'scripts/generate-rust.sh'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - '.gitattributes'
+              - '.github/workflows/rust.yml'
+              - '.github/workflows/rust-release.yml'
+
+  generated:
+    name: Generated bindings
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Rust
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
+
+      - name: Check schema release metadata
+        run: ./scripts/check-schema-release.sh
+
+      - name: Check generated bindings
+        run: ./scripts/check-generated.sh
+
+  check:
+    name: Rust ${{ matrix.toolchain }}
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: ["1.88.0", "stable"]
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+
+      - name: Set up Rust
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
+
+      - name: Check workspace
+        run: cargo check --locked --workspace --all-targets
+
+  quality:
+    name: Rust quality
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: "1.98.1" # Match the crate release workflow.
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+
+      - name: Set up Rust
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update --component clippy,rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Run Clippy
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+
+      - name: Test the crate
+        run: cargo test --locked --package openengine
+
+      - name: Build documentation
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: cargo doc --locked --no-deps --package openengine
+
+      - name: Build publishable crate
+        run: cargo package --locked --package openengine
+
+      - name: List packaged files
+        run: cargo package --locked --package openengine --list
+
+  rust-ci:
+    name: Rust CI
+    needs: [changes, generated, check, quality]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Rust job results
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          jq -e '
+            .changes.result == "success" and
+            (if .changes.outputs.rust == "true" then
+               all(.generated, .check, .quality; .result == "success")
+             elif .changes.outputs.rust == "false" then
+               all(.generated, .check, .quality; .result == "skipped")
+             else false end)
+          ' <<< "$NEEDS"

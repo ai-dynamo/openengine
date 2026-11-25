@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Keep the published crate byte-identical across Git checkout settings.
+/packages/rust/openengine/** text=auto eol=lf
+/packages/rust/openengine/**/*.bin binary
