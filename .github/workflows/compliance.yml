@@ -52,18 +52,7 @@ jobs:
       - name: Detect Rust workspace
         id: rust
         shell: bash
-        run: |
-          if [[ -f Cargo.toml ]]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            rust_files=$(git ls-files -- 'Cargo.lock' '**/Cargo.toml' '**/Cargo.lock')
-            if [[ -n "$rust_files" ]]; then
-              echo "::error::Rust files exist but the workspace Cargo.toml is missing"
-              exit 1
-            fi
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "No Rust workspace is present at this commit." >> "$GITHUB_STEP_SUMMARY"
-          fi
+        run: bash scripts/detect-rust-workspace.sh
 
       - name: Set up Rust
         if: steps.rust.outputs.present == 'true'
@@ -73,6 +62,34 @@ jobs:
         if: steps.rust.outputs.present == 'true'
         run: cargo install --locked cargo-deny --version 0.19.4
 
-      - name: Check dependency licenses, advisories, bans, and sources
+      - name: Check dependency licenses, bans, and sources
         if: steps.rust.outputs.present == 'true'
-        run: cargo deny --locked --all-features check licenses advisories bans sources
+        run: cargo deny --locked --all-features check licenses bans sources
+
+  cargo_audit:
+    name: Rust CVE audit
+    runs-on: ubuntu-24.04
+    env:
+      RUSTUP_TOOLCHAIN: "1.98.1"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Detect Rust workspace
+        id: rust
+        shell: bash
+        run: bash scripts/detect-rust-workspace.sh
+
+      - name: Set up Rust
+        if: steps.rust.outputs.present == 'true'
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
+
+      - name: Install cargo-audit
+        if: steps.rust.outputs.present == 'true'
+        run: cargo install --locked cargo-audit --version 0.23.0 --no-default-features
+
+      - name: Scan for High and Critical Rust vulnerabilities
+        if: steps.rust.outputs.present == 'true'
+        run: cargo audit --file Cargo.lock
