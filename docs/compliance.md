@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Compliance checks
 
-The `Compliance` workflow contains two independently required jobs: `SPDX headers` checks tracked-file attribution, and `Cargo deny` checks the full Rust workspace dependency graph, including transitive dependencies and the unpublished generator. Both jobs report on every PR, pushes to `main`, and merge groups; there are no path filters. Branch protection requires these check names from the GitHub Actions app, alongside the existing DCO requirement. The workflow name is descriptive; the job check names are the merge requirements.
+The `Compliance` workflow contains two independently required jobs: `SPDX headers` checks tracked-file attribution, and `Cargo deny` checks the full Rust workspace dependency graph, including transitive dependencies and the unpublished generator. Both jobs report on every PR, pushes to `main` and `release/*` branches, and merge groups; there are no path filters. Branch protection requires these check names from the GitHub Actions app, alongside the existing DCO requirement. The workflow name is descriptive; the job check names are the merge requirements.
 
 ## Dependency policy
 
