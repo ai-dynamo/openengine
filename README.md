@@ -172,7 +172,7 @@ See [`RELEASING.md`](RELEASING.md) for BSR publication.
 
 ## Rust crate
 
-The `openengine` crate provides generated Prost messages and Tonic client/server bindings for `openengine.v1`. After the first crates.io publication, add it to your project with Cargo.
+The `openengine` crate provides generated Prost messages and Tonic client/server bindings for `openengine.v1`. Once version 0.1.0 is available on crates.io, add it to your project with Cargo.
 
 ```bash
 cargo add openengine
@@ -183,6 +183,8 @@ use openengine::v1::{control_client::ControlClient, inference_client::InferenceC
 ```
 
 The crate contains checked-in generated source and a complete protobuf descriptor set. Consumer builds do not run Buf or `protoc`. The crate also exposes the schema revision and immutable BSR commit corresponding to its bindings.
+
+[Rust crate release notes](CHANGELOG.md)
 
 ## Project status
 

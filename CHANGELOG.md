@@ -7,11 +7,9 @@ SPDX-License-Identifier: Apache-2.0
 
 All notable changes to the generated OpenEngine Rust crate are documented here.
 
-## [Unreleased]
+## 0.1.0
 
 ### Added
 
 - Generated `openengine` Prost messages and Tonic client/server bindings.
 - Reproducible Rust code generation, package CI, and tag-driven crates.io releases.
-
-[Unreleased]: https://github.com/ai-dynamo/openengine/commits/main
