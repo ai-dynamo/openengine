@@ -42,6 +42,6 @@ python3 scripts/check_spdx_headers.py
 
 The scan enumerates `git ls-files`, including hidden files and sidecars. Stage new files before running it locally. Build output and untracked files are outside the scan; inspect the packaged crate separately when changing distribution contents.
 
-The `SPDX headers` GitHub Actions job runs for every pull request, pushes to `main`, and merge groups, without path filters. It is intended to be a required GitHub Actions check on `main`, alongside DCO.
+The `SPDX headers` job in the `Compliance` GitHub Actions workflow runs for every pull request, pushes to `main` and `release/*` branches, and merge groups, without path filters. It is a required GitHub Actions check on `main`, alongside DCO and `Cargo deny`. See [dependency compliance](compliance.md) for the Cargo policy.
 
 The workflow, checker, and initial tests are adapted from `ai-dynamo/governance` at commit `0f5dbdbf1c5f49a7a4265ab15a822301628e5bbd`. OpenEngine adds Rust/Protobuf/shell support, existing Markdown block support, reviewed sidecars, and the Contributor Covenant attribution rule. This check validates source attribution; it does not replace dependency license review or release approval.

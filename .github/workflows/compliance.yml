@@ -1,0 +1,95 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+name: Compliance
+
+on:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - "release/*"
+
+permissions:
+  contents: read
+
+jobs:
+  spdx_headers:
+    name: SPDX headers
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          python-version: "3.12"
+          activate-environment: true
+          enable-cache: false
+
+      - name: Test the SPDX checker
+        run: python -m unittest discover -s tests -p test_spdx_headers.py
+
+      - name: Validate tracked files
+        run: python scripts/check_spdx_headers.py
+
+  cargo_deny:
+    name: Cargo deny
+    runs-on: ubuntu-24.04
+    env:
+      RUSTUP_TOOLCHAIN: "1.98.1"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Detect Rust workspace
+        id: rust
+        shell: bash
+        run: bash scripts/detect-rust-workspace.sh
+
+      - name: Set up Rust
+        if: steps.rust.outputs.present == 'true'
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
+
+      - name: Install cargo-deny
+        if: steps.rust.outputs.present == 'true'
+        run: cargo install --locked cargo-deny --version 0.19.4
+
+      - name: Check dependency licenses, bans, and sources
+        if: steps.rust.outputs.present == 'true'
+        run: cargo deny --locked --all-features check licenses bans sources
+
+  cargo_audit:
+    name: Rust CVE audit
+    runs-on: ubuntu-24.04
+    env:
+      RUSTUP_TOOLCHAIN: "1.98.1"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Detect Rust workspace
+        id: rust
+        shell: bash
+        run: bash scripts/detect-rust-workspace.sh
+
+      - name: Set up Rust
+        if: steps.rust.outputs.present == 'true'
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
+
+      - name: Install cargo-audit
+        if: steps.rust.outputs.present == 'true'
+        run: cargo install --locked cargo-audit --version 0.23.0 --no-default-features
+
+      - name: Scan for High and Critical Rust vulnerabilities
+        if: steps.rust.outputs.present == 'true'
+        run: cargo audit --file Cargo.lock
